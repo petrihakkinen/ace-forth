@@ -1,0 +1,35 @@
+( This is a comment )
+
+123 VARIABLE FOO
+-12345 VARIABLE BAR
+54 CONSTANT K
+
+: HELLO ." WORLD" CR ;
+
+: HELLO2 HELLO ;
+
+: LIT -12345 . ;
+
+: LIT0 0 . ;
+
+: TEST CLS 32 24 1 PLOT CR ;
+
+: TEST-IF 0 IF ." A" ELSE ." B" THEN ;
+
+: TEST-UNTIL BEGIN ." *" 0 UNTIL ;
+
+: TEST-UNTIL2 5 BEGIN ." *" 1- DUP 0= UNTIL ;
+
+: TEST-LOOP 3 0 DO I . LOOP ;
+
+: TEST+LOOP -1 5 DO I . -1 +LOOP ;
+
+: TEST-ASCII ASCII * EMIT ;
+
+CREATE TEMP 10 ALLOT ( Allocate bytes )
+
+CREATE TABLE 1 C, 2 C, 4 C, 8 C, 16 C, 32 C, 64 C, 128 C,
+
+: DUMP-TEMP 10 0 DO TEMP I + C@ . LOOP CR ;
+
+: DUMP-TABLE 8 0 DO TABLE I + C@ . LOOP CR ;
