@@ -119,6 +119,9 @@ local rom_words = {
 	CURRENT = 0x0480, CONTEXT = 0x0473, HERE = 0x0460, ABORT = 0x00ab, QUIT = 0x0099
 }
 
+-- compilation addresses of user defined words
+local compilation_addresses = {}
+
 function printf(...)
 	print(string.format(...))
 end
@@ -228,6 +231,11 @@ function next_number()
 	return n
 end
 
+function read_short(address, x)
+	comp_assert(address < 65536 - 1, "address out of range")
+	return (mem[address] or 0) | ((mem[address + 1] or 0) << 8)
+end
+
 function write_short(address, x)
 	comp_assert(address < 65536 - 1, "address out of range")
 	if x < 0 then x = x + 65536 end
@@ -264,7 +272,7 @@ function emit_literal(n)
 		emit_short(PUSH_WORD)
 		emit_short(n)
 	else
-		errof("literal out of range")
+		comp_error("literal out of range")
 	end
 end
 
@@ -337,6 +345,9 @@ function create_word(code_field)
 	local compilation_addr = here()
 	emit_short(code_field)	-- code field
 
+	-- remember compilation addresses for FIND
+	compilation_addresses[name] = compilation_addr
+
 	-- add word to compile dictionary so that other words can refer to it when compiling
 	compile_dict[name] = function()
 		emit_short(compilation_addr)
@@ -387,6 +398,12 @@ interpret_dict = {
 		for i = 1, count do
 			emit_byte(0)
 		end
+	end,
+	FIND = function()
+		local name = next_word()
+		local addr = compilation_addresses[name]
+		if addr == nil then comp_error("undefined word %s", name) end
+		push(addr)
 	end,
 	[','] = function()
 		emit_short(pop() & 0xffff)
@@ -459,17 +476,29 @@ interpret_dict = {
 		if #char ~= 1 then comp_error("invalid symbol following ASCII") end
 		push(char:byte(1))
 	end,
-	['!'] = function()
+	['C!'] = function()
 		local n, addr = pop2()
 		if n < 0 then n = n + 256 end
 		comp_assert(addr >= 0 and addr < 65536, "invalid address")
 		comp_assert(n >= 0 and n < 256, "value out of range")
 		mem[addr] = n
 	end,
-	['@'] = function()
+	['C@'] = function()
 		local addr = pop()
 		comp_assert(addr >= 0 and addr < 65536, "invalid address")
 		push(mem[addr] or 0)
+	end,
+	['!'] = function()
+		local n, addr = pop2()
+		if n < 0 then n = n + 256 end
+		comp_assert(addr >= 0 and addr < 65536, "invalid address")
+		comp_assert(n >= 0 and n < 65536, "value out of range")
+		write_short(addr, n)
+	end,
+	['@'] = function()
+		local addr = pop()
+		comp_assert(addr >= 0 and addr < 65536, "invalid address")
+		push(read_short(addr) or 0)
 	end,
 	BASE = function() push(0) end,
 	HEX = function() mem[0] = 16 end,
