@@ -26,3 +26,24 @@ ASCII * EMIT CR
 	[ ." Compiling Test " CR 123 ]
 	CR
 	[ ." Popping value " . CR ] ;
+
+( Test [IF] )
+
+1 [IF]
+	." This should be printed" CR
+[THEN]
+
+1 [IF]
+	." This should be printed" CR
+[ELSE]
+	." This should NOT be printed" CR
+[THEN]
+
+0 [IF]
+	." This should NOT be printed" CR
+[ELSE]
+	." This should be printed" CR
+[THEN]
+
+[DEFINED] CR [IF] ." CR is defined" CR [THEN]
+[DEFINED] ABC NOT [IF] ." ABC is not defined" CR [THEN]

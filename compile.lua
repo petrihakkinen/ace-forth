@@ -38,28 +38,40 @@ local v_voclink = 0x3C4F
 local args = {...}
 
 local input_files = {}
-local output_file = args[#args]
+local output_file
 local opts = { main_word = "MAIN" }
 
-for i = 1, #args - 1 do
-	local arg = args[i]
-	if string.match(arg, "^%-%-") then
-		if arg == "--no-headers" then
-			opts.no_headers = true
-		elseif string.match(arg, "^%-%-main=") then
-			opts.main_word = string.upper(string.match(arg, "^%-%-main=(.*)"))
+do
+	local i = 1
+	while i <= #args do
+		local arg = args[i]
+		if string.match(arg, "^%-") then
+			if arg == "--no-headers" then
+				opts.no_headers = true
+			elseif string.match(arg, "^%-%-main=") then
+				opts.main_word = string.upper(string.match(arg, "^%-%-main=(.*)"))
+			elseif arg == "-o" then
+				output_file = args[i + 1]
+				i = i + 1
+				if output_file == nil then
+					print("No output file!")
+					os.exit(-1)
+				end
+			else
+				print("Invalid option: " .. arg)
+				os.exit(-1)
+			end
 		else
-			print("Invalid option: " .. arg)
-			os.exit(-1)
+			input_files[#input_files + 1] = arg
 		end
-	else
-		input_files[#input_files + 1] = arg
+		i = i + 1
 	end
 end
 
-if #input_files == 0 or output_file == nil then
-	print("Usage: compile.lua [options] <inputfile1> <inputfile2> ... outputfile")
+if #input_files == 0 then
+	print("Usage: compile.lua [options] <inputfile1> <inputfile2> ...")
 	print("\nOptions:")
+	print("  -o <filename>   Sets output filename")
 	print("  --no-headers    Eliminate word headers, except for main word")
 	print("  --main=<name>   Sets name of main executable word (default 'MAIN')")
 	os.exit(-1)
@@ -111,14 +123,14 @@ function printf(...)
 	print(string.format(...))
 end
 
-function errorf(...)
+function comp_error(...)
 	printf("%s:%d: %s", input_file, cur_line, string.format(...))
 	os.exit(-1)
 end
 
-function assert(expr, message)
+function comp_assert(expr, message)
 	if not expr then
-		errorf("%s", message)
+		comp_error("%s", message)
 	end
 end
 
@@ -132,7 +144,7 @@ end
 
 function pop()
 	local v = stack[#stack]
-	assert(v, "compiler stack underflow")
+	comp_assert(v, "compiler stack underflow")
 	stack[#stack] = nil
 	return v
 end
@@ -145,12 +157,12 @@ end
 
 function peek(idx)
 	local v = stack[#stack + idx + 1]
-	assert(v, "compiler stack underflow")
+	comp_assert(v, "compiler stack underflow")
 	return v
 end
 
 function remove(idx)
-	assert(stack[#stack + idx + 1], "compiler stack underflow")
+	comp_assert(stack[#stack + idx + 1], "compiler stack underflow")
 	table.remove(stack, #stack + idx + 1)
 end
 
@@ -173,7 +185,7 @@ function next_symbol(delimiters)
 	delimiters = delimiters or " \n\t"
 
 	-- this is shit
-	assert(#delimiters <= 3)
+	comp_assert(#delimiters <= 3)
 	local delimiter1 = delimiters:sub(1, 1)
 	local delimiter2 = delimiters:sub(2, 2)
 	local delimiter3 = delimiters:sub(3, 3)
@@ -201,23 +213,30 @@ function next_symbol(delimiters)
 	end
 end
 
+function next_word(allow_eof)
+	local word = next_symbol()
+	if word == nil and not allow_eof then errof("unexpected end of file") end
+	if word then word = string.upper(word) end
+	return word
+end
+
 function next_number()
 	local sym = next_symbol()
-	if sym == nil then errorf("unexpected end of file") end
+	if sym == nil then comp_error("unexpected end of file") end
 	local n = parse_number(sym)
-	if n == nil then errorf("expected number, got '%s'", sym) end
+	if n == nil then comp_error("expected number, got '%s'", sym) end
 	return n
 end
 
 function write_short(address, x)
-	assert(address < 65536 - 1, "address out of range")
+	comp_assert(address < 65536 - 1, "address out of range")
 	if x < 0 then x = x + 65536 end
 	mem[address] = x & 0xff
 	mem[address + 1] = x >> 8
 end
 
 function emit_byte(x)
-	assert(output_pos < 65536, "out of space")
+	comp_assert(output_pos < 65536, "out of space")
 	mem[output_pos] = x
 	output_pos = output_pos + 1
 end
@@ -262,7 +281,7 @@ end
 -- Returns string representation of a number in current numeric base.
 function format_number(n)
 	local base = mem[0]
-	assert(base >= 2 and base <= 36, "invalid numeric base")
+	comp_assert(base >= 2 and base <= 36, "invalid numeric base")
 
 	local digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	local result = ""
@@ -279,7 +298,7 @@ end
 -- Parses number from a string using current numeric base.
 function parse_number(str)
 	local base = mem[0]
-	assert(base >= 2 and base <= 36, "invalid numeric base")
+	comp_assert(base >= 2 and base <= 36, "invalid numeric base")
 	return tonumber(str, base)
 end
 
@@ -288,7 +307,7 @@ end
 -- This means that the last word will have zero in the word length field. This is how the ROM code works too
 -- (and its documented in Jupiter Ace Forth Programming, page 121).
 function create_word(code_field)
-	local name = string.upper(next_symbol())
+	local name = next_word()
 
 	local skip_header = false
 	if opts.no_headers and name ~= opts.main_word then skip_header = true end
@@ -342,7 +361,7 @@ interpret_dict = {
 	BYTE = function()	-- byte-sized variable
 		create_word(DO_PARAM)
 		local value = pop()
-		assert(value >= 0 and value < 256, "byte variable out of range")
+		comp_assert(value >= 0 and value < 256, "byte variable out of range")
 		emit_byte(value)
 	end,
 	VARIABLE = function()
@@ -350,7 +369,7 @@ interpret_dict = {
 		emit_short(pop())	-- write variable value to dictionary
 	end,
 	CONST = function()
-		local name = next_symbol()
+		local name = next_word()
 		local value = pop()
 
 		-- add compile time word which emits the constant as literal
@@ -393,7 +412,7 @@ interpret_dict = {
 		end
 	end,
 	[']'] = function()
-		assert(inside_colon_definition, "] without matching [")
+		comp_assert(inside_colon_definition, "] without matching [")
 		compile_mode = true
 	end,
 	['."'] = function()
@@ -426,6 +445,7 @@ interpret_dict = {
 	AND = function() local a, b = pop2(); push(a & b) end,
 	OR = function() local a, b = pop2(); push(a | b) end,
 	XOR = function() local a, b = pop2(); push(a ~ b) end,
+	NOT = function() push_bool(pop() == 0) end,
 	ABS = function() push(math.abs(pop())) end,
 	MIN = function() local a, b = pop2(); push(math.min(a, b)) end,
 	MAX = function() local a, b = pop2(); push(math.max(a, b)) end,
@@ -436,30 +456,64 @@ interpret_dict = {
 	HERE = function() push(here()) end,
 	ASCII = function()
 		local char = next_symbol()
-		if #char ~= 1 then errorf("invalid symbol following ASCII") end
+		if #char ~= 1 then comp_error("invalid symbol following ASCII") end
 		push(char:byte(1))
 	end,
 	['!'] = function()
 		local n, addr = pop2()
 		if n < 0 then n = n + 256 end
-		assert(addr >= 0 and addr < 65536, "invalid address")
-		assert(n >= 0 and n < 256, "value out of range")
+		comp_assert(addr >= 0 and addr < 65536, "invalid address")
+		comp_assert(n >= 0 and n < 256, "value out of range")
 		mem[addr] = n
 	end,
 	['@'] = function()
 		local addr = pop()
-		assert(addr >= 0 and addr < 65536, "invalid address")
+		comp_assert(addr >= 0 and addr < 65536, "invalid address")
 		push(mem[addr] or 0)
 	end,
 	BASE = function() push(0) end,
 	HEX = function() mem[0] = 16 end,
 	DECIMAL = function() mem[0] = 10 end,
 	LIT = function() emit_literal(pop()) end,
+	['[IF]'] = function()
+		if pop() == 0 then
+			-- skip until next [ELSE] or [THEN]
+			local depth = 0
+			while true do
+				local sym = next_word()
+				if sym == '[IF]' then
+					depth = depth + 1
+				elseif sym == '[ELSE]' and depth == 0 then
+					break
+				elseif sym == '[THEN]' then
+					if depth == 0 then break end
+					depth = depth - 1
+				end
+			end
+		end
+	end,
+	['[ELSE]'] = function()
+		-- skip until matching [THEN]
+		local depth = 0
+		while true do
+			local sym = next_word()
+			if sym == '[IF]' then
+				depth = depth + 1
+			elseif sym == '[THEN]' then
+				if depth == 0 then break end
+				depth = depth - 1
+			end
+		end
+	end,
+	['[THEN]'] = function() end,
+	['[DEFINED]'] = function()
+		push(compile_dict[next_word()] and 255 or 0)
+	end,
 }
 
 compile_dict = {
 	[':'] = function()
-		errorf("invalid :")
+		comp_error("invalid :")
 	end,
 	[';'] = function()
 		emit_short(FORTH_END)
@@ -469,14 +523,12 @@ compile_dict = {
 		-- patch gotos
 		for patch_loc, label in pairs(gotos) do
 			local target_addr = labels[label]
-			if target_addr == nil then errorf("undefined label '%s'", label) end
+			if target_addr == nil then comp_error("undefined label '%s'", label) end
 			write_short(patch_loc, target_addr - patch_loc - 1)
 		end
 		labels = {}
 		gotos = {}
 	end,
-	['('] = interpret_dict['('],
-	['\\'] = interpret_dict['\\'],
 	['['] = function()
 		-- temporarily fall back to the interpreter
 		compile_mode = false
@@ -495,7 +547,7 @@ compile_dict = {
 		emit_short(0)	-- placeholder branch offset
 	end,
 	ELSE = function()
-		assert(pop() == 'if', "ELSE without matching IF")
+		comp_assert(pop() == 'if', "ELSE without matching IF")
 		local where = pop()
 		-- emit jump to THEN
 		emit_short(BRANCH)
@@ -507,7 +559,7 @@ compile_dict = {
 	end,
 	THEN = function()
 		-- patch branch offset for ?branch at IF
-		assert(pop() == 'if', "THEN without matching IF")
+		comp_assert(pop() == 'if', "THEN without matching IF")
 		local where = pop()
 		write_short(where, here() - where - 1)
 	end,
@@ -516,13 +568,13 @@ compile_dict = {
 		push('begin')
 	end,
 	UNTIL = function()
-		assert(pop() == 'begin', "UNTIL without matching BEGIN")
+		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = pop()
 		emit_short(CBRANCH)
 		emit_short(target - here() - 1)
 	end,
 	AGAIN = function()
-		assert(pop() == 'begin', "AGAIN without matching BEGIN")
+		comp_assert(pop() == 'begin', "AGAIN without matching BEGIN")
 		local target = pop()
 		emit_short(BRANCH)
 		emit_short(target - here() - 1)
@@ -533,19 +585,19 @@ compile_dict = {
 		push('do')
 	end,
 	LOOP = function()
-		assert(pop() == 'do', "LOOP without matching DO")
+		comp_assert(pop() == 'do', "LOOP without matching DO")
 		local target = pop()
 		emit_short(LOOP)
 		emit_short(target - here() - 1)		
 	end,
 	["+LOOP"] = function()
-		assert(pop() == 'do', "+LOOP without matching DO")
+		comp_assert(pop() == 'do', "+LOOP without matching DO")
 		local target = pop()
 		emit_short(PLUS_LOOP)
 		emit_short(target - here() - 1)		
 	end,
-	WHILE = function() errorf("WHILE not implemented") end,
-	REPEAT = function() errorf("REPEAT not implemented") end,
+	WHILE = function() comp_error("WHILE not implemented") end,
+	REPEAT = function() comp_error("REPEAT not implemented") end,
 	GOTO = function()
 		local label = next_symbol()
 		emit_short(BRANCH)
@@ -559,10 +611,16 @@ compile_dict = {
 	end,
 	ASCII = function()
 		local char = next_symbol()
-		if #char ~= 1 then errorf("invalid symbol following ASCII") end
+		if #char ~= 1 then comp_error("invalid symbol following ASCII") end
 		emit_literal(char:byte(1))
 	end,
 }
+
+local immediate_words = { "(", "\\", "[IF]", "[ELSE]", "[THEN]", "[DEFINED]" }
+
+for _, name in ipairs(immediate_words) do
+	compile_dict[name] = assert(interpret_dict[name])
+end
 
 -- insert built-in ROM words into compilation dict
 for name, addr in pairs(rom_words) do
@@ -591,9 +649,8 @@ for _, filename in ipairs(input_files) do
 
 	-- execute input
 	while true do
-		local sym = next_symbol()
+		local sym = next_word(true)
 		if sym == nil then break end
-		sym = string.upper(sym)
 		--printf("symbol [%s]", sym)
 
 		if compile_mode then
@@ -602,7 +659,7 @@ for _, filename in ipairs(input_files) do
 			if func == nil then
 				-- is it a number?
 				local n = parse_number(sym)
-				if n == nil then errorf("undefined word '%s'", sym) end
+				if n == nil then comp_error("undefined word '%s'", sym) end
 				emit_literal(n)
 			else
 				func()
@@ -613,7 +670,7 @@ for _, filename in ipairs(input_files) do
 			if func == nil then
 				-- is it a number?
 				local n = parse_number(sym)
-				if n == nil then errorf("undefined word '%s'", sym) end
+				if n == nil then comp_error("undefined word '%s'", sym) end
 				push(n)
 			else
 				func()
@@ -623,42 +680,44 @@ for _, filename in ipairs(input_files) do
 end
 
 -- write output
-local file = io.open(output_file, "wb")
+if output_file then
+	local file = io.open(output_file, "wb")
 
-function shortstr(x)
-	return string.char(x & 0xff) .. string.char(x >> 8)
-end
-
-function checksum(str)
-	local chk = 0
-	for i = 1, #str do
-		chk = chk ~ str:byte(i)	-- xor
+	local function shortstr(x)
+		return string.char(x & 0xff) .. string.char(x >> 8)
 	end
-	return chk & 0xff
-end
 
--- header
-local dict_data_size = here() - start_address
-local dict_data_end = here()
-local header = "\25\0\0dict      " ..
-	shortstr(dict_data_size) ..
-	shortstr(start_address) ..
-	shortstr(prev_word_link) ..
-	shortstr(v_current) ..
-	shortstr(v_context) ..
-	shortstr(v_voclink) ..
-	shortstr(dict_data_end)
-assert(#header == 27)
-file:write(header)
-file:write(string.char(checksum(header:sub(3))))
+	local function checksum(str)
+		local chk = 0
+		for i = 1, #str do
+			chk = chk ~ str:byte(i)	-- xor
+		end
+		return chk & 0xff
+	end
 
--- data
-file:write(shortstr(dict_data_size + 1))
-local chk = 0
-for addr = start_address, dict_data_end - 1 do
-	local byte = mem[addr]
-	file:write(string.char(byte))
-	chk = chk ~ byte
+	-- header
+	local dict_data_size = here() - start_address
+	local dict_data_end = here()
+	local header = "\25\0\0dict      " ..
+		shortstr(dict_data_size) ..
+		shortstr(start_address) ..
+		shortstr(prev_word_link) ..
+		shortstr(v_current) ..
+		shortstr(v_context) ..
+		shortstr(v_voclink) ..
+		shortstr(dict_data_end)
+	assert(#header == 27)
+	file:write(header)
+	file:write(string.char(checksum(header:sub(3))))
+
+	-- data
+	file:write(shortstr(dict_data_size + 1))
+	local chk = 0
+	for addr = start_address, dict_data_end - 1 do
+		local byte = mem[addr]
+		file:write(string.char(byte))
+		chk = chk ~ byte
+	end
+	file:write(string.char(chk & 0xff))
+	file:close()
 end
-file:write(string.char(chk & 0xff))
-file:close()
