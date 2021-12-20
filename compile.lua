@@ -83,6 +83,7 @@ local cur_pos							-- current position in input
 local cur_line							-- current line in input
 local compile_mode = false				-- interpret or compile mode?
 local inside_colon_definition = false	-- are we between : and ; ?
+local compile_bytes = false				-- are we between BYTES and ; ?
 local stack = {}						-- the compiler stack
 local mem = { [0] = 10 }				-- compiler memory
 local output_pos = start_address		-- current output position in the dictionary
@@ -374,6 +375,27 @@ interpret_dict = {
 		local value = pop()
 		comp_assert(value >= 0 and value < 256, "byte variable out of range")
 		emit_byte(value)
+	end,
+	BYTES = function()	-- emit bytes, terminated by ; symbol
+		push('bytes')
+		compile_bytes = true
+	end,
+	[';'] = function()
+		comp_assert(compile_bytes, "invalid use of ;")
+		-- find start of bytes block
+		local start
+		for i = #stack, 1, -1 do
+			if stack[i] == 'bytes' then
+				start = i
+				break
+			end
+		end
+		for i = start + 1, #stack do
+			emit_byte(stack[i])
+			stack[i] = nil
+		end 
+		stack[start] = nil
+		compile_bytes = false
 	end,
 	VARIABLE = function()
 		create_word(DO_PARAM)
