@@ -87,8 +87,10 @@ local compile_bytes = false				-- are we between BYTES and ; ?
 local stack = {}						-- the compiler stack
 local mem = { [0] = 10 }				-- compiler memory
 local output_pos = start_address		-- current output position in the dictionary
+local next_immediate_word = 1			-- next free address for compiled immediate words
 local labels = {}						-- label -> address for current word
 local gotos = {}						-- address to be patched -> label for current word
+local last_word							-- name of last user defined word
 
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
@@ -122,6 +124,9 @@ local rom_words = {
 
 -- compilation addresses of user defined words
 local compilation_addresses = {}
+
+-- inverse mapping of compilation addresses back to word names (for executing compiled code)
+local compilation_addr_to_name = {}
 
 function printf(...)
 	print(string.format(...))
@@ -357,14 +362,104 @@ function create_word(code_field)
 	return name
 end
 
+-- Execute user defined word at compile time.
+function execute(pc)
+	local function fetch_byte()
+		local x = mem[pc]
+		pc = pc + 1
+		return x
+	end
+
+	local function fetch_short()
+		local x = read_short(pc)
+		pc = pc + 2
+		return x
+	end
+
+	local function fetch_signed()
+		local x = fetch_short()
+		if x > 32767 then x = x - 65536 end
+		return x
+	end
+
+	while true do
+		local instr = fetch_short()
+		local name = compilation_addr_to_name[instr]
+		if name then
+			local func = interpret_dict[name]
+			if func == nil then
+				comp_error("could not determine address of %s when executing compiled code", name)
+			end
+			func()
+		elseif instr == FORTH_END then
+			break
+		elseif instr == PUSH_BYTE then
+			push(fetch_byte())
+		elseif instr == PUSH_WORD then
+			push(fetch_short())
+		elseif instr == PUSH_ZERO then
+			push(0)
+		elseif instr == CBRANCH then
+			local offset = fetch_signed() - 1
+			if pop() == 0 then
+				pc = pc + offset
+			end
+		elseif instr == BRANCH then
+			pc = pc + fetch_signed() - 1
+		elseif instr == DO then
+			comp_error("DO not implemented for execute")
+		elseif instr == LOOP then
+			comp_error("LOOP not implemented for execute")
+		elseif instr == PLUS_LOOP then
+			comp_error("+LOOP not implemented for execute")
+		elseif instr == PRINT then
+			local len = fetch_short()
+			for i = 1, len do
+				io.write(string.char(fetch_byte()))
+			end 
+		else
+			comp_error("unknown compilation address $%04x encountered when executing compiled code", instr)
+		end
+	end
+end
+
 interpret_dict = {
 	CREATE = function()
 		create_word(DO_PARAM)
 	end,
 	[':'] = function()
-		create_word(DO_COLON)
+		last_word = create_word(DO_COLON)
 		compile_mode = true
 		inside_colon_definition = true
+	end,
+	IMMEDIATE = function()
+		local name = last_word
+		comp_assert(name, "invalid use of IMMEDIATE")
+		local compilation_addr = compilation_addresses[name]
+		comp_assert(compilation_addr, "could not determine compilation address of previous word")
+
+		local addr = next_immediate_word
+
+		interpret_dict[name] = function()
+			execute(addr)
+		end
+
+		compile_dict[name] = function()
+			execute(addr)
+		end
+
+		-- copy compiled code to compiler memory (skip code field)
+		for i = compilation_addr + 2, here() - 1 do
+			mem[next_immediate_word] = mem[i]
+			next_immediate_word = next_immediate_word + 1
+		end
+
+		-- erase compiled code from output dictionary
+		for i = compilation_addr, here() - 1 do
+			mem[i] = 0
+		end
+		output_pos = compilation_addr
+		compilation_addresses[name] = nil
 	end,
 	CODE = function()
 		create_word(0)
@@ -678,6 +773,8 @@ for name, addr in pairs(rom_words) do
 	compile_dict[name] = compile_dict[name] or function()
 		emit_short(addr)
 	end
+
+	compilation_addr_to_name[addr] = name
 end
 
 -- load asm vocabulary
