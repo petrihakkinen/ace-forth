@@ -28,6 +28,7 @@ local PRINT			= 0x1396 -- Internal word, prints a string, string length word + d
 local DO 			= 0x1323 -- Internal word, runtime part of DO (pushes 2 values from data stack to return stack)
 local LOOP			= 0x1332 -- Internal word, runtime part of LOOP, the following word is the branch offset
 local PLUS_LOOP		= 0x133C -- Internal word, runtime part of +LOOP, the following word is the branch offset
+local POSTPONE		= 0x0001 -- Internal word, hacky way to postpone compilation of words, not actual ROM code!
 
 local start_address = 0x3c51
 local v_current = 0x3C4C
@@ -417,6 +418,13 @@ function execute(pc)
 			for i = 1, len do
 				io.write(string.char(fetch_byte()))
 			end 
+		elseif instr == POSTPONE then
+			local len = fetch_short()
+			local name = ""
+			for i = 1, len do
+				name = name .. string.char(fetch_byte())
+			end
+			compile_dict[name]()
 		else
 			comp_error("unknown compilation address $%04x encountered when executing compiled code", instr)
 		end
@@ -621,7 +629,6 @@ interpret_dict = {
 	base = function() push(0) end,
 	hex = function() mem[0] = 16 end,
 	decimal = function() mem[0] = 10 end,
-	lit = function() emit_literal(pop()) end,
 	['[if]'] = function()
 		if pop() == 0 then
 			-- skip until next [ELSE] or [THEN]
@@ -760,6 +767,14 @@ compile_dict = {
 		local char = next_symbol()
 		if #char ~= 1 then comp_error("invalid symbol following ASCII") end
 		emit_literal(char:byte(1))
+	end,
+	lit = function() emit_literal(pop()) end,
+	postpone = function()
+		local name = next_word()
+		if compile_dict[name] == nil then comp_error("undefined word %s") end
+		emit_short(POSTPONE)
+		emit_short(#name)
+		emit_string(name)
 	end,
 }
 
