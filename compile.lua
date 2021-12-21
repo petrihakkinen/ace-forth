@@ -39,7 +39,7 @@ local args = {...}
 
 local input_files = {}
 local output_file
-local opts = { main_word = "MAIN" }
+local opts = { main_word = "main" }
 
 do
 	local i = 1
@@ -49,7 +49,7 @@ do
 			if arg == "--no-headers" then
 				opts.no_headers = true
 			elseif string.match(arg, "^%-%-main=") then
-				opts.main_word = string.upper(string.match(arg, "^%-%-main=(.*)"))
+				opts.main_word = string.match(arg, "^%-%-main=(.*)")
 			elseif arg == "-o" then
 				output_file = args[i + 1]
 				i = i + 1
@@ -224,8 +224,7 @@ end
 
 function next_word(allow_eof)
 	local word = next_symbol()
-	if word == nil and not allow_eof then errof("unexpected end of file") end
-	if word then word = string.upper(word) end
+	if word == nil and not allow_eof then comp_error("unexpected end of file") end
 	return word
 end
 
@@ -330,7 +329,8 @@ function create_word(code_field)
 		emit_byte(0)
 	else
 		-- write name to dictionary, with terminator bit set for the last character
-		emit_string(name:sub(1, #name - 1) .. string.char(name:byte(#name) | 128))
+		local name_upper = string.upper(name)
+		emit_string(name_upper:sub(1, #name_upper - 1) .. string.char(name_upper:byte(#name_upper) | 128))
 
 		-- fill the word length field of the previous word
 		if prev_word_link >= start_address then
@@ -424,7 +424,7 @@ function execute(pc)
 end
 
 interpret_dict = {
-	CREATE = function()
+	create = function()
 		create_word(DO_PARAM)
 	end,
 	[':'] = function()
@@ -432,7 +432,7 @@ interpret_dict = {
 		compile_mode = true
 		inside_colon_definition = true
 	end,
-	IMMEDIATE = function()
+	immediate = function()
 		local name = last_word
 		comp_assert(name, "invalid use of IMMEDIATE")
 		local compilation_addr = compilation_addresses[name]
@@ -461,17 +461,17 @@ interpret_dict = {
 		output_pos = compilation_addr
 		compilation_addresses[name] = nil
 	end,
-	CODE = function()
+	code = function()
 		create_word(0)
 		write_short(here() - 2, here())	-- patch codefield
 	end,
-	BYTE = function()	-- byte-sized variable
+	byte = function()	-- byte-sized variable
 		create_word(DO_PARAM)
 		local value = pop()
 		comp_assert(value >= 0 and value < 256, "byte variable out of range")
 		emit_byte(value)
 	end,
-	BYTES = function()	-- emit bytes, terminated by ; symbol
+	bytes = function()	-- emit bytes, terminated by ; symbol
 		push('bytes')
 		compile_bytes = true
 	end,
@@ -492,11 +492,11 @@ interpret_dict = {
 		stack[start] = nil
 		compile_bytes = false
 	end,
-	VARIABLE = function()
+	variable = function()
 		create_word(DO_PARAM)
 		emit_short(pop())	-- write variable value to dictionary
 	end,
-	CONST = function()
+	const = function()
 		local name = next_word()
 		local value = pop()
 
@@ -510,13 +510,13 @@ interpret_dict = {
 			push(value)
 		end
 	end,
-	ALLOT = function()
+	allot = function()
 		local count = pop()
 		for i = 1, count do
 			emit_byte(0)
 		end
 	end,
-	FIND = function()
+	find = function()
 		local name = next_word()
 		local addr = compilation_addresses[name]
 		if addr == nil then comp_error("undefined word %s", name) end
@@ -525,7 +525,7 @@ interpret_dict = {
 	[','] = function()
 		emit_short(pop() & 0xffff)
 	end,
-	['C,'] = function()
+	['c,'] = function()
 		emit_byte(pop() & 0xff)
 	end,
 	['"'] = function()
@@ -553,17 +553,18 @@ interpret_dict = {
 		local str = next_symbol("\"")
 		io.write(str)
 	end,
-	DUP = function() push(peek(-1)) end,
-	OVER = function() push(peek(-2)) end,
-	DROP = function() pop() end,
-	ROT = function() push(peek(-3)); remove(-4) end,
-	SWAP = function() local a, b = pop2(); push(b); push(a) end,
-	PICK = function() push(peek(-pop())) end,
-	ROLL = function() local i = pop(); push(peek(-i)); remove(-i - 1) end,
+	dup = function() push(peek(-1)) end,
+	over = function() push(peek(-2)) end,
+	drop = function() pop() end,
+	rot = function() push(peek(-3)); remove(-4) end,
+	swap = function() local a, b = pop2(); push(b); push(a) end,
+	pick = function() push(peek(-pop())) end,
+	roll = function() local i = pop(); push(peek(-i)); remove(-i - 1) end,
 	['+'] = function() local a, b = pop2(); push(a + b) end,
 	['-'] = function() local a, b = pop2(); push(a - b) end,
 	['*'] = function() local a, b = pop2(); push(a * b) end,
-	['/'] = function() local a, b = pop2(); push(a / b) end,
+	['/'] = function() local a, b = pop2(); push(a // b) end,
+	['*/'] = function() local c = pop(); local a, b = pop2(); push(a * b // c) end,
 	['<'] = function() local a, b = pop2(); push_bool(a < b) end,
 	['>'] = function() local a, b = pop2(); push_bool(a > b) end,
 	['='] = function() local a, b = pop2(); push_bool(a == b) end,
@@ -575,32 +576,32 @@ interpret_dict = {
 	['2+'] = function() push(pop() + 2) end,
 	['2-'] = function() push(pop() - 2) end,
 	['.'] = function() io.write(format_number(pop()), " ") end,
-	NEGATE = function() push(-pop()) end,
-	AND = function() local a, b = pop2(); push(a & b) end,
-	OR = function() local a, b = pop2(); push(a | b) end,
-	XOR = function() local a, b = pop2(); push(a ~ b) end,
-	NOT = function() push_bool(pop() == 0) end,
-	ABS = function() push(math.abs(pop())) end,
-	MIN = function() local a, b = pop2(); push(math.min(a, b)) end,
-	MAX = function() local a, b = pop2(); push(math.max(a, b)) end,
-	CR = function() io.write("\n") end,
-	EMIT = function() io.write(string.char(pop())) end,
-	SPACE = function() io.write(" ") end,
-	SPACES = function() io.write(string.rep(" ", pop())) end,
-	HERE = function() push(here()) end,
-	ASCII = function()
+	negate = function() push(-pop()) end,
+	['and'] = function() local a, b = pop2(); push(a & b) end,
+	['or'] = function() local a, b = pop2(); push(a | b) end,
+	xor = function() local a, b = pop2(); push(a ~ b) end,
+	['not'] = function() push_bool(pop() == 0) end,
+	abs = function() push(math.abs(pop())) end,
+	min = function() local a, b = pop2(); push(math.min(a, b)) end,
+	max = function() local a, b = pop2(); push(math.max(a, b)) end,
+	cr = function() io.write("\n") end,
+	emit = function() io.write(string.char(pop())) end,
+	space = function() io.write(" ") end,
+	spaces = function() io.write(string.rep(" ", pop())) end,
+	here = function() push(here()) end,
+	ascii = function()
 		local char = next_symbol()
 		if #char ~= 1 then comp_error("invalid symbol following ASCII") end
 		push(char:byte(1))
 	end,
-	['C!'] = function()
+	['c!'] = function()
 		local n, addr = pop2()
 		if n < 0 then n = n + 256 end
 		comp_assert(addr >= 0 and addr < 65536, "invalid address")
 		comp_assert(n >= 0 and n < 256, "value out of range")
 		mem[addr] = n
 	end,
-	['C@'] = function()
+	['c@'] = function()
 		local addr = pop()
 		comp_assert(addr >= 0 and addr < 65536, "invalid address")
 		push(mem[addr] or 0)
@@ -617,42 +618,42 @@ interpret_dict = {
 		comp_assert(addr >= 0 and addr < 65536, "invalid address")
 		push(read_short(addr) or 0)
 	end,
-	BASE = function() push(0) end,
-	HEX = function() mem[0] = 16 end,
-	DECIMAL = function() mem[0] = 10 end,
-	LIT = function() emit_literal(pop()) end,
-	['[IF]'] = function()
+	base = function() push(0) end,
+	hex = function() mem[0] = 16 end,
+	decimal = function() mem[0] = 10 end,
+	lit = function() emit_literal(pop()) end,
+	['[if]'] = function()
 		if pop() == 0 then
 			-- skip until next [ELSE] or [THEN]
 			local depth = 0
 			while true do
 				local sym = next_word()
-				if sym == '[IF]' then
+				if sym == '[if]' then
 					depth = depth + 1
-				elseif sym == '[ELSE]' and depth == 0 then
+				elseif sym == '[else]' and depth == 0 then
 					break
-				elseif sym == '[THEN]' then
+				elseif sym == '[then]' then
 					if depth == 0 then break end
 					depth = depth - 1
 				end
 			end
 		end
 	end,
-	['[ELSE]'] = function()
+	['[else]'] = function()
 		-- skip until matching [THEN]
 		local depth = 0
 		while true do
 			local sym = next_word()
-			if sym == '[IF]' then
+			if sym == '[if]' then
 				depth = depth + 1
-			elseif sym == '[THEN]' then
+			elseif sym == '[then]' then
 				if depth == 0 then break end
 				depth = depth - 1
 			end
 		end
 	end,
-	['[THEN]'] = function() end,
-	['[DEFINED]'] = function()
+	['[then]'] = function() end,
+	['[defined]'] = function()
 		push(compile_dict[next_word()] and 255 or 0)
 	end,
 }
@@ -685,14 +686,14 @@ compile_dict = {
 		emit_short(#str)
 		emit_string(str)
 	end,
-	IF = function()
+	['if'] = function()
 		-- emit conditional branch
 		emit_short(CBRANCH)
 		push(here())
 		push('if')
 		emit_short(0)	-- placeholder branch offset
 	end,
-	ELSE = function()
+	['else'] = function()
 		comp_assert(pop() == 'if', "ELSE without matching IF")
 		local where = pop()
 		-- emit jump to THEN
@@ -703,66 +704,66 @@ compile_dict = {
 		-- patch branch offset for ?branch at IF
 		write_short(where, here() - where - 1)
 	end,
-	THEN = function()
+	['then']= function()
 		-- patch branch offset for ?branch at IF
 		comp_assert(pop() == 'if', "THEN without matching IF")
 		local where = pop()
 		write_short(where, here() - where - 1)
 	end,
-	BEGIN = function()
+	begin = function()
 		push(here())
 		push('begin')
 	end,
-	UNTIL = function()
+	['until'] = function()
 		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = pop()
 		emit_short(CBRANCH)
 		emit_short(target - here() - 1)
 	end,
-	AGAIN = function()
+	again = function()
 		comp_assert(pop() == 'begin', "AGAIN without matching BEGIN")
 		local target = pop()
 		emit_short(BRANCH)
 		emit_short(target - here() - 1)
 	end,
-	DO = function()
+	['do'] = function()
 		emit_short(DO)
 		push(here())
 		push('do')
 	end,
-	LOOP = function()
+	loop = function()
 		comp_assert(pop() == 'do', "LOOP without matching DO")
 		local target = pop()
 		emit_short(LOOP)
 		emit_short(target - here() - 1)		
 	end,
-	["+LOOP"] = function()
+	['+loop'] = function()
 		comp_assert(pop() == 'do', "+LOOP without matching DO")
 		local target = pop()
 		emit_short(PLUS_LOOP)
 		emit_short(target - here() - 1)		
 	end,
-	WHILE = function() comp_error("WHILE not implemented") end,
-	REPEAT = function() comp_error("REPEAT not implemented") end,
-	GOTO = function()
+	['while'] = function() comp_error("WHILE not implemented") end,
+	['repeat'] = function() comp_error("REPEAT not implemented") end,
+	['goto'] = function()
 		local label = next_symbol()
 		emit_short(BRANCH)
 		local addr = here()
 		emit_short(0)	-- place holder branch offset
 		gotos[addr] = label
 	end,
-	LABEL = function()
+	label = function()
 		local label = next_symbol()
 		labels[label] = here()
 	end,
-	ASCII = function()
+	ascii = function()
 		local char = next_symbol()
 		if #char ~= 1 then comp_error("invalid symbol following ASCII") end
 		emit_literal(char:byte(1))
 	end,
 }
 
-local immediate_words = { "(", "\\", "[IF]", "[ELSE]", "[THEN]", "[DEFINED]" }
+local immediate_words = { "(", "\\", "[if]", "[else]", "[then]", "[defined]" }
 
 for _, name in ipairs(immediate_words) do
 	compile_dict[name] = assert(interpret_dict[name])
@@ -770,6 +771,7 @@ end
 
 -- insert built-in ROM words into compilation dict
 for name, addr in pairs(rom_words) do
+	name = string.lower(name)
 	compile_dict[name] = compile_dict[name] or function()
 		emit_short(addr)
 	end

@@ -1,15 +1,15 @@
-32 VARIABLE X
-24 VARIABLE Y
-1 VARIABLE DX
--1 VARIABLE DY
-1 VARIABLE LEN
+32 variable x
+24 variable y
+1 variable dx
+-1 variable dy
+1 variable len
 
-: PL X @ Y @ ABS 47 MOD 3 PLOT ;
+: pl x @ y @ abs 47 mod 3 plot ;
 
-: !+ OVER @ + SWAP ! ;
+: !+ over @ + swap ! ;
 
-: STEP X DX @ !+ Y DY @ !+ ;
+: step x dx @ !+ y dy @ !+ ;
 
-: TURN DX @ NEGATE DY @ DX ! DY ! ;
+: turn dx @ negate dy @ dx ! dy ! ;
 
-: DEMO BEGIN LEN @ 0 DO PL STEP LOOP TURN LEN 1 !+ 0 UNTIL ; 
+: main begin len @ 0 do pl step loop turn len 1 !+ 0 until ; 

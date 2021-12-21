@@ -1,49 +1,49 @@
 ( Compiler interpreter mode tests )
 
-." 3 + 2  ->  " 3 2 + . CR
-." 3 - 2  ->  " 3 2 - . CR
-." 3 * 2  ->  " 3 2 * . CR
-." 6 / 2  ->  " 6 2 / . CR
-." 3 DUP + .  ->  " 3 DUP + . CR
-." 3 4 DROP .  ->  " 3 4 DROP . CR
-." 1 2 SWAP . .  ->  " 1 2 SWAP . . CR
-." 1 2 3 ROT . . .  ->  " 1 2 3 ROT . . . CR
-." 1 2 3 3 PICK . . . .  ->  " 1 2 3 3 PICK . . . . CR
-." 1 2 3 3 ROLL . . . ->  " 1 2 3 3 ROLL . . . CR
-." *" SPACE SPACE ." *" CR
-." *" 5 SPACES ." *" CR
-ASCII * EMIT CR
+." 3 + 2  ->  " 3 2 + . cr
+." 3 - 2  ->  " 3 2 - . cr
+." 3 * 2  ->  " 3 2 * . cr
+." 6 / 2  ->  " 6 2 / . cr
+." 3 dup + .  ->  " 3 dup + . cr
+." 3 4 drop .  ->  " 3 4 drop . cr
+." 1 2 swap . .  ->  " 1 2 swap . . cr
+." 1 2 3 rot . . .  ->  " 1 2 3 rot . . . cr
+." 1 2 3 3 pick . . . .  ->  " 1 2 3 3 pick . . . . cr
+." 1 2 3 3 roll . . . ->  " 1 2 3 3 roll . . . cr
+." *" space space ." *" cr
+." *" 5 spaces ." *" cr
+ascii * emit cr
 
-." HERE is " HEX HERE . DECIMAL CR
+." here is " hex here . decimal cr
 
-." 128 in hex is " 128 HEX . DECIMAL CR
-." 128 in binary is " 128 2 BASE ! . DECIMAL CR
+." 128 in hex is " 128 hex . decimal cr
+." 128 in binary is " 128 2 base ! . decimal cr
 
-." hex FF in decimal is " HEX FF DECIMAL . CR
-." binary 1100 in decimal is " 2 BASE ! 1100 DECIMAL . CR
+." hex ff in decimal is " hex ff decimal . cr
+." binary 1100 in decimal is " 2 base ! 1100 decimal . cr
 
-: TEST[]
-	[ ." Compiling Test " CR 123 ]
-	CR
-	[ ." Popping value " . CR ] ;
+: test[]
+	[ ." Compiling Test " cr 123 ]
+	cr
+	[ ." Popping value " . cr ] ;
 
-( Test [IF] )
+( Test [if] )
 
-1 [IF]
-	." This should be printed" CR
-[THEN]
+1 [if]
+	." This should be printed" cr
+[then]
 
-1 [IF]
-	." This should be printed" CR
-[ELSE]
-	." This should NOT be printed" CR
-[THEN]
+1 [if]
+	." This should be printed" cr
+[else]
+	." This should NOT be printed" cr
+[then]
 
-0 [IF]
-	." This should NOT be printed" CR
-[ELSE]
-	." This should be printed" CR
-[THEN]
+0 [if]
+	." This should NOT be printed" cr
+[else]
+	." This should be printed" cr
+[then]
 
-[DEFINED] CR [IF] ." CR is defined" CR [THEN]
-[DEFINED] ABC NOT [IF] ." ABC is not defined" CR [THEN]
+[defined] cr [if] ." cr is defined" cr [then]
+[defined] abc not [if] ." ABC is not defined" cr [then]

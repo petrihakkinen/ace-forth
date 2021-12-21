@@ -1,35 +1,35 @@
 ( This is a comment )
 
-123 VARIABLE FOO
--12345 VARIABLE BAR
-54 CONSTANT K
+123 variable foo
+-12345 variable bar
+54 const k
 
-: HELLO ." WORLD" CR ;
+: hello ." world" cr ;
 
-: HELLO2 HELLO ;
+: hello2 hello ;
 
-: LIT -12345 . ;
+: lit -12345 . ;
 
-: LIT0 0 . ;
+: lit0 0 . ;
 
-: TEST CLS 32 24 1 PLOT CR ;
+: test cls 32 24 1 plot cr ;
 
-: TEST-IF 0 IF ." A" ELSE ." B" THEN ;
+: test-if 0 if ." a" else ." b" then ;
 
-: TEST-UNTIL BEGIN ." *" 0 UNTIL ;
+: test-until begin ." *" 0 until ;
 
-: TEST-UNTIL2 5 BEGIN ." *" 1- DUP 0= UNTIL ;
+: test-until2 5 begin ." *" 1- dup 0= until ;
 
-: TEST-LOOP 3 0 DO I . LOOP ;
+: test-loop 3 0 do i . loop ;
 
-: TEST+LOOP -1 5 DO I . -1 +LOOP ;
+: test+loop -1 5 do i . -1 +loop ;
 
-: TEST-ASCII ASCII * EMIT ;
+: test-ascii ascii * emit ;
 
-CREATE TEMP 10 ALLOT ( Allocate bytes )
+create temp 10 allot ( allocate bytes )
 
-CREATE TABLE 1 C, 2 C, 4 C, 8 C, 16 C, 32 C, 64 C, 128 C,
+create table 1 c, 2 c, 4 c, 8 c, 16 c, 32 c, 64 c, 128 c,
 
-: DUMP-TEMP 10 0 DO TEMP I + C@ . LOOP CR ;
+: dump-temp 10 0 do temp i + c@ . loop cr ;
 
-: DUMP-TABLE 8 0 DO TABLE I + C@ . LOOP CR ;
+: dump-table 8 0 do table i + c@ . loop cr ;
