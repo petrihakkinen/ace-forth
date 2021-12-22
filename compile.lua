@@ -129,6 +129,26 @@ local compilation_addresses = {}
 -- inverse mapping of compilation addresses back to word names (for executing compiled code)
 local compilation_addr_to_name = {}
 
+-- Return stack for executing compile time code
+local return_stack = {}
+
+local function r_push(x)
+	return_stack[#return_stack + 1] = x
+end
+
+local function r_pop()
+	local x = return_stack[#return_stack]
+	comp_assert(x, "return stack underflow")
+	return_stack[#return_stack] = nil
+	return x
+end
+
+function r_peek(idx)
+	local v = return_stack[#return_stack + idx + 1]
+	comp_assert(v, "return stack underflow")
+	return v
+end
+
 function printf(...)
 	print(string.format(...))
 end
@@ -300,11 +320,18 @@ function format_number(n)
 	local digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	local result = ""
 
+	if n == 0 then return "0" end
+
+	local neg = n < 0
+	if neg then	n = math.abs(n) end
+
 	while n > 0 do
 		local d = n % base
 	    result = digits:sub(d + 1, d + 1) .. result
 	    n = n // base
 	end
+
+	if neg then result = "-" ..result end
 
 	return result
 end
@@ -408,11 +435,20 @@ function execute(pc)
 		elseif instr == BRANCH then
 			pc = pc + fetch_signed() - 1
 		elseif instr == DO then
-			comp_error("DO not implemented for execute")
-		elseif instr == LOOP then
-			comp_error("LOOP not implemented for execute")
-		elseif instr == PLUS_LOOP then
-			comp_error("+LOOP not implemented for execute")
+			local limit, counter = pop2()
+			r_push(limit)
+			r_push(counter)
+		elseif instr == LOOP or instr == PLUS_LOOP then
+			local offset = fetch_signed() - 1
+			local counter = r_pop()
+			local limit = r_pop()
+			local step = instr == LOOP and 1 or pop()
+			counter = counter + step
+			if (step >= 0 and counter < limit) or (step < 0 and counter > limit) then
+				r_push(limit)
+				r_push(counter)
+				pc = pc + offset
+			end
 		elseif instr == PRINT then
 			local len = fetch_short()
 			for i = 1, len do
@@ -564,6 +600,8 @@ interpret_dict = {
 	dup = function() push(peek(-1)) end,
 	over = function() push(peek(-2)) end,
 	drop = function() pop() end,
+	['2dup'] = function() push(peek(-2)); push(peek(-2)) end,
+	['2drop'] = function() pop2() end,
 	rot = function() push(peek(-3)); remove(-4) end,
 	swap = function() local a, b = pop2(); push(b); push(a) end,
 	pick = function() push(peek(-pop())) end,
@@ -583,6 +621,8 @@ interpret_dict = {
 	['1-'] = function() push(pop() - 1) end,
 	['2+'] = function() push(pop() + 2) end,
 	['2-'] = function() push(pop() - 2) end,
+	['2*'] = function() push(pop() * 2) end,
+	['2/'] = function() push(pop() // 2) end,
 	['.'] = function() io.write(format_number(pop()), " ") end,
 	negate = function() push(-pop()) end,
 	['and'] = function() local a, b = pop2(); push(a & b) end,
@@ -662,6 +702,9 @@ interpret_dict = {
 	['[then]'] = function() end,
 	['[defined]'] = function()
 		push(compile_dict[next_word()] and 255 or 0)
+	end,
+	i = function()
+		push(r_peek(-1))
 	end,
 }
 
