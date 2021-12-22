@@ -106,6 +106,7 @@ local labels = {}						-- label -> address for current word
 local gotos = {}						-- address to be patched -> label for current word
 local last_word							-- name of last user defined word
 local word_counts = {}					-- how many times each word is used in generated code?
+local words_with_side_exits = {}		-- words that have side exists and therefore can't be inlined
 
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
@@ -855,6 +856,10 @@ compile_dict = {
 		local label = next_symbol()
 		labels[label] = here()
 	end,
+	exit = function()
+		emit_short(rom_words.EXIT)
+		words_with_side_exits[last_word] = true
+	end,
 	ascii = function()
 		local char = next_symbol()
 		if #char ~= 1 then comp_error("invalid symbol following ASCII") end
@@ -952,6 +957,23 @@ if opts.eliminate_unused_words then
 		pass = pass + 1
 		assert(pass < 10, "exceeded maximum number of compilation passes (compiler got stuck?)")
 		goto restart
+	end
+end
+
+-- dump words that could be inlined
+do
+	for name, compilation_addr in pairs(compilation_addresses) do
+		if word_counts[name] == 1 then
+			-- check that it's a colon definition
+			if read_short(compilation_addr) == DO_COLON then
+				-- check for side exits
+				if not words_with_side_exits[name] then
+					printf("Warning! Word '%s' is eligible for inlining", name)
+				else
+					printf("Warning! Word '%s' has side exits and cannot be inlined", name)
+				end
+			end
+		end
 	end
 end
 
