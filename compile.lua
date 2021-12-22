@@ -51,6 +51,7 @@ do
 				opts.no_headers = true
 			elseif arg == "--optimize" then
 				opts.eliminate_unused_words = true
+				opts.inline_words = true
 			elseif arg == "--verbose" then
 				opts.verbose = true
 			elseif string.match(arg, "^%-%-main=") then
@@ -85,6 +86,7 @@ if #input_files == 0 then
 end
 
 local eliminate_words = {}
+local inline_words = {}
 local pass = 1
 
 ::restart::
@@ -775,6 +777,34 @@ compile_dict = {
 		end
 		labels = {}
 		gotos = {}
+
+		-- inlining
+		if inline_words[last_word] then
+			local name = last_word
+			local compilation_addr = compilation_addresses[name]
+			assert(compilation_addr, "could not determine compilation address of previous word")
+
+			-- store code (skip code field and ret at the end)
+			local code = {}
+			for i = compilation_addr + 2, here() - 3 do
+				code[#code + 1] = mem[i]
+			end
+
+			-- when the inlined word is compiled, we emit its code
+			compile_dict[name] = function()
+				for _, byte in ipairs(code) do
+					emit_byte(byte)
+				end
+			end
+
+			-- erase compiled code from output dictionary
+			for i = compilation_addr, here() - 1 do
+				mem[i] = 0
+			end
+
+			output_pos = compilation_addr
+			compilation_addresses[name] = nil
+		end
 	end,
 	['['] = function()
 		-- temporarily fall back to the interpreter
@@ -941,10 +971,11 @@ for _, filename in ipairs(input_files) do
 	end
 end
 
+local more_work = false
+
 -- eliminate unused words
 if opts.eliminate_unused_words then
 	-- mark unused words for next pass
-	local more_work = false
 	for name in pairs(compilation_addresses) do
 		if word_counts[name] == nil and name ~= opts.main_word then
 			if opts.verbose then print("Eliminating unused word: " .. name) end
@@ -952,29 +983,32 @@ if opts.eliminate_unused_words then
 			more_work = true
 		end
 	end
-
-	if more_work then
-		pass = pass + 1
-		assert(pass < 10, "exceeded maximum number of compilation passes (compiler got stuck?)")
-		goto restart
-	end
 end
 
--- dump words that could be inlined
-do
+-- inline words that are used only once and have no side exits
+if opts.inline_words then
 	for name, compilation_addr in pairs(compilation_addresses) do
 		if word_counts[name] == 1 then
 			-- check that it's a colon definition
 			if read_short(compilation_addr) == DO_COLON then
 				-- check for side exits
 				if not words_with_side_exits[name] then
-					printf("Warning! Word '%s' is eligible for inlining", name)
+					if opts.verbose then print("Inlining word: " .. name) end
+					inline_words[name] = true
+					more_work = true
 				else
 					printf("Warning! Word '%s' has side exits and cannot be inlined", name)
 				end
 			end
 		end
 	end
+end
+
+-- run another pass if we could optimize something
+if more_work then
+	pass = pass + 1
+	assert(pass < 10, "exceeded maximum number of compilation passes (compiler got stuck?)")
+	goto restart
 end
 
 -- write output
