@@ -49,6 +49,10 @@ do
 		if string.match(arg, "^%-") then
 			if arg == "--no-headers" then
 				opts.no_headers = true
+			elseif arg == "--optimize" then
+				opts.eliminate_unused_words = true
+			elseif arg == "--verbose" then
+				opts.verbose = true
 			elseif string.match(arg, "^%-%-main=") then
 				opts.main_word = string.match(arg, "^%-%-main=(.*)")
 			elseif arg == "-o" then
@@ -74,9 +78,18 @@ if #input_files == 0 then
 	print("\nOptions:")
 	print("  -o <filename>   Sets output filename")
 	print("  --no-headers    Eliminate word headers, except for main word")
+	print("  --optimize      Eliminate unused words")
+	print("  --verbose       Print information while compiling")
 	print("  --main=<name>   Sets name of main executable word (default 'MAIN')")
 	os.exit(-1)
 end
+
+local eliminate_words = {}
+local pass = 1
+
+::restart::
+
+print("Pass " .. pass)
 
 local input								-- source code as string
 local input_file						-- current input filename
@@ -92,6 +105,7 @@ local next_immediate_word = 1			-- next free address for compiled immediate word
 local labels = {}						-- label -> address for current word
 local gotos = {}						-- address to be patched -> label for current word
 local last_word							-- name of last user defined word
+local word_counts = {}					-- how many times each word is used in generated code?
 
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
@@ -257,6 +271,24 @@ function next_number()
 	return n
 end
 
+-- Reads symbols until end marker has been reached, processing comments.
+-- That is, end markers inside comments are handled correctly.
+function skip_until(end_marker)
+	while true do
+		local sym = next_word()
+		if sym == end_marker then
+			break
+		elseif sym == "\\" then
+			while true do
+				local ch = next_char()
+				if ch == nil or ch == '\n' then break end
+			end
+		elseif sym == "(" then
+			next_symbol(")")
+		end
+	end
+end
+
 function read_short(address, x)
 	comp_assert(address < 65536 - 1, "address out of range")
 	return (mem[address] or 0) | ((mem[address + 1] or 0) << 8)
@@ -347,8 +379,8 @@ end
 -- Its word length is also zero. The word length field is updated to correct value when the next word is added.
 -- This means that the last word will have zero in the word length field. This is how the ROM code works too
 -- (and its documented in Jupiter Ace Forth Programming, page 121).
-function create_word(code_field)
-	local name = next_word()
+function create_word(code_field, name)
+	if name == nil then name = next_word() end
 
 	local skip_header = false
 	if opts.no_headers and name ~= opts.main_word then skip_header = true end
@@ -384,6 +416,7 @@ function create_word(code_field)
 
 	-- add word to compile dictionary so that other words can refer to it when compiling
 	compile_dict[name] = function()
+		word_counts[name] = (word_counts[name] or 0) + 1
 		emit_short(compilation_addr)
 	end
 
@@ -471,10 +504,26 @@ interpret_dict = {
 	create = function()
 		create_word(DO_PARAM)
 	end,
-	[':'] = function()
-		last_word = create_word(DO_COLON)
-		compile_mode = true
-		inside_colon_definition = true
+	['create{'] = function()	-- create{ is like create but it can be eliminated since } marks the end of the word
+		local name = next_word()
+		if not eliminate_words[name] then
+			create_word(DO_PARAM, name)
+		else
+			skip_until('}')
+		end
+	end,
+	['}'] = function()
+		-- } is a nop unless we're skipping create{ block
+	end,
+	[':'] = function() 
+		local name = next_word()
+		if not eliminate_words[name] then
+			last_word = create_word(DO_COLON, name)
+			compile_mode = true
+			inside_colon_definition = true
+		else
+			skip_until(';')
+		end
 	end,
 	immediate = function()
 		local name = last_word
@@ -884,6 +933,25 @@ for _, filename in ipairs(input_files) do
 				func()
 			end
 		end
+	end
+end
+
+-- eliminate unused words
+if opts.eliminate_unused_words then
+	-- mark unused words for next pass
+	local more_work = false
+	for name in pairs(compilation_addresses) do
+		if word_counts[name] == nil and name ~= opts.main_word then
+			if opts.verbose then print("Eliminating unused word: " .. name) end
+			eliminate_words[name] = true
+			more_work = true
+		end
+	end
+
+	if more_work then
+		pass = pass + 1
+		assert(pass < 10, "exceeded maximum number of compilation passes (compiler got stuck?)")
+		goto restart
 	end
 end
 
