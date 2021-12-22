@@ -109,6 +109,7 @@ local gotos = {}						-- address to be patched -> label for current word
 local last_word							-- name of last user defined word
 local word_counts = {}					-- how many times each word is used in generated code?
 local words_with_side_exits = {}		-- words that have side exists and therefore can't be inlined
+local noinline_words = {}				-- words that have been explicitly marked as 'noinline'
 
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
@@ -557,6 +558,11 @@ interpret_dict = {
 		output_pos = compilation_addr
 		compilation_addresses[name] = nil
 	end,
+	noinline = function()
+		-- forbid inlining previous word
+		comp_assert(last_word, "invalid use of NOINLINE")
+		noinline_words[last_word] = true
+	end,
 	code = function()
 		create_word(0)
 		write_short(here() - 2, here())	-- patch codefield
@@ -988,7 +994,7 @@ end
 -- inline words that are used only once and have no side exits
 if opts.inline_words then
 	for name, compilation_addr in pairs(compilation_addresses) do
-		if word_counts[name] == 1 then
+		if word_counts[name] == 1 and not noinline_words[name] then
 			-- check that it's a colon definition
 			if read_short(compilation_addr) == DO_COLON then
 				-- check for side exits
