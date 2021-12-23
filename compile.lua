@@ -389,21 +389,21 @@ function create_word(code_field, name)
 	local skip_header = false
 	if opts.no_headers and name ~= opts.main_word then skip_header = true end
 
+	-- fill the word length field of the previous word
+	if prev_word_link >= start_address then
+		-- prev_word_link points to the name length field of the last defined word
+		-- word length field is always 4 bytes before this
+		local word_length_addr = prev_word_link - 4
+		local length = here() - prev_word_link + 4
+		write_short(word_length_addr, length)
+	end
+
 	if skip_header then
 		emit_byte(0)
 	else
 		-- write name to dictionary, with terminator bit set for the last character
 		local name_upper = string.upper(name)
 		emit_string(name_upper:sub(1, #name_upper - 1) .. string.char(name_upper:byte(#name_upper) | 128))
-
-		-- fill the word length field of the previous word
-		if prev_word_link >= start_address then
-			-- prev_word_link points to the name length field of the last defined word
-			-- word length field is always 4 bytes before this
-			local word_length_addr = prev_word_link - 4
-			local length = here() - word_length_addr
-			write_short(word_length_addr, length)
-		end
 
 		emit_short(0) -- placeholder word length
 		emit_short(prev_word_link)
