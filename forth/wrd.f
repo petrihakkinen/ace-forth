@@ -10,71 +10,71 @@
 ( CFA:        Code Field Address: Code Field contents                  )
 ( PFA:   Parameter Field Address: Parameter Field length               )
 
-: HEX  16 BASE C! ;
-: .H ( x -- )  0 <# # # # #S #> TYPE ;
-: .ADR ( adr -- adr )  DUP .H  58 EMIT  SPACE ;
-: RAM? ( adr -- adr flag )  DUP 8191 > ;
+: hex  16 base c! ;
+: .h ( x -- )  0 <# # # # #s #> type ;
+: .adr ( adr -- adr )  dup .h  58 emit  space ;
+: ram? ( adr -- adr flag )  dup 8191 > ;
 
-: .NFA ( adr -- , print the Name Field )
- 1- DUP C@ 63 AND ( Get the name length )
- SWAP RAM?
- IF  2-  THEN
- 2- OVER - .ADR   ( print the Name Field Address )
- SWAP TYPE        ( print the Name)
+: .nfa ( adr -- , print the Name Field )
+ 1- dup c@ 63 and ( get the name length )
+ swap ram?
+ if  2-  then
+ 2- over - .adr   ( print the Name Field Address )
+ swap type        ( print the Name )
 ;
 
-: .LFA ( adr -- , print the Length Field Address )
- RAM?
- IF
-  5 - .ADR        ( print the Length Field Address )
-  @ DECIMAL . HEX ( print the Length )
- ELSE
-  ." ----: <undefined>" DROP
- THEN
+: .lfa ( adr -- , print the Length Field Address )
+ ram?
+ if
+  5 - .adr        ( print the Length Field Address )
+  @ decimal . hex ( print the Length )
+ else
+  ." ----: <undefined>" drop
+ then
 ;
 
-: .LNK ( adr -- , print the Link Field Address )
- 3 - .ADR       ( print the Link Field Address )
- @ DUP .H       ( print the Link)
- ." > " 1+ .NFA ( print Name of linked word )
+: .lnk ( adr -- , print the Link Field Address )
+ 3 - .adr       ( print the Link Field Address )
+ @ dup .h       ( print the Link )
+ ." > " 1+ .nfa ( print name of linked word )
 ;
 
-: .NLF ( adr -- , print the Name Length Field )
- 1- .ADR                 ( print the Name Length Field Address )
- C@ DUP DECIMAL . HEX    ( print the Name Length )
- DUP 64 AND              ( check if IMMEDIATE word )
- IF ." IMMEDIATE " THEN
- 128 AND                 ( check bit 7 )
- IF ." bit7=1" THEN
+: .nlf ( adr -- , print the Name Length Field )
+ 1- .adr                 ( print the Name Length Field address )
+ c@ dup decimal . hex    ( print the Name Length )
+ dup 64 and              ( check if IMMEDIATE word )
+ if ." IMMEDIATE " then
+ 128 and                 ( check bit 7 )
+ if ." bit7=1" then
 ;
 
-: .CFA ( adr -- , print the Code Field )  .ADR @ .H ;
+: .cfa ( adr -- , print the Code Field )  .adr @ .h ;
 
-: .PFA ( adr -- , print the Parameter Field Address )
- 2+ .ADR          ( print the Parameter Field Address )
- RAM?
- IF               ( print the Parameter Field Lenght )
+: .pfa ( adr -- , print the Parameter Field Address )
+ 2+ .adr          ( print the Parameter Field Address )
+ ram?
+ if               ( print the Parameter Field Length )
   7 - @ 7 -
-  DECIMAL ." (" . ." bytes)" HEX
- ELSE
-  ." (?)" DROP
- THEN
+  decimal ." (" . ." bytes)" hex
+ else
+  ." (?)" drop
+ then
 ;
 
-: WRD ( <word> -- , print word header )
- HEX
- FIND ?DUP
- IF
-  ." is at " DUP .H
-  RAM? IF ." (RAM)" ELSE ." (ROM)" THEN
-  CR ." NFA " DUP .NFA
-  CR ." LFA " DUP .LFA
-  CR ." LNK " DUP .LNK
-  CR ." NLF " DUP .NLF
-  CR ." CFA " DUP .CFA
-  CR ." PFA " .PFA
- ELSE
+: wrd ( <word> -- , print word header )
+ hex
+ find ?dup
+ if
+  ." is at " dup .h
+  ram? if ." (RAM)" else ." (ROM)" then
+  cr ." NFA " dup .nfa
+  cr ." LFA " dup .lfa
+  cr ." LNK " dup .lnk
+  cr ." NLF " dup .nlf
+  cr ." CFA " dup .cfa
+  cr ." PFA " .pfa
+ else
   ." not found"
- THEN
- CR
+ then
+ cr
 ;
