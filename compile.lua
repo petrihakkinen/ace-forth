@@ -40,7 +40,7 @@ local args = {...}
 
 local input_files = {}
 local output_file
-local opts = { main_word = "main" }
+local opts = { main_word = "main", tap_filename = "dict" }
 
 do
 	local i = 1
@@ -57,6 +57,12 @@ do
 				opts.verbose = true
 			elseif string.match(arg, "^%-%-main=") then
 				opts.main_word = string.match(arg, "^%-%-main=(.*)")
+			elseif string.match(arg, "^%-%-filename=") then
+				opts.tap_filename = string.match(arg, "^%-%-filename=(.*)")
+				if #opts.tap_filename > 10 then
+					print("TAP filename too long (max 10 chars)")
+					os.exit(-1)
+				end
 			elseif arg == "-o" then
 				output_file = args[i + 1]
 				i = i + 1
@@ -78,11 +84,12 @@ end
 if #input_files == 0 then
 	print("Usage: compile.lua [options] <inputfile1> <inputfile2> ...")
 	print("\nOptions:")
-	print("  -o <filename>   Sets output filename")
-	print("  --no-headers    Eliminate word headers, except for main word")
-	print("  --optimize      Eliminate unused words")
-	print("  --verbose       Print information while compiling")
-	print("  --main=<name>   Sets name of main executable word (default 'MAIN')")
+	print("  -o <filename>      Sets output filename")
+	print("  --no-headers       Eliminate word headers, except for main word")
+	print("  --optimize         Eliminate unused words")
+	print("  --verbose          Print information while compiling")
+	print("  --main=<name>      Sets name of main executable word (default 'MAIN')")
+	print("  --filename=<name>  Sets the filename in tap header (default 'dict')")
 	os.exit(-1)
 end
 
@@ -1037,7 +1044,9 @@ if output_file then
 	-- header
 	local dict_data_size = here() - start_address
 	local dict_data_end = here()
-	local header = "\26\0\0dict      " ..
+	local filename = opts.tap_filename .. string.rep(" ", 10 - #opts.tap_filename)
+	local header = "\26\0\0" ..
+		filename ..
 		shortstr(dict_data_size) ..
 		shortstr(start_address) ..
 		shortstr(prev_word_link) ..
