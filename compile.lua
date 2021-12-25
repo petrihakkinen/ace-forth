@@ -1037,7 +1037,7 @@ if output_file then
 	-- header
 	local dict_data_size = here() - start_address
 	local dict_data_end = here()
-	local header = "\25\0\0dict      " ..
+	local header = "\26\0\0dict      " ..
 		shortstr(dict_data_size) ..
 		shortstr(start_address) ..
 		shortstr(prev_word_link) ..
