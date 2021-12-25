@@ -118,6 +118,7 @@ local last_word							-- name of last user defined word
 local word_counts = {}					-- how many times each word is used in generated code?
 local words_with_side_exits = {}		-- words that have side exists and therefore can't be inlined
 local noinline_words = {}				-- words that have been explicitly marked as 'noinline'
+local no_eliminate_words = {}			-- words that cannot be eliminated even if they're unused
 
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
@@ -514,7 +515,11 @@ end
 
 interpret_dict = {
 	create = function()
-		create_word(DO_PARAM)
+		local name = next_word()
+		create_word(DO_PARAM, name)
+		-- this word cannot be dead-code eliminated, because we don't know where it ends
+		-- (this is not strictly true since every word has a length field!)
+		no_eliminate_words[name] = true	
 	end,
 	['create{'] = function()	-- create{ is like create but it can be eliminated since } marks the end of the word
 		local name = next_word()
@@ -572,8 +577,10 @@ interpret_dict = {
 		noinline_words[last_word] = true
 	end,
 	code = function()
-		create_word(0)
+		local name = next_word()
+		create_word(0, name)
 		write_short(here() - 2, here())	-- patch codefield
+		no_eliminate_words[name] = true
 	end,
 	byte = function()	-- byte-sized variable
 		create_word(DO_PARAM)
@@ -991,7 +998,7 @@ local more_work = false
 if opts.eliminate_unused_words then
 	-- mark unused words for next pass
 	for name in pairs(compilation_addresses) do
-		if word_counts[name] == nil and name ~= opts.main_word then
+		if word_counts[name] == nil and name ~= opts.main_word and not no_eliminate_words[name] then
 			if opts.verbose then print("Eliminating unused word: " .. name) end
 			eliminate_words[name] = true
 			more_work = true
