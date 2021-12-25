@@ -50,6 +50,7 @@ do
 			if arg == "--no-headers" then
 				opts.no_headers = true
 			elseif arg == "--optimize" then
+				opts.optimize_literals = true
 				opts.eliminate_unused_words = true
 				opts.inline_words = true
 			elseif arg == "--verbose" then
@@ -324,9 +325,9 @@ function emit_string(str)
 end
 
 function emit_literal(n)
-	if n == 0 then
+	if n == 0 and opts.optimize_literals then
 		emit_short(PUSH_ZERO)
-	elseif n >= 0 and n < 256 then
+	elseif n >= 0 and n < 256 and opts.optimize_literals then
 		emit_short(PUSH_BYTE)
 		emit_byte(n)
 	elseif n >= -32768 and n < 65536 then
