@@ -49,10 +49,19 @@ do
 		if string.match(arg, "^%-") then
 			if arg == "--no-headers" then
 				opts.no_headers = true
-			elseif arg == "--optimize" then
-				opts.optimize_literals = true
-				opts.eliminate_unused_words = true
+			elseif arg == "--minimal-word-names" then
+				opts.minimal_word_names = true
+			elseif arg == "--inline" then
 				opts.inline_words = true
+			elseif arg == "--eliminate-unused-words" then
+				opts.eliminate_unused_words = true
+			elseif arg == "--small-literals" then
+				opts.optimize_literals = true
+			elseif arg == "--optimize" then
+				opts.no_headers = true
+				opts.inline_words = true
+				opts.eliminate_unused_words = true
+				opts.optimize_literals = true
 			elseif arg == "--verbose" then
 				opts.verbose = true
 			elseif string.match(arg, "^%-%-main=") then
@@ -84,12 +93,16 @@ end
 if #input_files == 0 then
 	print("Usage: compile.lua [options] <inputfile1> <inputfile2> ...")
 	print("\nOptions:")
-	print("  -o <filename>      Sets output filename")
-	print("  --no-headers       Eliminate word headers, except for main word")
-	print("  --optimize         Eliminate unused words")
-	print("  --verbose          Print information while compiling")
-	print("  --main=<name>      Sets name of main executable word (default 'MAIN')")
-	print("  --filename=<name>  Sets the filename in tap header (default 'dict')")
+	print("  -o <filename>             Sets output filename")
+	print("  --no-headers              Eliminate word headers, except for main word")
+	print("  --minimal-word-names      Experimental: rename all words as '@', except main word")
+	print("  --inline                  Inline words that are only used once")
+	print("  --eliminate-unused-words  Eliminate unused words when possible")
+	print("  --small-literals          Optimize zeroes and byte-sized literals")
+	print("  --optimize                Enable all optimizations")
+	print("  --verbose                 Print information while compiling")
+	print("  --main=<name>             Sets name of main executable word (default 'MAIN')")
+	print("  --filename=<name>         Sets the filename in tap header (default 'dict')")
 	os.exit(-1)
 end
 
@@ -388,6 +401,17 @@ function parse_number(str)
 	return tonumber(str, base)
 end
 
+-- Fills the word length field of previous word in dictionary.
+function update_word_length()
+	if prev_word_link >= start_address then
+		-- prev_word_link points to the name length field of the last defined word
+		-- word length field is always 4 bytes before this
+		local word_length_addr = prev_word_link - 4
+		local length = here() - prev_word_link + 4
+		write_short(word_length_addr, length)
+	end
+end
+
 -- Inserts a header for a new word to output dictionary. The new word has a header but with empty parameter field.
 -- Its word length is also zero. The word length field is updated to correct value when the next word is added.
 -- This means that the last word will have zero in the word length field. This is how the ROM code works too
@@ -398,21 +422,16 @@ function create_word(code_field, name)
 	local skip_header = false
 	if opts.no_headers and name ~= opts.main_word then skip_header = true end
 
-	-- fill the word length field of the previous word
-	if prev_word_link >= start_address then
-		-- prev_word_link points to the name length field of the last defined word
-		-- word length field is always 4 bytes before this
-		local word_length_addr = prev_word_link - 4
-		local length = here() - prev_word_link + 4
-		write_short(word_length_addr, length)
-	end
+	update_word_length()
 
 	if skip_header then
 		emit_byte(0)
 	else
 		-- write name to dictionary, with terminator bit set for the last character
-		local name_upper = string.upper(name)
-		emit_string(name_upper:sub(1, #name_upper - 1) .. string.char(name_upper:byte(#name_upper) | 128))
+		local name = name
+		if opts.minimal_word_names and name ~= opts.main_word then name = "@" end
+		name = string.upper(name)
+		emit_string(name:sub(1, #name - 1) .. string.char(name:byte(#name) | 128))
 
 		emit_short(0) -- placeholder word length
 		emit_short(prev_word_link)
@@ -991,6 +1010,8 @@ for _, filename in ipairs(input_files) do
 		end
 	end
 end
+
+update_word_length()
 
 local more_work = false
 
