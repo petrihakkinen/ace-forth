@@ -56,12 +56,12 @@ do
 			elseif arg == "--eliminate-unused-words" then
 				opts.eliminate_unused_words = true
 			elseif arg == "--small-literals" then
-				opts.optimize_literals = true
+				opts.small_literals = true
 			elseif arg == "--optimize" then
-				opts.no_headers = true
 				opts.inline_words = true
+				opts.minimal_word_names = true
 				opts.eliminate_unused_words = true
-				opts.optimize_literals = true
+				opts.small_literals = true
 			elseif arg == "--verbose" then
 				opts.verbose = true
 			elseif string.match(arg, "^%-%-main=") then
@@ -94,12 +94,12 @@ if #input_files == 0 then
 	print("Usage: compile.lua [options] <inputfile1> <inputfile2> ...")
 	print("\nOptions:")
 	print("  -o <filename>             Sets output filename")
-	print("  --no-headers              (unsafe) Eliminate word headers, except for main word")
-	print("  --minimal-word-names      Experimental: rename all words as '@', except main word")
+	print("  --minimal-word-names      Rename all words as '@', except main word")
 	print("  --inline                  Inline words that are only used once")
 	print("  --eliminate-unused-words  Eliminate unused words when possible")
 	print("  --small-literals          Optimize byte-sized literals")
-	print("  --optimize                Enable all optimizations")
+	print("  --no-headers              (unsafe) Eliminate word headers, except for main word")
+	print("  --optimize                Enable all safe optimizations")
 	print("  --verbose                 Print information while compiling")
 	print("  --main=<name>             Sets name of main executable word (default 'MAIN')")
 	print("  --filename=<name>         Sets the filename in tap header (default 'dict')")
@@ -350,9 +350,9 @@ end
 
 function emit_literal(n)
 	-- this optimization seems to be unsafe and causes the tape loader in ROM to mess up
-	--if n == 0 and opts.optimize_literals then
+	--if n == 0 and opts.small_literals then
 	--	emit_short(PUSH_ZERO)
-	if n >= 0 and n < 256 and opts.optimize_literals then
+	if n >= 0 and n < 256 and opts.small_literals then
 		emit_short(PUSH_BYTE)
 		emit_byte(n)
 	elseif n >= -32768 and n < 65536 then
