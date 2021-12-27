@@ -163,6 +163,9 @@ local rom_words = {
 	CURRENT = 0x0480, CONTEXT = 0x0473, HERE = 0x0460, ABORT = 0x00ab, QUIT = 0x0099
 }
 
+-- starting addresses of user defined words
+local word_start_addresses = {}
+
 -- compilation addresses of user defined words
 local compilation_addresses = {}
 
@@ -346,9 +349,10 @@ function emit_string(str)
 end
 
 function emit_literal(n)
-	if n == 0 and opts.optimize_literals then
-		emit_short(PUSH_ZERO)
-	elseif n >= 0 and n < 256 and opts.optimize_literals then
+	-- this optimization seems to be unsafe and causes the tape loader in ROM to mess up
+	--if n == 0 and opts.optimize_literals then
+	--	emit_short(PUSH_ZERO)
+	if n >= 0 and n < 256 and opts.optimize_literals then
 		emit_short(PUSH_BYTE)
 		emit_byte(n)
 	elseif n >= -32768 and n < 65536 then
@@ -419,6 +423,8 @@ end
 function create_word(code_field, name)
 	if name == nil then name = next_word() end
 
+	word_start_addresses[name] = here()
+
 	local skip_header = false
 	if opts.no_headers and name ~= opts.main_word then skip_header = true end
 
@@ -453,6 +459,38 @@ function create_word(code_field, name)
 	end
 
 	return name
+end
+
+-- Erases previously compiled word from dictionary.
+-- Returns the contents of the parameter field of the erased word.
+function erase_previous_word()
+	local name = last_word
+
+	local start_addr = word_start_addresses[name]
+	assert(start_addr, "could not determine starting address of previous word")
+
+	local compilation_addr = compilation_addresses[name]
+	assert(compilation_addr, "could not determine compilation address of previous word")
+
+	-- fix prev word link
+	prev_word_link = read_short(compilation_addr - 3)
+
+	-- store old code (skip code field)
+	local code = {}
+	for i = compilation_addr + 2, here() - 1 do
+		code[#code + 1] = mem[i]
+	end
+
+	for i = start_addr, here() - 1 do
+		mem[i] = 0
+	end
+
+	word_start_addresses[name] = nil
+	compilation_addresses[name] = nil
+
+	output_pos = start_addr
+
+	return code
 end
 
 -- Execute user defined word at compile time.
@@ -564,10 +602,16 @@ interpret_dict = {
 	immediate = function()
 		local name = last_word
 		comp_assert(name, "invalid use of IMMEDIATE")
-		local compilation_addr = compilation_addresses[name]
-		comp_assert(compilation_addr, "could not determine compilation address of previous word")
 
 		local addr = next_immediate_word
+
+		local code = erase_previous_word()
+
+		-- store code in compiler memory (skip code field)
+		for _, byte in ipairs(code) do
+			mem[next_immediate_word] = byte
+			next_immediate_word = next_immediate_word + 1
+		end
 
 		interpret_dict[name] = function()
 			execute(addr)
@@ -576,19 +620,6 @@ interpret_dict = {
 		compile_dict[name] = function()
 			execute(addr)
 		end
-
-		-- copy compiled code to compiler memory (skip code field)
-		for i = compilation_addr + 2, here() - 1 do
-			mem[next_immediate_word] = mem[i]
-			next_immediate_word = next_immediate_word + 1
-		end
-
-		-- erase compiled code from output dictionary
-		for i = compilation_addr, here() - 1 do
-			mem[i] = 0
-		end
-		output_pos = compilation_addr
-		compilation_addresses[name] = nil
 	end,
 	noinline = function()
 		-- forbid inlining previous word
@@ -821,29 +852,15 @@ compile_dict = {
 		-- inlining
 		if inline_words[last_word] then
 			local name = last_word
-			local compilation_addr = compilation_addresses[name]
-			assert(compilation_addr, "could not determine compilation address of previous word")
-
-			-- store code (skip code field and ret at the end)
-			local code = {}
-			for i = compilation_addr + 2, here() - 3 do
-				code[#code + 1] = mem[i]
-			end
+			local code = erase_previous_word()
 
 			-- when the inlined word is compiled, we emit its code
 			compile_dict[name] = function()
-				for _, byte in ipairs(code) do
-					emit_byte(byte)
+				-- skip ret at the end
+				for i = 1, #code - 2 do
+					emit_byte(code[i])
 				end
 			end
-
-			-- erase compiled code from output dictionary
-			for i = compilation_addr, here() - 1 do
-				mem[i] = 0
-			end
-
-			output_pos = compilation_addr
-			compilation_addresses[name] = nil
 		end
 	end,
 	['['] = function()
@@ -938,7 +955,7 @@ compile_dict = {
 	lit = function() emit_literal(pop()) end,
 	postpone = function()
 		local name = next_word()
-		if compile_dict[name] == nil then comp_error("undefined word %s") end
+		if compile_dict[name] == nil then comp_error("undefined word %s", name) end
 		emit_short(POSTPONE)
 		emit_short(#name)
 		emit_string(name)
