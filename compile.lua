@@ -199,7 +199,8 @@ function printf(...)
 end
 
 function comp_error(...)
-	fatal_error("%s:%d: %s", input_file, cur_line, string.format(...))
+	printf("%s:%d: %s", input_file, cur_line, string.format(...))
+	os.exit(-1)
 end
 
 function comp_assert(expr, message)
