@@ -13,8 +13,6 @@
 -- The first user defined word is placed at 3C51 in RAM.
 -- The function create_word() below adds a new word header to the output dictionary.
 
-local asm_vocabulary = require "asm"
-
 local DO_COLON		= 0x0EC3 -- DoColon routine in ROM, the value of code field for user defined words
 local DO_PARAM		= 0x0FF0 -- Routine which pushes the parameter field to stack, code field value for variables
 local DO_CONSTANT	= 0x0FF5 -- Routine which pushes short from parameter field to stack, code field value for constants
@@ -42,6 +40,11 @@ local input_files = {}
 local output_file
 local opts = { main_word = "main", tap_filename = "dict" }
 
+function fatal_error(msg)
+	io.stderr:write(msg, "\n")
+	os.exit(-1)
+end
+
 do
 	local i = 1
 	while i <= #args do
@@ -64,24 +67,21 @@ do
 				opts.small_literals = true
 			elseif arg == "--verbose" then
 				opts.verbose = true
-			elseif string.match(arg, "^%-%-main=") then
-				opts.main_word = string.match(arg, "^%-%-main=(.*)")
-			elseif string.match(arg, "^%-%-filename=") then
-				opts.tap_filename = string.match(arg, "^%-%-filename=(.*)")
-				if #opts.tap_filename > 10 then
-					print("TAP filename too long (max 10 chars)")
-					os.exit(-1)
-				end
-			elseif arg == "-o" then
-				output_file = args[i + 1]
+			elseif arg == "--main" then
 				i = i + 1
-				if output_file == nil then
-					print("No output file!")
-					os.exit(-1)
-				end
+				opts.main_word = args[i]
+				if opts.main_word == nil then fatal_error("Word name must follow --main") end
+			elseif arg == "--filename" then
+				i = i + 1
+				opts.tap_filename = args[i]
+				if opts.tap_filename == nil then fatal_error("TAP filename must follow --filename") end
+				if #opts.tap_filename > 10 then fatal_error("TAP filename too long (max 10 chars)") end
+			elseif arg == "-o" then
+				i = i + 1
+				output_file = args[i]
+				if output_file == nil then fatal_error("Output filename must follow -o") end
 			else
-				print("Invalid option: " .. arg)
-				os.exit(-1)
+				fatal_error("Invalid option: " .. arg)
 			end
 		else
 			input_files[#input_files + 1] = arg
@@ -101,8 +101,8 @@ if #input_files == 0 then
 	print("  --no-headers              (unsafe) Eliminate word headers, except for main word")
 	print("  --optimize                Enable all safe optimizations")
 	print("  --verbose                 Print information while compiling")
-	print("  --main=<name>             Sets name of main executable word (default 'MAIN')")
-	print("  --filename=<name>         Sets the filename in tap header (default 'dict')")
+	print("  --main <name>             Sets name of main executable word (default 'MAIN')")
+	print("  --filename <name>         Sets the filename for tap header (default 'dict')")
 	os.exit(-1)
 end
 
@@ -112,7 +112,7 @@ local pass = 1
 
 ::restart::
 
-print("Pass " .. pass)
+if opts.verbose then print("Pass " .. pass) end
 
 local input								-- source code as string
 local input_file						-- current input filename
@@ -197,8 +197,7 @@ function printf(...)
 end
 
 function comp_error(...)
-	printf("%s:%d: %s", input_file, cur_line, string.format(...))
-	os.exit(-1)
+	fatal_error("%s:%d: %s", input_file, cur_line, string.format(...))
 end
 
 function comp_assert(expr, message)
@@ -978,17 +977,11 @@ for name, addr in pairs(rom_words) do
 	compilation_addr_to_name[addr] = name
 end
 
--- load asm vocabulary
--- TODO: CODE word should switch to asm vocabulary?
-for name, func in pairs(asm_vocabulary) do
-	interpret_dict[name] = func
-end
-
 -- compile all files
 for _, filename in ipairs(input_files) do
 	-- load input file
 	local file, err = io.open(filename, "r")
-	if file == nil then print(err); os.exit(-1) end
+	if file == nil then fatal_error(err) end
 	input = file:read("a")
 	file:close()
 
