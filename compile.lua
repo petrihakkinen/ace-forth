@@ -2,6 +2,7 @@
 
 -- Ace Forth cross compiler
 -- Copyright (c) 2021 Petri Häkkinen
+-- See LICENSE file for details
 --
 -- Each user defined word has the following structure:
 -- Name				array of bytes, the last character has high bit set which marks the end of string
