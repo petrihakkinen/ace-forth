@@ -5,7 +5,7 @@ ace-forth is a Forth cross-compiler for Jupiter Ace. The main benefit of cross-c
 Features:
 
 - Supports most standard Forth words
-- Includes some non-standard extras, most notably GOTO and LABEL (see differences below)
+- Includes some non-standard extras, most notably `GOTO` and `LABEL` (see differences below)
 - Inlining, dead code elimination, minimal word names and small literal optimizations
 - Easy to customize; written in Lua
 
@@ -42,32 +42,32 @@ On Windows which does not support shebangs you need to prefix the command line w
 
 ## Differences with Jupiter Ace Forth interpreter
 
-- Word names are case sensitive
+- Word names are case sensitive. In contrast to standard Forth most words need to be written in lower case (this is easier for the eyes).
 
 - Floating point words are not currently supported in interpreter mode (the words can still be compiled though).
 
-- Words DEFINER DOES> RUNS> are not supported. The usual interpreter words IMMEDIATE POSTPONE [ ] HERE etc. are supported.
+- Words `DEFINER`, `DOES>` and `RUNS>` are not supported. The usual interpreter words `IMMEDIATE`, `POSTPONE`, `[`, `]`, `HERE` etc. are supported.
 
-- WHILE and REPEAT are not currently supported. They should be easy to add if needed though.
+- `WHILE` and `REPEAT` are not currently supported. They should be easy to add if needed though.
 
-- New control flow words GOTO and LABEL
+- New control flow words `GOTO` and `LABEL`.
 
-- Infinite loops using BEGIN and AGAIN words are supported (you can jump out of them using EXIT or GOTO)
+- Infinite loops using `BEGIN` and `AGAIN` words are supported (you can jump out of them using `EXIT` or `GOTO`).
 
-- Some commonly used words have been shortened: CONSTANT -> CONST, LITERAL -> LIT
+- Some commonly used words have been shortened: `CONSTANT` -> `CONST`, `LITERAL` -> `LIT`.
 
-- New word NOINLINE which prevents inlining of the previously added word. It can also be used to silence "Word 'foo' has side exits and cannot be inlined" warning.
+- New word `NOINLINE` which prevents inlining of the previously added word. It can also be used to silence "Word 'foo' has side exits and cannot be inlined" warning.
 
-- New interpreter words: [if] [else] [then] [defined] for conditionally compiling code (e.g. for stripping debug code)
+- New interpreter words: `[if]`, `[else]`, `[then]`, and `[defined]` for conditionally compiling code (e.g. for stripping debug code).
 
-- New interpreter mode utility words: NIP 2* 2/ 2DUP 2DROP
+- New interpreter mode utility words: `NIP`, `2*`, `2/`, `2DUP`, and `2DROP`.
 
-- Line comments using \ word are supported
+- Line comments using `\` word are supported.
 
-- New variable defining word BYTE, which works like VARIABLE but defines byte sized variables (remember to use C@ and C! to access them).
+- New variable defining word `BYTE`, which works like `VARIABLE` but defines byte sized variables (remember to use `C@` and `C!` to access them).
 
-- New word CODE for embedding machine code words
+- New word `CODE` for embedding machine code words.
 
-- New word BYTES for embedding byte data without having to use C, or , words between every element. The end of byte data is marked with ;
+- New word `BYTES` for embedding byte data without having to use `C,` or `,` words between every element. The end of byte data is marked with `;`.
 
-- New words CREATE{ and } which work like CREATE, but } is used to mark the end of the word. This allows the compiler to eliminate unused words defined using CREATE{
+- New words `CREATE{` and `}` which work like `CREATE`, but `}` is used to mark the end of the word. This allows the compiler to eliminate unused words defined using `CREATE{`.
