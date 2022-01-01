@@ -12,6 +12,8 @@
 	until 
 	ascii * emit ;
 
+:m arith 3 4 +   3 4 -   5 1+   5 1- ;
+
 : dump ( address count -- )
 	16 base c!
 	0 do
@@ -27,5 +29,6 @@ find test 2+ 10 dump
 : main
 	cr 5 3 test . . ( prints 3 3 )
 	cr push8 . ( prints 8 )
-	cr test-begin-until cr ( prints "*AAAAA*" )
+	cr test-begin-until ( prints "*AAAAA*" )
+	cr arith . . . . ( prints 4 6 -1 7 )
 	;

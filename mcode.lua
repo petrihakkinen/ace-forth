@@ -46,6 +46,36 @@ local dict = {
 		emit_byte(0x59) -- ld e,c
 		stk_push_de()
 	end,
+	['+'] = function()
+		stk_pop_de()
+		emit_byte(0xd5)	-- push de
+		stk_pop_de()
+		emit_byte(0xe1)	-- pop hl
+		emit_byte(0x19) -- add hl,de
+		emit_byte(0xeb)	-- ex de,hl
+		stk_push_de()
+	end,
+	['-'] = function()
+		stk_pop_de()
+		emit_byte(0xd5)	-- push de
+		stk_pop_de()
+		emit_byte(0xe1)	-- pop hl
+		emit_byte(0xeb)	-- ex de,hl
+		emit_byte(0xb7)	-- or a (clear carry)
+		emit_short(0x52ed) -- sbc hl,de
+		emit_byte(0xeb)	-- ex de,hl
+		stk_push_de()
+	end,
+	['1+'] = function()
+		stk_pop_de()
+		emit_byte(0x13) -- inc de
+		stk_push_de()
+	end,
+	['1-'] = function()
+		stk_pop_de()
+		emit_byte(0x1b) -- dec de
+		stk_push_de()
+	end,
 	ascii = function()
 		compile_dict.ascii()
 	end,
