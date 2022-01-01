@@ -17,8 +17,15 @@
 	5 1- . ( 4 )
 	12345 negate . ( -12345 )
 	-12345 negate . ( 12345 )
+	;
+
+:m arith-funcs
 	4892 abs . ( 4892 )
 	-4892 abs . ( 4892 )
+	7000 123 min . ( 123 )
+	-7000 123 min . ( -7000 )
+	7000 123 max . ( 7000 )
+	-7000 123 max . ( 123 )
 	;
 
 :m boolean-ops
@@ -87,6 +94,7 @@ find test 2+ 10 dump
 	cr test ( prints 3 3 )
 	cr test-begin-until ( prints "*AAAAA*" )
 	cr arith ( prints 4 6 -1 7 )
+	cr arith-funcs
 	cr boolean-ops ( prints 12164 89 32760 )
 	cr rel-ops ( prints 1 0 1 0 0 1 0 0 )
 	cr begin-profile speed-test end-profile

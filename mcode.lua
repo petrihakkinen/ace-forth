@@ -243,6 +243,38 @@ local dict = {
 		emit_byte(0xeb) -- ex de, hl
 		stk_push_de()	-- .skip
 	end,
+	min = function()
+		stk_pop_de()
+		emit_byte(0xd5)	-- push de
+		stk_pop_de()
+		emit_byte(0xe1)	-- pop hl
+		emit_byte(0xe5) -- push hl
+		emit_byte(0xb7)	-- or a (clear carry)
+		emit_short(0x52ed) -- sbc hl, de
+		emit_byte(0x7c)	-- ld a,h
+		emit_byte(0xe1)	-- pop hl
+		emit_short(0x17cb) -- rl a
+		emit_byte(0x30) -- jr nc, .skip
+		emit_byte(1)
+		emit_byte(0xeb) -- ex de, hl
+		stk_push_de()	-- .skip
+	end,
+	max = function()
+		stk_pop_de()
+		emit_byte(0xd5)	-- push de
+		stk_pop_de()
+		emit_byte(0xe1)	-- pop hl
+		emit_byte(0xe5) -- push hl
+		emit_byte(0xb7)	-- or a (clear carry)
+		emit_short(0x52ed) -- sbc hl, de
+		emit_byte(0x7c)	-- ld a,h
+		emit_byte(0xe1)	-- pop hl
+		emit_short(0x17cb) -- rl a
+		emit_byte(0x38) -- jr c, .skip
+		emit_byte(1)
+		emit_byte(0xeb) -- ex de, hl
+		stk_push_de()	-- .skip
+	end,
 	ascii = function()
 		compile_dict.ascii()
 	end,
@@ -292,7 +324,7 @@ end
 	DO, REPEAT, THEN, ELSE,
 	WHILE, IF, LEAVE, J, ["I'"], I,
 	CALL, LITERAL,
-	DECIMAL, MIN, MAX,
+	DECIMAL,
 	["*"],
 
 	OUT, IN, INKEY, BEEP, PLOT, AT,
