@@ -123,6 +123,39 @@ local dict = {
 		emit_byte(0x5f) -- ld e,a
 		stk_push_de()
 	end,
+	xor = function()
+		stk_pop_de()
+		stk_pop_bc()
+		emit_byte(0x7b) -- ld a,e
+		emit_byte(0xa9) -- xor c
+		emit_byte(0x5f) -- ld e,a
+		emit_byte(0x7a) -- ld a,d
+		emit_byte(0xa8) -- xor b
+		emit_byte(0x57) -- ld d,a
+		stk_push_de()
+	end,
+	['and'] = function()
+		stk_pop_de()
+		stk_pop_bc()
+		emit_byte(0x7b) -- ld a,e
+		emit_byte(0xa1) -- and c
+		emit_byte(0x5f) -- ld e,a
+		emit_byte(0x7a) -- ld a,d
+		emit_byte(0xa0) -- and b
+		emit_byte(0x57) -- ld d,a
+		stk_push_de()
+	end,
+	['or'] = function()
+		stk_pop_de()
+		stk_pop_bc()
+		emit_byte(0x7b) -- ld a,e
+		emit_byte(0xb1) -- or c
+		emit_byte(0x5f) -- ld e,a
+		emit_byte(0x7a) -- ld a,d
+		emit_byte(0xb0) -- or b
+		emit_byte(0x57) -- ld d,a
+		stk_push_de()
+	end,
 	ascii = function()
 		compile_dict.ascii()
 	end,

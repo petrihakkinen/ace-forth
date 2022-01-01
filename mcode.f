@@ -17,6 +17,12 @@
 	5 1- ( 4 )
 	;
 
+:m boolean-ops
+ 	10123 2063 xor . ( 12164 )
+ 	11131 1241 and . ( 89 )
+ 	7072 32120 or . ( 32760 )
+ 	;
+
 :m rel-ops
 	0 0= . ( 1 )
 	256 0= . ( 0 )
@@ -64,6 +70,7 @@ find test 2+ 10 dump
 	cr test ( prints 3 3 )
 	cr test-begin-until ( prints "*AAAAA*" )
 	cr arith ( prints 4 6 -1 7 )
+	cr boolean-ops ( prints 12164 89 32760 )
 	cr rel-ops ( prints 1 0 1 0 0 1 0 0 )
 	cr begin-profile speed-test end-profile
 	;
