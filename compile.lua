@@ -704,6 +704,11 @@ interpret_dict = {
 			emit_literal(value)
 		end
 
+		-- add mcode behavior for the word which emits the constant as machine code literal
+		mcode_dict[name] = function()
+			emit_literal(value)
+		end
+
 		-- add word to interpreter dictionary so that the constant can be used at compile time
 		interpret_dict[name] = function()
 			push(value)

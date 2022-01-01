@@ -295,6 +295,36 @@ local dict = {
 		emit_byte(0xeb) -- ex de, hl
 		stk_push_de()	-- .skip
 	end,
+	['c!'] = function()
+		stk_pop_de()
+		stk_pop_bc()
+		emit_byte(0x79) -- ld a,c
+		emit_byte(0x12) -- ld (de),a
+	end,
+	['c@'] = function()
+		stk_pop_de()
+		emit_byte(0x1a) -- ld a,(de)
+		emit_byte(0x5f) -- ld e,a
+		emit_byte(0x16) -- ld d,0
+		emit_byte(0)
+		stk_push_de()
+	end,
+	['!'] = function()
+		stk_pop_de()
+		stk_pop_bc()
+		emit_byte(0xeb) -- ex de,hl
+		emit_byte(0x71) -- ld (hl),c
+		emit_byte(0x23) -- inc hl
+		emit_byte(0x70) -- ld (hl),b
+	end,
+	['@'] = function()
+		stk_pop_de()
+		emit_byte(0xeb) -- ex de,hl
+		emit_byte(0x5e) -- ld e,(hl)
+		emit_byte(0x23) -- inc hl
+		emit_byte(0x56) -- ld d,(hl)
+		stk_push_de()
+	end,
 	ascii = function()
 		compile_dict.ascii()
 	end,
@@ -352,7 +382,7 @@ end
 	SIGN,
 
 	TYPE, ROLL, PICK, ROT, ["?DUP"],
-	["R>"], [">R"], ["!"], ["@"], ["C!"], ["C@"],
+	["R>"], [">R"],
 
 	EXECUTE, RETYPE, QUERY, PAD, BASE,
 --]]

@@ -1,5 +1,9 @@
 ( Test Machine Code Compilation )
 
+hex
+2400 const SCREEN
+decimal
+
 code di 243 c, 253 c, 233 c, 
 code ei 251 c, 253 c, 233 c, 
 
@@ -94,6 +98,13 @@ code ei 251 c, 253 c, 233 c,
 	0 0 < . ( 0 )
 	;
 
+:m mem 
+	SCREEN c@ ( read char 'm' )
+	SCREEN 20 + c! ( write char )
+	SCREEN @ ( read short 'ma' )
+	SCREEN 24 + ! ( write short )
+	;
+
 : time ( -- time )
 	252 in ( lo byte )
 	253 in ( hi byte )
@@ -124,4 +135,5 @@ code ei 251 c, 253 c, 233 c,
 	\ cr begin-profile speed-test end-profile
 	\ cr begin-profile benchmark-stack end-profile
 	\ cr begin-profile benchmark-over end-profile
+	mem
 	;
