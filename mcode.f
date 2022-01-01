@@ -1,6 +1,6 @@
 ( Test Machine Code Compilation )
 
-:m test drop ;
+:m test swap drop dup ;
 
 : dump ( address count -- )
 	16 base c!
@@ -14,4 +14,4 @@
 
 find test 2+ 10 dump
 
-: main 5 3 test . ;
+: main 5 3 test . . ;
