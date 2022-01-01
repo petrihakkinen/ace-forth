@@ -384,6 +384,12 @@ function here()
 	return output_pos
 end
 
+-- Enters interpreter state. Usually called by ;
+function interpreter_state()
+	compile_mode = false
+	inside_colon_definition = false
+end
+
 -- Returns the current numeric base used by the compiler.
 function base()
 	return mem[0]
@@ -862,11 +868,7 @@ compile_dict = {
 		comp_error("invalid :")
 	end,
 	[';'] = function()
-		if compile_mode == "mcode" then
-			emit_short(MCODE_END)
-		else
-			emit_short(FORTH_END)
-		end
+		emit_short(FORTH_END)
 		compile_mode = false
 		inside_colon_definition = false
 
@@ -1028,7 +1030,12 @@ for _, filename in ipairs(input_files) do
 
 		if compile_mode then
 			-- compile mode
-			local func = compile_mode == "mcode" and mcode_dict[sym] or compile_dict[sym]
+			local func
+			if compile_mode == "mcode" then
+				func = mcode_dict[sym]
+			else
+				func = compile_dict[sym]
+			end
 			if func == nil then
 				-- is it a number?
 				local n = parse_number(sym)
