@@ -19,6 +19,14 @@ code ei 251 c, 253 c, 233 c,
 	123 dup . . ( 123 123 )
 	456 123 drop . ( 456 )
 	45 67 over . . . ( 45 67 45 )
+	72 ?dup . . ( 72 72 )
+	0 ?dup 1 . . ( 1 0 )
+	;
+
+:m stack2
+	3 4 2 pick . . . ( 3 4 3 )
+	1 2 2 roll . . ( 1 2 )
+	1 2 3 3 roll . . . ( 1 3 2 )
 	;
 
 ( 11986 -> 4714, 2.5 times faster )
@@ -128,6 +136,7 @@ code ei 251 c, 253 c, 233 c,
 	fast di
 	cr test-begin-until ( prints "*AAAAA*" )
 	cr stack
+	cr stack2
 	cr arith ( prints 4 6 -1 7 )
 	cr arith-funcs
 	cr boolean-ops ( prints 12164 89 32760 )

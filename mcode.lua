@@ -54,6 +54,19 @@ local dict = {
 		emit_byte(0x5e) -- ld e,(hl)
 		stk_push_de()
 	end,
+	['?dup'] = function()
+		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
+		emit_short(0x3c3b)
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x56) -- ld d,(hl)
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x5e) -- ld e,(hl)
+		emit_byte(0x7a) -- ld a,d
+		emit_byte(0xb3) -- or e
+		emit_byte(0x28)	-- jr z,.skip
+		emit_byte(1)
+		stk_push_de()
+	end,
 	over = function()
 		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
 		emit_short(0x3c3b)
@@ -81,7 +94,23 @@ local dict = {
 		emit_byte(0x59) -- ld e,c
 		stk_push_de()
 	end,
-	['+'] = function()
+	pick = function()
+		call(0x094d)
+	end,
+	roll = function()
+		call(0x094d)
+		emit_byte(0xeb) -- ex de,hl
+		emit_byte(0x2a) -- ld hl,(0x3c37) (load stkbot)
+		emit_short(0x3c37)
+		emit_byte(0x62) -- ld h,d
+		emit_byte(0x6b) -- ld l,e
+		emit_byte(0x23) -- inc hl
+		emit_byte(0x23) -- inc hl
+		emit_short(0xb0ed) -- ldir
+		emit_short(0x53ed) -- ld (0x3c3b),de (write spare)
+		emit_short(0x3c3b)
+	end,
+    ['+'] = function()
 		stk_pop_de()
 		emit_byte(0xd5)	-- push de
 		stk_pop_de()
@@ -358,7 +387,7 @@ local interpreted_words = {
 	"ufloat", "int", "fnegate", "f/", "f*", "f+", "f-", "f.",
 	"d+", "dnegate", "u/mod", "*/", "mod", "/", "*/mod", "/mod", "u*", "d<", "u<",
 	"#", "#s", "u.", ".", "#>", "<#",
-	"cls", "slow", "fast", "invis", "vis", "abort", "quit", "convert"
+	"cls", "slow", "fast", "invis", "vis", "abort", "quit", "convert", "rot"
 }
 
 for _, name in ipairs(interpreted_words) do
@@ -381,7 +410,7 @@ end
 	CR, SPACES, SPACE, HOLD,
 	SIGN,
 
-	TYPE, ROLL, PICK, ROT, ["?DUP"],
+	TYPE,
 	["R>"], [">R"],
 
 	EXECUTE, RETYPE, QUERY, PAD, BASE,
