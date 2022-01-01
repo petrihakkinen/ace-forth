@@ -91,6 +91,18 @@ local dict = {
 		emit_byte(0x1b) -- dec de
 		stk_push_de()
 	end,
+	['2+'] = function()
+		stk_pop_de()
+		emit_byte(0x13) -- inc de
+		emit_byte(0x13) -- inc de
+		stk_push_de()
+	end,
+	['2-'] = function()
+		stk_pop_de()
+		emit_byte(0x1b) -- dec de
+		emit_byte(0x1b) -- dec de
+		stk_push_de()
+	end,
 	['='] = function()
 		stk_pop_de()
 		emit_byte(0xd5)	-- push de
@@ -102,8 +114,8 @@ local dict = {
 		emit_short(0)
 		emit_byte(0x7c) -- ld a, h
 		emit_byte(0xb5) -- or l
-		emit_byte(0x20)
-		emit_byte(0x01)	-- jr nz, .neg
+		emit_byte(0x20)	-- jr nz, .neg
+		emit_byte(0x01)
 		emit_byte(0x1c)	-- inc e
 		stk_push_de() -- .neg:
 	end,
@@ -203,6 +215,34 @@ local dict = {
 		emit_byte(0x57) -- ld d,a
 		stk_push_de()
 	end,
+	negate = function()
+		stk_pop_de()
+		emit_byte(0xeb) -- ex de, hl
+		emit_byte(0xaf) -- xor a
+		emit_byte(0x95) -- sub l
+		emit_byte(0x6f) -- ld l,a
+		emit_byte(0x9f) -- sbc a,a
+		emit_byte(0x94) -- sub h
+		emit_byte(0x67) -- ld h,a
+		emit_byte(0xeb) -- ex de, hl
+		stk_push_de()
+	end,
+	abs = function()
+		stk_pop_de()
+		emit_byte(0x7a) -- ld a,d
+		emit_short(0x17cb) -- rl a
+		emit_byte(0x30) -- jr nc, .skip
+		emit_byte(8)
+		emit_byte(0xeb) -- ex de, hl
+		emit_byte(0xaf) -- xor a
+		emit_byte(0x95) -- sub l
+		emit_byte(0x6f) -- ld l,a
+		emit_byte(0x9f) -- sbc a,a
+		emit_byte(0x94) -- sub h
+		emit_byte(0x67) -- ld h,a
+		emit_byte(0xeb) -- ex de, hl
+		stk_push_de()	-- .skip
+	end,
 	ascii = function()
 		compile_dict.ascii()
 	end,
@@ -252,11 +292,10 @@ end
 	DO, REPEAT, THEN, ELSE,
 	WHILE, IF, LEAVE, J, ["I'"], I,
 	CALL, LITERAL,
-	["C,"], [","],
-	DECIMAL, MIN, MAX, ["2-"], ["2+"],
-	NEGATE, ["*"],
+	DECIMAL, MIN, MAX,
+	["*"],
 
-	ABS, OUT, IN, INKEY, BEEP, PLOT, AT,
+	OUT, IN, INKEY, BEEP, PLOT, AT,
 	CR, SPACES, SPACE, HOLD,
 	SIGN,
 
