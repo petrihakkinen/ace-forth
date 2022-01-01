@@ -1,8 +1,6 @@
 ( Test Machine Code Compilation )
 
-:m test swap drop dup ;
-
-:m push8 8 ;
+:m test 5 3 swap drop dup . . ;
 
 :m test-begin-until
 	ascii * emit
@@ -12,19 +10,25 @@
 	until 
 	ascii * emit ;
 
-:m arith 3 4 +   3 4 -   5 1+   5 1- ;
+:m arith
+	3 4 + . ( 7 )
+	3 4 - . ( -1 )
+	5 1+ ( 6 )
+	5 1- ( 4 )
+	;
 
 :m rel-ops
-	0 0= ( 1 )
-	256 0= ( 0 )
+	0 0= . ( 1 )
+	256 0= . ( 0 )
 
-	-123 0< ( 1 )
-	0 0< ( 0 )
-	123 0< ( 0 )
+	-123 0< . ( 1 )
+	0 0< . ( 0 )
+	123 0< . ( 0 )
 
-	5 0> ( 1 )
-	0 0> ( 0 )
-	-5 0> ( 0 ) ;
+	5 0> . ( 1 )
+	0 0> . ( 0 )
+	-5 0> . ( 0 )
+	;
 
 : time ( -- time )
 	252 in ( lo byte )
@@ -57,10 +61,9 @@
 find test 2+ 10 dump
 
 : main
-	cr 5 3 test . . ( prints 3 3 )
-	cr push8 . ( prints 8 )
+	cr test ( prints 3 3 )
 	cr test-begin-until ( prints "*AAAAA*" )
-	cr arith . . . . ( prints 4 6 -1 7 )
-	cr rel-ops . . . . . . . . ( prints 0 0 1 0 0 1 0 1 )
+	cr arith ( prints 4 6 -1 7 )
+	cr rel-ops ( prints 1 0 1 0 0 1 0 0 )
 	cr begin-profile speed-test end-profile
 	;

@@ -12,7 +12,7 @@ end
 
 -- Pops value from Forth stack and puts it in BC register.
 local function stk_pop_bc()
-	emit_byte(0xcd);	-- call 084e 
+	emit_byte(0xcd)	-- call 084e 
 	emit_short(0x084e)
 end
 
@@ -23,6 +23,17 @@ local function jr_z(target)
 	if offset < 0 then offset = 256 + offset end
 	assert(offset >= 0 and offset < 256, "branch too long")	-- TODO: long jumps
 	emit_byte(offset)
+end
+
+local function call_forth(name)
+	local addr = rom_words[name]
+	if addr == nil then
+		comp_error("could not find compilation address of word %s", name)
+	end
+	emit_byte(0xcd)	-- forth
+	emit_short(0x04b9)
+	emit_short(addr)
+	emit_short(0x1A0E) -- end-forth
 end
 
 local dict = {
@@ -119,6 +130,9 @@ local dict = {
 		stk_pop_de()
 		emit_byte(0x7b) -- ld a,e
 		emit_byte(0xcf) -- rst 8
+	end,
+	['.'] = function()
+		call_forth(".")
 	end,
 	begin = function()
 		push(here())

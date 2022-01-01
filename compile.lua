@@ -141,7 +141,7 @@ local no_eliminate_words = {}			-- words that cannot be eliminated even if they'
 -- initial value: address of FORTH in RAM
 local prev_word_link = 0x3C49
 
-local rom_words = {
+rom_words = {
 	FORTH = 0x3c4a, UFLOAT = 0x1d59, INT = 0x1d22, FNEGATE = 0x1d0f, ["F/"] = 0x1c7b, ["F*"] = 0x1c4b,
 	["F+"] = 0x1bb1, ["F-"] = 0x1ba4, LOAD = 0x198a, BVERIFY = 0x1979, VERIFY = 0x1967, BLOAD = 0x1954,
 	BSAVE = 0x1944, SAVE = 0x1934, LIST = 0x1670, EDIT = 0x165e, FORGET = 0x1638, REDEFINE = 0x13fd,
