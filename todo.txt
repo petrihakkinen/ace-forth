@@ -1,0 +1,4 @@
+- BUG: empty comments are not parsed correctly! Compiling the following code causes an error:
+: foo ( ) ;
+: bar ( 0 ) ;
+: main bar ;
