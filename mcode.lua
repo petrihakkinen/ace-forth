@@ -110,6 +110,18 @@ local dict = {
 		emit_short(0x53ed) -- ld (0x3c3b),de (write spare)
 		emit_short(0x3c3b)
 	end,
+	['r>'] = function()
+		emit_byte(0xc1) -- pop bc
+		emit_byte(0xd1) -- pop de
+		emit_byte(0xc5) -- push bc
+		stk_push_de()
+	end,
+	['>r'] = function()
+		stk_pop_de()
+		emit_byte(0xc1) -- pop bc
+		emit_byte(0xd5)	-- push de
+		emit_byte(0xc5) -- push bc
+	end,
     ['+'] = function()
 		stk_pop_de()
 		emit_byte(0xd5)	-- push de
@@ -399,21 +411,18 @@ end
 --[[
 	TODO:
 
-	EXIT, [".\""], ["+LOOP"], LOOP,
-	DO, REPEAT, THEN, ELSE,
-	WHILE, IF, LEAVE, J, ["I'"], I,
-	CALL, LITERAL,
-	DECIMAL,
-	["*"],
+	EXIT ." +LOOP LOOP
+	DO REPEAT THEN ELSE
+	WHILE IF LEAVE J I' I
+	CALL LITERAL
+	DECIMAL
+	*
 
-	OUT, IN, INKEY, BEEP, PLOT, AT,
-	CR, SPACES, SPACE, HOLD,
-	SIGN,
-
-	TYPE,
-	["R>"], [">R"],
-
-	EXECUTE, RETYPE, QUERY, PAD, BASE,
+	OUT IN INKEY BEEP PLOT AT
+	CR SPACES SPACE HOLD
+	SIGN
+	
+	TYPE EXECUTE RETYPE QUERY BASE
 --]]
 
 return dict
