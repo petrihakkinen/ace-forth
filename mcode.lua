@@ -25,13 +25,17 @@ local function jr_z(target)
 	emit_byte(offset)
 end
 
+local function call(addr)
+	emit_byte(0xcd)
+	emit_short(addr)
+end
+
 local function call_forth(name)
 	local addr = rom_words[name]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	emit_byte(0xcd)	-- forth
-	emit_short(0x04b9)
+	call(0x04b9) -- call forth
 	emit_short(addr)
 	emit_short(0x1A0E) -- end-forth
 end
@@ -86,6 +90,40 @@ local dict = {
 		stk_pop_de()
 		emit_byte(0x1b) -- dec de
 		stk_push_de()
+	end,
+	['='] = function()
+		-- TODO: would this be faster/smaller if we checked a-b = 0?
+		stk_pop_de()
+		stk_pop_bc()
+		emit_byte(0x21) -- ld hl, 0
+		emit_short(0)
+		emit_byte(0x7a) -- ld a, d
+		emit_byte(0xb8) -- cp b
+		emit_byte(0x20) -- jr nz, .neq
+		emit_byte(0x05)
+		emit_byte(0x7b) -- ld a, e
+		emit_byte(0xb9) -- cp c
+		emit_byte(0x20) -- jr nz, .neq
+		emit_byte(0x01)
+		emit_byte(0x23) -- inc hl
+		emit_byte(0xeb) -- .neg: ex de, hl
+		stk_push_de()
+	end,
+	['>'] = function()
+		stk_pop_de()
+		emit_byte(0xd5)	-- push de
+		stk_pop_de()
+		emit_byte(0xe1)	-- pop hl
+		call(0x0c99)
+		emit_byte(0x3e) -- ld a,0
+		emit_byte(0)
+		emit_byte(0x57) -- ld d,a
+		emit_byte(0x17) -- rla
+		emit_byte(0x5f) -- ld e,a
+		stk_push_de()
+	end,
+	['<'] = function()
+		error("< not implemented yet")
 	end,
 	['0='] = function()
 		stk_pop_de()
