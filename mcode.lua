@@ -121,7 +121,18 @@ local dict = {
 		stk_push_de()
 	end,
 	['<'] = function()
-		error("< not implemented yet")
+		stk_pop_de()
+		emit_byte(0xd5)	-- push de
+		stk_pop_de()
+		emit_byte(0xe1)	-- pop hl
+		emit_byte(0xeb)	-- ex de,hl
+		call(0x0c99)
+		emit_byte(0x3e) -- ld a,0
+		emit_byte(0)
+		emit_byte(0x57) -- ld d,a
+		emit_byte(0x17) -- rla
+		emit_byte(0x5f) -- ld e,a
+		stk_push_de()
 	end,
 	['0='] = function()
 		stk_pop_de()
