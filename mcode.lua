@@ -104,23 +104,13 @@ local dict = {
 		emit_byte(0x28)	-- jr z,.skip
 		emit_byte(3)
 		emit_short(0x12cb)	-- rl d
-		emit_byte(0x3f) --ccf
+		emit_byte(0x3f) -- ccf
 		emit_byte(0x3e) -- skip: ld a,0
 		emit_byte(0)
 		emit_byte(0x57) -- ld d,a
 		emit_byte(0x17) -- rla
 		emit_byte(0x5f) -- ld e,a
-
-
-		-- emit_byte(0x7a) -- ld a,d (hi byte to a)
-		-- emit_byte(0xfe) -- cp 128
-		-- emit_byte(0x80)
-		-- emit_byte(0x11)	-- ld de,1
-		-- emit_short(1)
-		-- emit_byte(0x38)	-- jr c,.skip
-		-- emit_byte(1)
-		-- emit_byte(0x5a) -- ld e,d (clear e)
-		stk_push_de()	-- .skip
+		stk_push_de()
 	end,
 	ascii = function()
 		compile_dict.ascii()
@@ -138,7 +128,7 @@ local dict = {
 		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = pop()
 		stk_pop_de()
-		emit_byte(0x7b) -- ld a,e
+		emit_byte(0x7a) -- ld a,d
 		emit_byte(0xb3) -- or e
 		jr_z(target)
 	end,
