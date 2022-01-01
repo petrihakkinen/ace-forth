@@ -1,5 +1,8 @@
 ( Test Machine Code Compilation )
 
+code di 243 c, 253 c, 233 c, 
+code ei 251 c, 253 c, 233 c, 
+
 :m test-begin-until
 	ascii * emit
 	1 0 0 0 0
@@ -11,15 +14,36 @@
 :m stack
 	123 dup . . ( 123 123 )
 	456 123 drop . ( 456 )
+	45 67 over . . . ( 45 67 45 )
 	;
 
-( 12190 -> 4714, 2.6 times faster )
+( 11986 -> 4714, 2.5 times faster )
 :m benchmark-stack
 	10000 begin
 		dup dup dup dup dup drop drop drop drop drop
 		1-
 		dup 0=
 	until drop ;
+
+( 9 times faster! )
+:m benchmark-over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	;
 
 :m arith
 	3 4 + . ( 7 )
@@ -89,10 +113,8 @@
 	loop
 	decimal ; immediate
 
-find test 2+ 10 dump
-
 : main
-	fast
+	fast di
 	cr test-begin-until ( prints "*AAAAA*" )
 	cr stack
 	cr arith ( prints 4 6 -1 7 )
@@ -100,5 +122,6 @@ find test 2+ 10 dump
 	cr boolean-ops ( prints 12164 89 32760 )
 	cr rel-ops ( prints 1 0 1 0 0 1 0 0 )
 	\ cr begin-profile speed-test end-profile
-	cr begin-profile benchmark-stack end-profile
+	\ cr begin-profile benchmark-stack end-profile
+	\ cr begin-profile benchmark-over end-profile
 	;

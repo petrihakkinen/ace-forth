@@ -54,6 +54,17 @@ local dict = {
 		emit_byte(0x5e) -- ld e,(hl)
 		stk_push_de()
 	end,
+	over = function()
+		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
+		emit_short(0x3c3b)
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x56) -- ld d,(hl)
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x5e) -- ld e,(hl)
+		stk_push_de()
+	end,
 	drop = function()
 		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
 		emit_short(0x3c3b)
@@ -309,7 +320,7 @@ local dict = {
 	end,
 	['\\'] = function()
 		compile_dict['\\']()
-	end
+	end,
 }
 
 -- The following words do not have fast machine code implementation
@@ -340,7 +351,7 @@ end
 	CR, SPACES, SPACE, HOLD,
 	SIGN,
 
-	TYPE, ROLL, PICK, OVER, ROT, ["?DUP"],
+	TYPE, ROLL, PICK, ROT, ["?DUP"],
 	["R>"], [">R"], ["!"], ["@"], ["C!"], ["C@"],
 
 	EXECUTE, RETYPE, QUERY, PAD, BASE,
