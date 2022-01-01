@@ -25,7 +25,7 @@
 find test 2+ 10 dump
 
 : main
-	\ cr 5 3 test . . ( prints 3 3 )
-	\ cr push8 . ( prints 8 )
+	cr 5 3 test . . ( prints 3 3 )
+	cr push8 . ( prints 8 )
 	cr test-begin-until cr ( prints "*AAAAA*" )
 	;
