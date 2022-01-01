@@ -92,22 +92,20 @@ local dict = {
 		stk_push_de()
 	end,
 	['='] = function()
-		-- TODO: would this be faster/smaller if we checked a-b = 0?
 		stk_pop_de()
-		stk_pop_bc()
-		emit_byte(0x21) -- ld hl, 0
+		emit_byte(0xd5)	-- push de
+		stk_pop_de()
+		emit_byte(0xe1)	-- pop hl
+		emit_byte(0xb7)	-- or a (clear carry)
+		emit_short(0x52ed) -- sbc hl, de
+		emit_byte(0x11) -- ld de, 0
 		emit_short(0)
-		emit_byte(0x7a) -- ld a, d
-		emit_byte(0xb8) -- cp b
-		emit_byte(0x20) -- jr nz, .neq
-		emit_byte(0x05)
-		emit_byte(0x7b) -- ld a, e
-		emit_byte(0xb9) -- cp c
-		emit_byte(0x20) -- jr nz, .neq
-		emit_byte(0x01)
-		emit_byte(0x23) -- inc hl
-		emit_byte(0xeb) -- .neg: ex de, hl
-		stk_push_de()
+		emit_byte(0x7c) -- ld a, h
+		emit_byte(0xb5) -- or l
+		emit_byte(0x20)
+		emit_byte(0x01)	-- jr nz, .neg
+		emit_byte(0x1c)	-- inc e
+		stk_push_de() -- .neg:
 	end,
 	['>'] = function()
 		stk_pop_de()
