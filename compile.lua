@@ -353,18 +353,29 @@ function emit_string(str)
 end
 
 function emit_literal(n)
-	-- this optimization seems to be unsafe and causes the tape loader in ROM to mess up
-	--if n == 0 and opts.small_literals then
-	--	emit_short(PUSH_ZERO)
-	if n >= 0 and n < 256 and opts.small_literals then
-		emit_short(PUSH_BYTE)
-		emit_byte(n)
-	elseif n >= -32768 and n < 65536 then
-		if n < 0 then n = 65536 + n end
-		emit_short(PUSH_WORD)
-		emit_short(n)
+	if compile_mode == "mcode" then
+		if n >= -32768 and n < 65536 then
+			if n < 0 then n = 65536 + n end
+			emit_byte(0x11)	-- ld de, <literal>
+			emit_short(n)
+			emit_byte(0xd7)	-- rst 16
+		else
+			comp_error("literal out of range")
+		end
 	else
-		comp_error("literal out of range")
+		-- this optimization seems to be unsafe and causes the tape loader in ROM to mess up
+		--if n == 0 and opts.small_literals then
+		--	emit_short(PUSH_ZERO)
+		if n >= 0 and n < 256 and opts.small_literals then
+			emit_short(PUSH_BYTE)
+			emit_byte(n)
+		elseif n >= -32768 and n < 65536 then
+			if n < 0 then n = 65536 + n end
+			emit_short(PUSH_WORD)
+			emit_short(n)
+		else
+			comp_error("literal out of range")
+		end
 	end
 end
 

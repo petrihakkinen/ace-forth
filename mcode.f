@@ -2,6 +2,8 @@
 
 :m test swap drop dup ;
 
+:m push8 8 ;
+
 : dump ( address count -- )
 	16 base c!
 	0 do
@@ -14,4 +16,7 @@
 
 find test 2+ 10 dump
 
-: main 5 3 test . . ;
+: main
+	cr 5 3 test . . ( prints 3 3 )
+	cr push8 . ( prints 8 )
+	;

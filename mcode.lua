@@ -16,7 +16,7 @@ local dict = {
 		emit_byte(0xcd); emit_short(0x084e) -- stk_to_bc
 		emit_byte(0xd7) -- rst 16
 		emit_byte(0x50) -- ld d,b
-		emit_byte(0x59) -- lo e,c
+		emit_byte(0x59) -- ld e,c
 		emit_byte(0xd7) -- rst 16
 	end,
 }
