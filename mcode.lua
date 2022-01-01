@@ -46,12 +46,21 @@ local dict = {
 		interpreter_state()
 	end,
 	dup = function()
-		stk_pop_de()
-		stk_push_de()
+		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
+		emit_short(0x3c3b)
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x56) -- ld d,(hl)
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x5e) -- ld e,(hl)
 		stk_push_de()
 	end,
 	drop = function()
-		stk_pop_de()
+		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
+		emit_short(0x3c3b)
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x2b) -- dec hl
+		emit_byte(0x22) -- ld (0x3c3b),hl
+		emit_short(0x3c3b)
 	end,
 	swap = function()
 		stk_pop_de()

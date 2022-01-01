@@ -1,7 +1,5 @@
 ( Test Machine Code Compilation )
 
-:m test 5 3 swap drop dup . . ;
-
 :m test-begin-until
 	ascii * emit
 	1 0 0 0 0
@@ -9,6 +7,19 @@
 		ascii A emit
 	until 
 	ascii * emit ;
+
+:m stack
+	123 dup . . ( 123 123 )
+	456 123 drop . ( 456 )
+	;
+
+( 12190 -> 4714, 2.6 times faster )
+:m benchmark-stack
+	10000 begin
+		dup dup dup dup dup drop drop drop drop drop
+		1-
+		dup 0=
+	until drop ;
 
 :m arith
 	3 4 + . ( 7 )
@@ -68,15 +79,6 @@
 
 : end-profile ( start-time -- ) time swap - ." RESULT: " . ;
 
-( 3710 -> 2401 = 1.5 times faster )
-:m speed-test
-	10000
-	begin
-		1-
-		dup 0=
-	until
-	drop ;
-
 : dump ( address count -- )
 	16 base c!
 	0 do
@@ -91,11 +93,12 @@ find test 2+ 10 dump
 
 : main
 	fast
-	cr test ( prints 3 3 )
 	cr test-begin-until ( prints "*AAAAA*" )
+	cr stack
 	cr arith ( prints 4 6 -1 7 )
 	cr arith-funcs
 	cr boolean-ops ( prints 12164 89 32760 )
 	cr rel-ops ( prints 1 0 1 0 0 1 0 0 )
-	cr begin-profile speed-test end-profile
+	\ cr begin-profile speed-test end-profile
+	cr begin-profile benchmark-stack end-profile
 	;
