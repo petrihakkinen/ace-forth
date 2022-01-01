@@ -31,7 +31,7 @@ local function call(addr)
 end
 
 local function call_forth(name)
-	local addr = rom_words[name]
+	local addr = rom_words[string.upper(name)]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
@@ -211,9 +211,6 @@ local dict = {
 		emit_byte(0x7b) -- ld a,e
 		emit_byte(0xcf) -- rst 8
 	end,
-	['.'] = function()
-		call_forth(".")
-	end,
 	begin = function()
 		push(here())
 		push('begin')
@@ -233,5 +230,40 @@ local dict = {
 		compile_dict['\\']()
 	end
 }
+
+-- The following words do not have fast machine code implementation
+local interpreted_words = {
+	"ufloat", "int", "fnegate", "f/", "f*", "f+", "f-", "f.",
+	"d+", "dnegate", "u/mod", "*/", "mod", "/", "*/mod", "/mod", "u*", "d<", "u<",
+	"#", "#s", "u.", ".", "#>", "<#",
+	"cls", "slow", "fast", "invis", "vis", "abort", "quit", "convert"
+}
+
+for _, name in ipairs(interpreted_words) do
+	dict[name] = function()
+		call_forth(name)
+	end
+end
+
+--[[
+	TODO:
+
+	EXIT, [".\""], ["+LOOP"], LOOP,
+	DO, REPEAT, THEN, ELSE,
+	WHILE, IF, LEAVE, J, ["I'"], I,
+	CALL, LITERAL,
+	["C,"], [","],
+	DECIMAL, MIN, MAX, ["2-"], ["2+"],
+	NEGATE, ["*"],
+
+	ABS, OUT, IN, INKEY, BEEP, PLOT, AT,
+	CR, SPACES, SPACE, HOLD,
+	SIGN,
+
+	TYPE, ROLL, PICK, OVER, ROT, ["?DUP"],
+	["R>"], [">R"], ["!"], ["@"], ["C!"], ["C@"],
+
+	EXECUTE, RETYPE, QUERY, PAD, BASE,
+--]]
 
 return dict

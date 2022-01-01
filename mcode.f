@@ -57,7 +57,7 @@
 
 : end-profile ( start-time -- ) time swap - ." RESULT: " . ;
 
-( 6276 -> 2381 = 2.6 times faster! )
+( 3710 -> 2401 = 1.5 times faster )
 :m speed-test
 	10000
 	begin
@@ -79,6 +79,7 @@
 find test 2+ 10 dump
 
 : main
+	fast
 	cr test ( prints 3 3 )
 	cr test-begin-until ( prints "*AAAAA*" )
 	cr arith ( prints 4 6 -1 7 )
