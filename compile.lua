@@ -35,6 +35,8 @@ local v_current = 0x3C4C
 local v_context = 0x3C4C
 local v_voclink = 0x3C4F
 
+local mcode_dict = require "mcode"
+
 -- parse args
 local args = {...}
 
@@ -601,6 +603,17 @@ interpret_dict = {
 			skip_until(';')
 		end
 	end,
+	[':m'] = function() 
+		local name = next_word()
+		if not eliminate_words[name] then
+			create_word(0, name)
+			write_short(here() - 2, here())	-- patch codefield
+			compile_mode = "mcode"
+			inside_colon_definition = true
+		else
+			skip_until(';')
+		end
+	end,
 	immediate = function()
 		local name = last_word
 		comp_assert(name, "invalid use of IMMEDIATE")
@@ -838,7 +851,11 @@ compile_dict = {
 		comp_error("invalid :")
 	end,
 	[';'] = function()
-		emit_short(FORTH_END)
+		if compile_mode == "mcode" then
+			emit_short(MCODE_END)
+		else
+			emit_short(FORTH_END)
+		end
 		compile_mode = false
 		inside_colon_definition = false
 
@@ -1000,7 +1017,7 @@ for _, filename in ipairs(input_files) do
 
 		if compile_mode then
 			-- compile mode
-			local func = compile_dict[sym]
+			local func = compile_mode == "mcode" and mcode_dict[sym] or compile_dict[sym]
 			if func == nil then
 				-- is it a number?
 				local n = parse_number(sym)
