@@ -409,6 +409,16 @@ local dict = {
 		stk_pop_de()
 		emit_short(0x59ed) -- out (c),e
 	end,
+	base = function()
+		emit_byte(0x11) -- ld de, 0x3c3f
+		emit_short(0x3c3f)
+		stk_push_de()
+	end,
+	decimal = function()
+		emit_short(0x36dd) -- ld (ix+0x3f),0x0a
+		emit_byte(0x3f)
+		emit_byte(0x0a)
+	end,
 	['in'] = function()
 		stk_pop_bc()
 		emit_byte(0x16) -- ld d,0
@@ -434,13 +444,16 @@ local dict = {
 	['\\'] = function()
 		compile_dict['\\']()
 	end,
+	lit = function()
+		compile_dict.lit()
+	end,
 }
 
 -- The following words do not have fast machine code implementation
 local interpreted_words = {
 	"ufloat", "int", "fnegate", "f/", "f*", "f+", "f-", "f.",
 	"d+", "dnegate", "u/mod", "*/", "mod", "/", "*/mod", "/mod", "u*", "d<", "u<",
-	"#", "#s", "u.", ".", "#>", "<#",
+	"#", "#s", "u.", ".", "#>", "<#", "sign", "hold",
 	"cls", "slow", "fast", "invis", "vis", "abort", "quit", "convert", "rot", "plot"
 }
 
@@ -456,15 +469,12 @@ end
 	EXIT ." +LOOP LOOP
 	DO REPEAT THEN ELSE
 	WHILE IF LEAVE J I' I
-	CALL LITERAL
-	DECIMAL
+	CALL
 	*
 
 	INKEY BEEP
-	HOLD
-	SIGN
 	
-	TYPE EXECUTE RETYPE QUERY BASE
+	TYPE EXECUTE RETYPE QUERY
 --]]
 
 return dict
