@@ -2,3 +2,11 @@
 : foo ( ) ;
 : bar ( 0 ) ;
 : main bar ;
+
+- mcode optimizations:
+	- eliminate rst 16 (push word) & rst 24 (pop word) pairs (there's bound to be a lot of them!)
+	- similarly dup and ?dup can be much simplified if they are following rst 16 (push word)
+	- alternatively we could always hold top of stack in de
+		- we only need to push de to stack when we call another word, or when we return/exit from mcode word
+
+- in-out-crash in mcode.f

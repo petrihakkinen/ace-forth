@@ -374,6 +374,18 @@ local dict = {
 		emit_byte(0x7b) -- ld a,e
 		emit_byte(0xcf) -- rst 8
 	end,
+	out = function()
+		stk_pop_bc()
+		stk_pop_de()
+		emit_short(0x59ed) -- out (c),e
+	end,
+	['in'] = function()
+		stk_pop_bc()
+		emit_byte(0x16) -- ld d,0
+		emit_byte(0)
+		emit_short(0x58ed) -- in e,(c)
+		stk_push_de()
+	end,
 	begin = function()
 		push(here())
 		push('begin')
@@ -418,7 +430,7 @@ end
 	DECIMAL
 	*
 
-	OUT IN INKEY BEEP PLOT AT
+	INKEY BEEP PLOT AT
 	CR SPACES SPACE HOLD
 	SIGN
 	

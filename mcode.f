@@ -30,6 +30,28 @@ code ei 251 c, 253 c, 233 c,
 	3 7 >r . r> . ( 3 7 )
 	;
 
+:m pull-speaker 65278 in drop ;
+:m push-speaker 0 65278 out ;
+
+: in-out
+	500 0 do
+		pull-speaker
+		100 0 do loop
+		push-speaker
+		100 0 do loop
+	loop ;
+
+( This crashes! But works with regular colon definition... )
+:m in-out-crash
+	12345
+	100 begin
+		65278 in drop ( pull speaker )
+		100 begin 1- dup 0= until drop 
+		0 65278 out ( push speaker )
+		100 begin 1- dup 0= until drop 
+		1- dup 0=
+	until drop . ;
+
 ( 11986 -> 4714, 2.5 times faster )
 :m benchmark-stack
 	10000 begin
@@ -145,5 +167,6 @@ code ei 251 c, 253 c, 233 c,
 	\ cr begin-profile speed-test end-profile
 	\ cr begin-profile benchmark-stack end-profile
 	\ cr begin-profile benchmark-over end-profile
+	\ in-out
 	mem
 	;
