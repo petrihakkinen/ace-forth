@@ -7,14 +7,6 @@ decimal
 code di 243 c, 253 c, 233 c, 
 code ei 251 c, 253 c, 233 c, 
 
-:m test-begin-until
-	ascii * emit
-	1 0 0 0 0
-	begin
-		ascii A emit
-	until 
-	ascii * emit ;
-
 :m stack
 	123 dup . . ( 123 123 )
 	456 123 drop . ( 456 )
@@ -51,34 +43,6 @@ code ei 251 c, 253 c, 233 c,
 		100 begin 1- dup 0= until drop 
 		1- dup 0=
 	until drop . ;
-
-( 11986 -> 4714, 2.5 times faster )
-:m benchmark-stack
-	10000 begin
-		dup dup dup dup dup drop drop drop drop drop
-		1-
-		dup 0=
-	until drop ;
-
-( 9 times faster! )
-:m benchmark-over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	;
 
 :m arith
 	3 4 + . ( 7 )
@@ -155,6 +119,47 @@ code ei 251 c, 253 c, 233 c,
 		cr inkey .
 	0 until ;
 
+:m begin-until
+	ascii * emit
+	1 0 0 0 0
+	begin
+		ascii A emit
+	until 
+	ascii * emit ;
+
+:m do-loop
+	5 0 do
+		ascii L emit
+	loop ;
+
+( 11986 -> 4714, 2.5 times faster )
+:m benchmark-stack
+	10000 begin
+		dup dup dup dup dup drop drop drop drop drop
+		1-
+		dup 0=
+	until drop ;
+
+( 9 times faster! )
+:m benchmark-over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	over over over over over over over over over over
+	;
+
 : time ( -- time )
 	252 in ( lo byte )
 	253 in ( hi byte )
@@ -176,7 +181,6 @@ code ei 251 c, 253 c, 233 c,
 
 : main
 	fast di
-	cr test-begin-until ( prints "*AAAAA*" )
 	cr stack
 	cr stack2
 	cr arith ( prints 4 6 -1 7 )
@@ -189,6 +193,8 @@ code ei 251 c, 253 c, 233 c,
 	\ in-out
 	cr test-base
 	mem
-	print
+	cr begin-until ( prints *AAAAA* )
+	do-loop ( prints LLLLL )
+	cr print
 	\ test-inkey
 	;

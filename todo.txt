@@ -12,3 +12,8 @@
 - in-out-crash in mcode.f
 
 - add to compile_dict and mcode_dict: 2dup 2drop 2over nip 2* 2/ hex
+
+- SCF sets carry flag, it should probably be used in mcode (at least in MIN and MAX?)
+
+- separate control flow stack
+	- check that the stack is empty at the end of word definition

@@ -16,13 +16,23 @@ local function stk_pop_bc()
 	emit_short(0x084e)
 end
 
--- Emits conditional jump which causes a jump to <target> if Z flag is set.
-local function jr_z(target)
-	emit_byte(0x28)	-- jr z,<offset>
+local function branch_offset(target)
 	local offset = target - here() - 1
 	if offset < 0 then offset = 256 + offset end
 	assert(offset >= 0 and offset < 256, "branch too long")	-- TODO: long jumps
-	emit_byte(offset)
+	return offset
+end
+
+-- Emits unconditional jump to <target>.
+local function jr(target)
+	emit_byte(0x18)	-- jr <offset>
+	emit_byte(branch_offset(target))
+end
+
+-- Emits conditional jump which causes a jump to <target> if Z flag is set.
+local function jr_z(target)
+	emit_byte(0x28)	-- jr z,<offset>
+	emit_byte(branch_offset(target))
 end
 
 local function call(addr)
@@ -450,6 +460,30 @@ local dict = {
 		emit_byte(0xb3) -- or e
 		jr_z(target)
 	end,
+	['do'] = function()
+		stk_pop_de() -- pop counter
+		stk_pop_bc() -- pop limit
+		emit_byte(0xc5)	-- push bc (push limit to return stack)
+		emit_byte(0xd5) -- push de (push counter to return stack)
+		push(here())
+		push('do')
+	end,
+	loop = function()
+		comp_assert(pop() == 'do', "LOOP without matching DO")
+		local target = pop()
+		emit_byte(0xd1) -- pop de (pop counter)
+		emit_byte(0xc1) -- pop bc (pop limit) 
+		emit_byte(0x13) -- inc de
+		emit_byte(0x60) -- ld h,b
+		emit_byte(0x69) -- ld l,c
+		emit_byte(0x37) -- scf (set carry flag)
+		emit_short(0x52ed) -- sbc hl,de
+		emit_byte(0x38) -- jr c, .done
+		emit_byte(4)
+		emit_byte(0xc5)	-- push bc (push limit to return stack)
+		emit_byte(0xd5) -- push de (push counter to return stack)
+		jr(target)
+	end,
 	['('] = function()
 		compile_dict['(']()
 	end,
@@ -480,8 +514,8 @@ end
 --[[
 	TODO:
 
-	EXIT ." +LOOP LOOP
-	DO REPEAT THEN ELSE
+	EXIT ." +LOOP
+	REPEAT THEN ELSE
 	WHILE IF LEAVE J I' I AGAIN
 	*
 --]]
