@@ -404,10 +404,10 @@ local dict = {
 		emit_byte(0x22) --ld ($3c1c),hl (update SCRPOS)
 		emit_short(0x3c1c)
 	end,
-	out = function()
+	type = function()
 		stk_pop_bc()
 		stk_pop_de()
-		emit_short(0x59ed) -- out (c),e
+		call(0x097f) -- call print string routine
 	end,
 	base = function()
 		emit_byte(0x11) -- ld de, 0x3c3f
@@ -419,11 +419,23 @@ local dict = {
 		emit_byte(0x3f)
 		emit_byte(0x0a)
 	end,
+	out = function()
+		stk_pop_bc()
+		stk_pop_de()
+		emit_short(0x59ed) -- out (c),e
+	end,
 	['in'] = function()
 		stk_pop_bc()
 		emit_byte(0x16) -- ld d,0
 		emit_byte(0)
 		emit_short(0x58ed) -- in e,(c)
+		stk_push_de()
+	end,
+	inkey = function()
+		call(0x0336) -- call keyscan routine
+		emit_byte(0x5f) -- ld e,a
+		emit_byte(0x16) -- ld d,0
+		emit_byte(0)
 		stk_push_de()
 	end,
 	begin = function()
@@ -454,7 +466,9 @@ local interpreted_words = {
 	"ufloat", "int", "fnegate", "f/", "f*", "f+", "f-", "f.",
 	"d+", "dnegate", "u/mod", "*/", "mod", "/", "*/mod", "/mod", "u*", "d<", "u<",
 	"#", "#s", "u.", ".", "#>", "<#", "sign", "hold",
-	"cls", "slow", "fast", "invis", "vis", "abort", "quit", "convert", "rot", "plot"
+	"cls", "slow", "fast", "invis", "vis", "abort", "quit",
+	"line", "word", "number", "convert", "retype", "query",
+	"rot", "plot", "beep", "execute", "call"
 }
 
 for _, name in ipairs(interpreted_words) do
@@ -468,13 +482,8 @@ end
 
 	EXIT ." +LOOP LOOP
 	DO REPEAT THEN ELSE
-	WHILE IF LEAVE J I' I
-	CALL
+	WHILE IF LEAVE J I' I AGAIN
 	*
-
-	INKEY BEEP
-	
-	TYPE EXECUTE RETYPE QUERY
 --]]
 
 return dict

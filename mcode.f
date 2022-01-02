@@ -141,12 +141,19 @@ code ei 251 c, 253 c, 233 c,
 	cr space ascii * emit
 	cr space space ascii * emit
 	cr 3 spaces ascii * emit
-	10 10 at ascii @ emit ;
+	10 10 at
+	15424 5 type ( print "FORTH" )
+	;
 
 :m test-base
 	16 base c! 255 . ( ff )
 	decimal 255 . ( 255 )
 	;
+
+:m test-inkey 
+	begin
+		cr inkey .
+	0 until ;
 
 : time ( -- time )
 	252 in ( lo byte )
@@ -183,4 +190,5 @@ code ei 251 c, 253 c, 233 c,
 	cr test-base
 	mem
 	print
+	\ test-inkey
 	;
