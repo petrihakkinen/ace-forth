@@ -136,6 +136,13 @@ code ei 251 c, 253 c, 233 c,
 	SCREEN 24 + ! ( write short )
 	;
 
+:m print
+	cr ascii * emit
+	cr space ascii * emit
+	cr space space ascii * emit
+	cr 3 spaces ascii * emit
+	10 10 at ascii @ emit ;
+
 : time ( -- time )
 	252 in ( lo byte )
 	253 in ( hi byte )
@@ -169,4 +176,5 @@ code ei 251 c, 253 c, 233 c,
 	\ cr begin-profile benchmark-over end-profile
 	\ in-out
 	mem
+	print
 	;

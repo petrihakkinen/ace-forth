@@ -374,6 +374,36 @@ local dict = {
 		emit_byte(0x7b) -- ld a,e
 		emit_byte(0xcf) -- rst 8
 	end,
+	cr = function()
+		emit_byte(0x3e) -- ld a,0x0d
+		emit_byte(0x0d)
+		emit_byte(0xcf) -- rst 8
+	end,
+	space = function()
+		emit_byte(0x3e) -- ld a,0x20
+		emit_byte(0x20)
+		emit_byte(0xcf) -- rst 8
+	end,
+	spaces = function()
+		stk_pop_de()
+		emit_byte(0x1b)	-- loop: dec de
+		emit_short(0x7acb) -- bit 7,d
+		emit_byte(0x20) -- jr nz, done
+		emit_byte(5)
+		emit_byte(0x3e) -- ld a,0x20
+		emit_byte(0x20)
+		emit_byte(0xcf) -- rst 8
+		emit_byte(0x18) -- jr loop
+		emit_byte(0xf6)
+	end,
+	at = function()
+		stk_pop_de()
+		call(0x084e)
+		emit_byte(0x79) --ld a,c
+		call(0x0b28)
+		emit_byte(0x22) --ld ($3c1c),hl (update SCRPOS)
+		emit_short(0x3c1c)
+	end,
 	out = function()
 		stk_pop_bc()
 		stk_pop_de()
@@ -411,7 +441,7 @@ local interpreted_words = {
 	"ufloat", "int", "fnegate", "f/", "f*", "f+", "f-", "f.",
 	"d+", "dnegate", "u/mod", "*/", "mod", "/", "*/mod", "/mod", "u*", "d<", "u<",
 	"#", "#s", "u.", ".", "#>", "<#",
-	"cls", "slow", "fast", "invis", "vis", "abort", "quit", "convert", "rot"
+	"cls", "slow", "fast", "invis", "vis", "abort", "quit", "convert", "rot", "plot"
 }
 
 for _, name in ipairs(interpreted_words) do
@@ -430,8 +460,8 @@ end
 	DECIMAL
 	*
 
-	INKEY BEEP PLOT AT
-	CR SPACES SPACE HOLD
+	INKEY BEEP
+	HOLD
 	SIGN
 	
 	TYPE EXECUTE RETYPE QUERY BASE
