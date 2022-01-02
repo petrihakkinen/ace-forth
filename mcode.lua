@@ -452,6 +452,11 @@ local dict = {
 		push(here())
 		push('begin')
 	end,
+	again = function()
+		comp_assert(pop() == 'begin', "AGAIN without matching BEGIN")
+		local target = pop()
+		jr(target)
+	end,
 	['until'] = function()
 		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = pop()
@@ -484,6 +489,30 @@ local dict = {
 		emit_byte(0xd5) -- push de (push counter to return stack)
 		jr(target)
 	end,
+	i = function()
+		emit_byte(0xd1) -- pop de
+		emit_byte(0xd5)	-- push de
+		stk_push_de()
+	end,
+	['i\''] = function()
+		emit_byte(0xc1) -- pop bc
+		emit_byte(0xd1) -- pop de
+		emit_byte(0xd5)	-- push de
+		emit_byte(0xc5) -- push bc
+		stk_push_de()
+	end,
+	j = function()
+		emit_byte(0x21)	-- ld hl,4
+		emit_short(4)
+		emit_byte(0x39) -- add hl,sp
+		emit_byte(0x5e) -- ld e,(hl)
+		emit_byte(0x23) -- inc hl
+		emit_byte(0x56) -- ld d,(hl)
+		stk_push_de()
+	end,
+	exit = function()
+		emit_short(0xe9fd)	-- jp (iy)
+	end,
 	['('] = function()
 		compile_dict['(']()
 	end,
@@ -514,9 +543,9 @@ end
 --[[
 	TODO:
 
-	EXIT ." +LOOP
+	." +LOOP
 	REPEAT THEN ELSE
-	WHILE IF LEAVE J I' I AGAIN
+	WHILE IF LEAVE
 	*
 --]]
 

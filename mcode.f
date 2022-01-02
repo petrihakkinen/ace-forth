@@ -127,9 +127,16 @@ code ei 251 c, 253 c, 233 c,
 	until 
 	ascii * emit ;
 
+:m begin-again
+	begin
+		ascii * emit
+	again ;
+
 :m do-loop
-	5 0 do
-		ascii L emit
+	2 0 do
+		5 0 do
+			i j + .
+		loop
 	loop ;
 
 ( 11986 -> 4714, 2.5 times faster )
@@ -200,7 +207,8 @@ code ei 251 c, 253 c, 233 c,
 	cr test-base
 	mem
 	cr begin-until ( prints *AAAAA* )
-	do-loop ( prints LLLLL )
+	cr cr do-loop ( prints 0 1 2 3 4 1 2 3 4 5 )
+	\ begin-again
 	cr print
 	\ test-inkey
 	;
