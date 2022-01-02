@@ -160,6 +160,11 @@ code ei 251 c, 253 c, 233 c,
 	over over over over over over over over over over
 	;
 
+( 3454 -> 869 -> 4 times faster! )
+:m benchmark-do-loop
+	30000 0 do
+	loop ;
+
 : time ( -- time )
 	252 in ( lo byte )
 	253 in ( hi byte )
@@ -190,6 +195,7 @@ code ei 251 c, 253 c, 233 c,
 	\ cr begin-profile speed-test end-profile
 	\ cr begin-profile benchmark-stack end-profile
 	\ cr begin-profile benchmark-over end-profile
+	\ cr begin-profile benchmark-do-loop end-profile
 	\ in-out
 	cr test-base
 	mem
