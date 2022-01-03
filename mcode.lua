@@ -389,19 +389,16 @@ local dict = {
 	end,
 	abs = function()
 		stk_pop_de()
-		emit_byte(0x7a) -- ld a,d
-		emit_short(0x17cb) -- rl a
-		emit_byte(0x30) -- jr nc, .skip
-		emit_byte(8)
-		emit_byte(0xeb) -- ex de, hl
+		emit_short(0x7acb) -- bit 7,d
+		emit_byte(0x28) -- jr z,skip
+		emit_byte(6)
 		emit_byte(0xaf) -- xor a
-		emit_byte(0x95) -- sub l
-		emit_byte(0x6f) -- ld l,a
+		emit_byte(0x93) -- sub e
+		emit_byte(0x5f) -- ld e,a
 		emit_byte(0x9f) -- sbc a,a
-		emit_byte(0x94) -- sub h
-		emit_byte(0x67) -- ld h,a
-		emit_byte(0xeb) -- ex de, hl
-		stk_push_de()	-- .skip
+		emit_byte(0x92) -- sub d
+		emit_byte(0x57) -- ld d,a
+		stk_push_de()
 	end,
 	min = function()
 		stk_pop_de()
