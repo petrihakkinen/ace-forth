@@ -20,22 +20,34 @@ local function stk_pop_bc()
 end
 
 local function branch_offset(target)
-	local offset = target - here() - 1
-	if offset < 0 then offset = 256 + offset end
-	assert(offset >= 0 and offset < 256, "branch too long")	-- TODO: long jumps
+	local offset = target - here() - 2
+	if offset < -128 or offset > 127 then return end	-- branch too long
+	if offset < 0 then offset = offset + 256 end
 	return offset
 end
 
 -- Emits unconditional jump to <target>.
-local function jr(target)
-	emit_byte(0x18)	-- jr <offset>
-	emit_byte(branch_offset(target))
+local function jump(target)
+	local offset = branch_offset(target)
+	if offset then
+		emit_byte(0x18)	-- jr <offset>
+		emit_byte(offset)
+	else
+		emit_byte(0xc3) -- jp <addr>
+		emit_short(target)
+	end
 end
 
 -- Emits conditional jump which causes a jump to <target> if Z flag is set.
-local function jr_z(target)
-	emit_byte(0x28)	-- jr z,<offset>
-	emit_byte(branch_offset(target))
+local function jump_z(target)
+	local offset = branch_offset(target)
+	if offset then
+		emit_byte(0x28)	-- jr z,<offset>
+		emit_byte(offset)
+	else
+		emit_byte(0xca) -- jp z,<addr>
+		emit_short(target)
+	end
 end
 
 local function call(addr)
@@ -529,32 +541,27 @@ local dict = {
 		stk_pop_de()
 		emit_byte(0x7a) -- ld a,d
 		emit_byte(0xb3) -- or e
-		emit_byte(0x28)	-- jr z,.skip	TODO: long jump
+		emit_byte(0xca)	-- jp z,<addr>	TODO: this could be optimized to JR Z,<addr>
 		push(here())
 		push('if')
-		emit_byte(0) -- placeholder branch offset
+		emit_short(0) -- placeholder jump target
 	end,
 	['else'] = function()
 		comp_assert(pop() == 'if', "ELSE without matching IF")
 		local where = pop()
 		-- emit jump to THEN
-		emit_byte(0x28)
+		emit_byte(0xc3) -- jp <addr>	TODO: this could be optimized to JR Z,<addr>
 		push(here())
 		push('if')
-		emit_byte(0)	-- placeholder branch offset
-		-- patch branch offset for jump at IF
-		local offset = here() - where - 1
-		if offset < 0 then offset = offset + 256 end
-		assert(offset >= 0 and offset < 256, "branch too long")	-- TODO: long jump
-		write_byte(where, offset)
+		emit_short(0)	-- placeholder jump target
+		-- patch jump target at previous IF
+		write_short(where, here())
 	end,
 	['then'] = function()
 		comp_assert(pop() == 'if', "THEN without matching IF")
 		local where = pop()
-		local offset = here() - where - 1
-		if offset < 0 then offset = offset + 256 end
-		assert(offset >= 0 and offset < 256, "branch too long")	-- TODO: long jump
-		write_byte(where, offset)
+		-- patch jump target at previous IF or ELSE
+		write_short(where, here())
 	end,
 	label = function()
 		local label = next_symbol()
@@ -574,7 +581,7 @@ local dict = {
 	again = function()
 		comp_assert(pop() == 'begin', "AGAIN without matching BEGIN")
 		local target = pop()
-		jr(target)
+		jump(target)
 	end,
 	['until'] = function()
 		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
@@ -582,7 +589,7 @@ local dict = {
 		stk_pop_de()
 		emit_byte(0x7a) -- ld a,d
 		emit_byte(0xb3) -- or e
-		jr_z(target)
+		jump_z(target)
 	end,
 	['do'] = function()
 		stk_pop_de() -- pop counter
@@ -603,10 +610,12 @@ local dict = {
 		emit_byte(0x37) -- scf (set carry flag)
 		emit_short(0x52ed) -- sbc hl,de
 		emit_byte(0x38) -- jr c, .done
-		emit_byte(4)
+		local pos = here()
+		emit_byte(0)	-- placeholder branch offset
 		emit_byte(0xc5)	-- push bc (push limit to return stack)
 		emit_byte(0xd5) -- push de (push counter to return stack)
-		jr(target)
+		jump(target)
+		write_byte(pos, here() - pos - 1)
 	end,
 	['+loop'] = function()
 		comp_error("mcode word +LOOP not yet implemented")
