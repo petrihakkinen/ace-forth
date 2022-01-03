@@ -11,9 +11,12 @@ local D = 2
 local E = 3
 local H = 4
 local L = 5
-local BC = 0x10
-local DE = 0x20
-local HL = 0x30
+local AF = 0x10
+local BC = 0x20
+local DE = 0x30
+local HL = 0x40
+local IX = 0x50
+local IY = 0x60
 
 -- Pushes DE on Forth stack, trashes HL.
 local function stk_push_de()
@@ -33,8 +36,8 @@ end
 
 local function _ld(dest, src)
 	-- ld r,r
-	assert(dest >= 0 and dest <= 7)
-	assert(src >= 0 and src <= 7)
+	assert(dest >= 0 and dest <= 7, "_ld: unknown dest register")
+	assert(src >= 0 and src <= 7, "_ld: unknown src register")
 	local op = 0x40 + dest * 8 + src
 	emit_byte(op)
 end
@@ -59,8 +62,10 @@ local function _inc(r)
 		emit_byte(0x13)
 	elseif r == HL then
 		emit_byte(0x23)
-	else
+	elseif r >= 0 and r <= 7 then 
 		emit_byte(0x04 + r * 8)
+	else
+		error("_dec: unknown register")
 	end
 end
 
@@ -80,14 +85,68 @@ local function _dec(r)
 		emit_byte(0x1b)
 	elseif r == HL then
 		emit_byte(0x2b)
-	else
+	elseif r >= 0 and r <= 7 then
 		emit_byte(0x05 + r * 8)
+	else
+		error("_dec: unknown register")
 	end
 end
 
 local function _ldir()
 	emit_byte(0xed)
 	emit_byte(0xb0)
+end
+
+local function _push(r)
+	-- PUSH AF	F5
+	-- PUSH BC	C5
+	-- PUSH DE	D5
+	-- PUSH HL	E5
+	-- PUSH IX	DD E5
+	-- PUSH IY	FD E5
+	if r == AF then
+		emit_byte(0xf5)
+	elseif r == BC then
+		emit_byte(0xc5)
+	elseif r == DE then
+		emit_byte(0xd5)
+	elseif r == HL then
+		emit_byte(0xe5)
+	elseif r == IX then
+		emit_byte(0xdd)
+		emit_byte(0xe5)
+	elseif r == IY then
+		emit_byte(0xfd)
+		emit_byte(0xe5)
+	else
+		error("_push: unknown register")
+	end
+end
+
+local function _pop(r)
+	-- POP AF	F1
+	-- POP BC	C1
+	-- POP DE	D1
+	-- POP HL	E1
+	-- POP IX	DD E1
+	-- POP IY	FD E1
+	if r == AF then
+		emit_byte(0xf1)
+	elseif r == BC then
+		emit_byte(0xc1)
+	elseif r == DE then
+		emit_byte(0xd1)
+	elseif r == HL then
+		emit_byte(0xe1)
+	elseif r == IX then
+		emit_byte(0xdd)
+		emit_byte(0xe1)
+	elseif r == IY then
+		emit_byte(0xfd)
+		emit_byte(0xe1)
+	else
+		error("_pop: unknown register")
+	end
 end
 
 local function branch_offset(target)
@@ -180,9 +239,9 @@ local function emit_subroutines()
 	-- source: http://map.grauw.nl/sources/external/z80bits.html#1.1
 	mult8_addr = here()
 	stk_pop_de()
-	emit_byte(0xd5)		-- push de
+	_push(DE)
 	stk_pop_de()
-	emit_byte(0xe1)		-- pop hl
+	_pop(HL)
 	_ld(H, L)
 	emit_byte(0x2e)		-- ld l,0
 	emit_byte(0)
@@ -239,9 +298,10 @@ local dict = {
 		emit_byte(0x5e) -- ld e,(hl)
 		_ld(A, D)
 		emit_byte(0xb3) -- or e
-		emit_byte(0x28)	-- jr z,.skip
+		emit_byte(0x28)	-- jr z, skip
 		emit_byte(1)
 		stk_push_de()
+		-- skip:
 	end,
 	over = function()
 		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
@@ -287,31 +347,31 @@ local dict = {
 		emit_short(0x3c3b)
 	end,
 	['r>'] = function()
-		emit_byte(0xc1) -- pop bc
-		emit_byte(0xd1) -- pop de
-		emit_byte(0xc5) -- push bc
+		_pop(BC)
+		_pop(DE)
+		_push(BC)
 		stk_push_de()
 	end,
 	['>r'] = function()
 		stk_pop_de()
-		emit_byte(0xc1) -- pop bc
-		emit_byte(0xd5)	-- push de
-		emit_byte(0xc5) -- push bc
+		_pop(BC)
+		_push(DE)
+		_push(BC)
 	end,
     ['+'] = function()
 		stk_pop_de()
-		emit_byte(0xd5)	-- push de
+		_push(DE)
 		stk_pop_de()
-		emit_byte(0xe1)	-- pop hl
+		_pop(HL)
 		emit_byte(0x19) -- add hl,de
 		_ex_de_hl()
 		stk_push_de()
 	end,
 	['-'] = function()
 		stk_pop_de()
-		emit_byte(0xd5)	-- push de
+		_push(DE)
 		stk_pop_de()
-		emit_byte(0xe1)	-- pop hl
+		_pop(HL)
 		_ex_de_hl()
 		emit_byte(0xb7)	-- or a (clear carry)
 		emit_short(0x52ed) -- sbc hl,de
@@ -350,25 +410,26 @@ local dict = {
 	end,
 	['='] = function()
 		stk_pop_de()
-		emit_byte(0xd5)	-- push de
+		_push(DE)
 		stk_pop_de()
-		emit_byte(0xe1)	-- pop hl
+		_pop(HL)
 		emit_byte(0xb7)	-- or a (clear carry)
 		emit_short(0x52ed) -- sbc hl, de
 		emit_byte(0x11) -- ld de, 0
 		emit_short(0)
 		_ld(A, H)
 		emit_byte(0xb5) -- or l
-		emit_byte(0x20)	-- jr nz, .neg
+		emit_byte(0x20)	-- jr nz, neg
 		emit_byte(0x01)
 		_inc(E)
-		stk_push_de() -- .neg:
+		-- neg:
+		stk_push_de()
 	end,
 	['>'] = function()
 		stk_pop_de()
-		emit_byte(0xd5)	-- push de
+		_push(DE)
 		stk_pop_de()
-		emit_byte(0xe1)	-- pop hl
+		_pop(HL)
 		call(0x0c99)
 		emit_byte(0x3e) -- ld a,0
 		emit_byte(0)
@@ -379,9 +440,9 @@ local dict = {
 	end,
 	['<'] = function()
 		stk_pop_de()
-		emit_byte(0xd5)	-- push de
+		_push(DE)
 		stk_pop_de()
-		emit_byte(0xe1)	-- pop hl
+		_pop(HL)
 		_ex_de_hl()
 		call(0x0c99)
 		emit_byte(0x3e) -- ld a,0
@@ -397,10 +458,11 @@ local dict = {
 		emit_byte(0xb3) -- or e
 		emit_byte(0x11)	-- ld de,1
 		emit_short(1)
-		emit_byte(0x28)	-- jr z,.skip
+		emit_byte(0x28)	-- jr z, skip
 		emit_byte(1)
 		_ld(E, D) -- clear e
-		stk_push_de()	-- .skip
+		-- skip:
+		stk_push_de()
 	end,
 	['0<'] = function()
 		stk_pop_de()
@@ -416,11 +478,12 @@ local dict = {
 		stk_pop_de()
 		_ld(A, D)
 		emit_byte(0xb3) -- or e
-		emit_byte(0x28)	-- jr z,.skip
+		emit_byte(0x28)	-- jr z, skip
 		emit_byte(3)
 		emit_short(0x12cb)	-- rl d
 		emit_byte(0x3f) -- ccf
-		emit_byte(0x3e) -- skip: ld a,0
+		-- skip:
+		emit_byte(0x3e) -- ld a,0
 		emit_byte(0)
 		_ld(D, A)
 		emit_byte(0x17) -- rla
@@ -487,35 +550,37 @@ local dict = {
 	end,
 	min = function()
 		stk_pop_de()
-		emit_byte(0xd5)	-- push de
+		_push(DE)
 		stk_pop_de()
-		emit_byte(0xe1)	-- pop hl
-		emit_byte(0xe5) -- push hl
+		_pop(HL)
+		_push(HL)
 		emit_byte(0xb7)	-- or a (clear carry)
 		emit_short(0x52ed) -- sbc hl, de
 		_ld(A, H)
-		emit_byte(0xe1)	-- pop hl
+		_pop(HL)
 		emit_short(0x17cb) -- rl a
-		emit_byte(0x30) -- jr nc, .skip
+		emit_byte(0x30) -- jr nc, skip
 		emit_byte(1)
 		_ex_de_hl()
-		stk_push_de()	-- .skip
+		-- skip:
+		stk_push_de()
 	end,
 	max = function()
 		stk_pop_de()
-		emit_byte(0xd5)	-- push de
+		_push(DE)
 		stk_pop_de()
-		emit_byte(0xe1)	-- pop hl
-		emit_byte(0xe5) -- push hl
+		_pop(HL)
+		_push(HL)
 		emit_byte(0xb7)	-- or a (clear carry)
 		emit_short(0x52ed) -- sbc hl, de
 		_ld(A, H)
-		emit_byte(0xe1)	-- pop hl
+		_pop(HL)
 		emit_short(0x17cb) -- rl a
-		emit_byte(0x38) -- jr c, .skip
+		emit_byte(0x38) -- jr c, skip
 		emit_byte(1)
 		_ex_de_hl()
-		stk_push_de()	-- .skip
+		-- skip:
+		stk_push_de()
 	end,
 	['c!'] = function()
 		stk_pop_de()
@@ -686,16 +751,16 @@ local dict = {
 	['do'] = function()
 		stk_pop_de() -- pop counter
 		stk_pop_bc() -- pop limit
-		emit_byte(0xc5)	-- push bc (push limit to return stack)
-		emit_byte(0xd5) -- push de (push counter to return stack)
+		_push(BC) -- push limit to return stack
+		_push(DE) -- push counter to return stack
 		push(here())
 		push('do')
 	end,
 	loop = function()
 		comp_assert(pop() == 'do', "LOOP without matching DO")
 		local target = pop()
-		emit_byte(0xd1) -- pop de (pop counter)
-		emit_byte(0xc1) -- pop bc (pop limit) 
+		_pop(DE) -- pop counter
+		_pop(BC) -- pop limit
 		_inc(DE)
 		_ld(H, B)
 		_ld(L, C)
@@ -704,8 +769,8 @@ local dict = {
 		emit_byte(0x38) -- jr c, .done
 		local pos = here()
 		emit_byte(0)	-- placeholder branch offset
-		emit_byte(0xc5)	-- push bc (push limit to return stack)
-		emit_byte(0xd5) -- push de (push counter to return stack)
+		_push(BC) -- push limit to return stack
+		_push(DE) -- push counter to return stack
 		jump(target)
 		write_byte(pos, here() - pos - 1)
 	end,
@@ -719,15 +784,15 @@ local dict = {
 		comp_error("mcode word WHILE not yet implemented")
 	end,
 	i = function()
-		emit_byte(0xd1) -- pop de
-		emit_byte(0xd5)	-- push de
+		_pop(DE)
+		_push(DE)
 		stk_push_de()
 	end,
 	['i\''] = function()
-		emit_byte(0xc1) -- pop bc
-		emit_byte(0xd1) -- pop de
-		emit_byte(0xd5)	-- push de
-		emit_byte(0xc5) -- push bc
+		_pop(BC)
+		_pop(DE)
+		_push(DE)
+		_push(BC)
 		stk_push_de()
 	end,
 	j = function()
@@ -740,10 +805,10 @@ local dict = {
 		stk_push_de()
 	end,
 	leave = function()
-		emit_byte(0xe1) -- pop hl (pop counter)
-		emit_byte(0xe1) -- pop hl (pop limit)
-		emit_byte(0xe5) -- push hl (push limit)
-		emit_byte(0xe5) -- push hl (push limit as new counter)
+		_pop(HL) -- pop counter
+		_pop(HL) -- pop limit
+		_push(HL) -- push limit
+		_push(HL) -- push limit as new counter
 	end,
 	exit = function()
 		emit_short(0xe9fd)	-- jp (iy)
