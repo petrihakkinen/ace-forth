@@ -53,6 +53,36 @@ local function call_forth(name)
 	emit_short(0x1A0E) -- end-forth
 end
 
+local mult_addr
+
+-- Emits invisible subroutine words to be used by mcode words.
+local function emit_subroutines()
+	create_word(0, "_mul", true)
+	mult_addr = here()
+	stk_pop_de()
+	stk_pop_bc()
+	emit_byte(0x21)		-- ld hl,0
+	emit_short(0)
+	emit_byte(0x3e)		-- ld a,16
+	emit_byte(0x10)
+	emit_byte(0x29)		-- loop: add hl,hl
+	emit_byte(0xeb)		-- ex de,hl
+	emit_short(0x6aed)	-- adc hl,hl
+	emit_byte(0xeb)		-- ex de,hl
+	emit_byte(0x30)		-- jr nc,skip
+	emit_byte(0x04)
+	emit_byte(0x09)		-- add hl,bc
+	emit_byte(0x30)		-- jr nc,skip
+	emit_byte(0x01)
+	emit_byte(0x13)		-- inc de
+	emit_byte(0x3d)		-- skip: dec a
+	emit_byte(0x20)		-- jr nz,loop
+	emit_byte(0xf2)
+	emit_byte(0xeb)		-- ex de,hl
+	stk_push_de()
+	emit_byte(0xc9)		-- ret
+end
+
 local dict = {
 	[';'] = function()
 		emit_short(0xe9fd)	-- jp (iy)
@@ -166,28 +196,8 @@ local dict = {
 		stk_push_de()
 	end,
 	['*'] = function()
-		-- TODO: this is so long that it would make sense to put this into a subroutine
-		stk_pop_de()
-		stk_pop_bc()
-		emit_byte(0x21)		-- ld hl,0
-		emit_short(0)
-		emit_byte(0x3e)		-- ld a,16
-		emit_byte(0x10)
-		emit_byte(0x29)		-- loop: add hl,hl
-		emit_byte(0xeb)		-- ex de,hl
-		emit_short(0x6aed)	-- adc hl,hl
-		emit_byte(0xeb)		-- ex de,hl
-		emit_byte(0x30)		-- jr nc,skip
-		emit_byte(0x04)
-		emit_byte(0x09)		-- add hl,bc
-		emit_byte(0x30)		-- jr nc,skip
-		emit_byte(0x01)
-		emit_byte(0x13)		-- inc de
-		emit_byte(0x3d)		-- skip: dec a
-		emit_byte(0x20)		-- jr nz,loop
-		emit_byte(0xf2)
-		emit_byte(0xeb)		-- ex de,hl
-		stk_push_de()
+		assert(mult_addr, "mcode subroutines not found")
+		call(mult_addr)
 	end,
 	['1+'] = function()
 		stk_pop_de()
@@ -648,4 +658,15 @@ for _, name in ipairs(interpreted_words) do
 	end
 end
 
-return dict
+local function get_dict()
+	local t = {}
+	for k, v in pairs(dict) do
+		t[k] = v
+	end
+	return t
+end
+
+return {
+	get_dict = get_dict,
+	emit_subroutines = emit_subroutines,
+}

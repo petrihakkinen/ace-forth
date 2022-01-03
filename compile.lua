@@ -15,6 +15,8 @@
 -- The first user defined word is placed at 3C51 in RAM.
 -- The function create_word() below adds a new word header to the output dictionary.
 
+local mcode = require "mcode"
+
 local DO_COLON		= 0x0EC3 -- DoColon routine in ROM, the value of code field for user defined words
 local DO_PARAM		= 0x0FF0 -- Routine which pushes the parameter field to stack, code field value for variables
 local DO_CONSTANT	= 0x0FF5 -- Routine which pushes short from parameter field to stack, code field value for constants
@@ -34,8 +36,6 @@ local start_address = 0x3c51
 local v_current = 0x3C4C
 local v_context = 0x3C4C
 local v_voclink = 0x3C4F
-
-local mcode_dict = require "mcode"
 
 -- parse args
 local args = {...}
@@ -136,6 +136,7 @@ local word_counts = {}					-- how many times each word is used in generated code
 local words_with_side_exits = {}		-- words that have side exists and therefore can't be inlined
 local noinline_words = {}				-- words that have been explicitly marked as 'noinline'
 local no_eliminate_words = {}			-- words that cannot be eliminated even if they're unused
+local mcode_subroutines_emitted = false	-- have subroutines for mcode words been emitted?
 
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
@@ -446,7 +447,7 @@ end
 -- Its word length is also zero. The word length field is updated to correct value when the next word is added.
 -- This means that the last word will have zero in the word length field. This is how the ROM code works too
 -- (and its documented in Jupiter Ace Forth Programming, page 121).
-function create_word(code_field, name)
+function create_word(code_field, name, invisible)
 	if name == nil then name = next_word() end
 
 	word_start_addresses[name] = here()
@@ -479,9 +480,11 @@ function create_word(code_field, name)
 	compilation_addresses[name] = compilation_addr
 
 	-- add word to compile dictionary so that other words can refer to it when compiling
-	compile_dict[name] = function()
-		word_counts[name] = (word_counts[name] or 0) + 1
-		emit_short(compilation_addr)
+	if not invisible then
+		compile_dict[name] = function()
+			word_counts[name] = (word_counts[name] or 0) + 1
+			emit_short(compilation_addr)
+		end
 	end
 
 	return name
@@ -627,6 +630,11 @@ interpret_dict = {
 	[':m'] = function() 
 		local name = next_word()
 		if not eliminate_words[name] then
+			if not mcode_subroutines_emitted then
+				mcode.emit_subroutines()
+				mcode_subroutines_emitted = true
+			end
+
 			create_word(0, name)
 			write_short(here() - 2, here())	-- patch codefield
 			compile_mode = "mcode"
@@ -1002,6 +1010,8 @@ compile_dict = {
 		emit_string(name)
 	end,
 }
+
+mcode_dict = mcode.get_dict()
 
 local immediate_words = { "(", "\\", "[if]", "[else]", "[then]", "[defined]" }
 
