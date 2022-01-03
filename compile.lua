@@ -105,7 +105,7 @@ if #input_files == 0 then
 	print("  --no-headers              (unsafe) Eliminate word headers, except for main word")
 	print("  --optimize                Enable all safe optimizations")
 	print("  --verbose                 Print information while compiling")
-	print("  --main <name>             Sets name of main executable word (default 'MAIN')")
+	print("  --main <name>             Sets name of main executable word (default 'main')")
 	print("  --filename <name>         Sets the filename for tap header (default 'dict')")
 	os.exit(-1)
 end
