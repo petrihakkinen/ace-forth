@@ -9,6 +9,8 @@
 	- alternatively we could always hold top of stack in de
 		- we only need to push de to stack when we call another word, or when we return/exit from mcode word
 
+- mcode: long jumps
+
 - in-out-crash in mcode.f
 
 - add to compile_dict and mcode_dict: 2DUP 2DROP 2OVER NIP 2* 2/ HEX R@

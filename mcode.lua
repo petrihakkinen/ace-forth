@@ -448,6 +448,37 @@ local dict = {
 		emit_byte(0)
 		stk_push_de()
 	end,
+	['if'] = function()
+		stk_pop_de()
+		emit_byte(0x7a) -- ld a,d
+		emit_byte(0xb3) -- or e
+		emit_byte(0x28)	-- jr z,.skip	TODO: long jump
+		push(here())
+		push('if')
+		emit_byte(0) -- placeholder branch offset
+	end,
+	['else'] = function()
+		comp_assert(pop() == 'if', "ELSE without matching IF")
+		local where = pop()
+		-- emit jump to THEN
+		emit_byte(0x28)
+		push(here())
+		push('if')
+		emit_byte(0)	-- placeholder branch offset
+		-- patch branch offset for jump at IF
+		local offset = here() - where - 1
+		if offset < 0 then offset = offset + 256 end
+		assert(offset >= 0 and offset < 256, "branch too long")	-- TODO: long jump
+		write_byte(where, offset)
+	end,
+	['then'] = function()
+		comp_assert(pop() == 'if', "THEN without matching IF")
+		local where = pop()
+		local offset = here() - where - 1
+		if offset < 0 then offset = offset + 256 end
+		assert(offset >= 0 and offset < 256, "branch too long")	-- TODO: long jump
+		write_byte(where, offset)
+	end,
 	begin = function()
 		push(here())
 		push('begin')
@@ -489,6 +520,15 @@ local dict = {
 		emit_byte(0xd5) -- push de (push counter to return stack)
 		jr(target)
 	end,
+	['+loop'] = function()
+		comp_error("mcode word +LOOP not yet implemented")
+	end,
+	['repeat'] = function()
+		comp_error("mcode word REPEAT not yet implemented")
+	end,
+	['while'] = function()
+		comp_error("mcode word WHILE not yet implemented")
+	end,
 	i = function()
 		emit_byte(0xd1) -- pop de
 		emit_byte(0xd5)	-- push de
@@ -509,6 +549,12 @@ local dict = {
 		emit_byte(0x23) -- inc hl
 		emit_byte(0x56) -- ld d,(hl)
 		stk_push_de()
+	end,
+	leave = function()
+		emit_byte(0xe1) -- pop hl (pop counter)
+		emit_byte(0xe1) -- pop hl (pop limit)
+		emit_byte(0xe5) -- push hl (push limit)
+		emit_byte(0xe5) -- push hl (push limit as new counter)
 	end,
 	exit = function()
 		emit_short(0xe9fd)	-- jp (iy)
@@ -554,10 +600,9 @@ end
 --[[
 	TODO:
 
-	+LOOP
-	REPEAT THEN ELSE
-	WHILE IF LEAVE
 	*
+
+	GOTO LABEL [ ]
 --]]
 
 return dict

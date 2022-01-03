@@ -327,6 +327,12 @@ function read_short(address, x)
 	return (mem[address] or 0) | ((mem[address + 1] or 0) << 8)
 end
 
+function write_byte(address, x)
+	comp_assert(address < 65536 - 1, "address out of range")
+	if x < 0 then x = x + 256 end
+	mem[address] = x & 0xff
+end
+
 function write_short(address, x)
 	comp_assert(address < 65536 - 1, "address out of range")
 	if x < 0 then x = x + 65536 end

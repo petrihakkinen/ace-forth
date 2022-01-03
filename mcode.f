@@ -120,6 +120,11 @@ code ei 251 c, 253 c, 233 c,
 		cr inkey .
 	0 until ;
 
+:m if-then
+	1 if ." TRUE " then
+	0 if ." TRUE" else ." FALSE" then
+	;
+
 :m begin-until
 	ascii * emit
 	1 0 0 0 0
@@ -138,6 +143,9 @@ code ei 251 c, 253 c, 233 c,
 		5 0 do
 			i j + .
 		loop
+	loop
+	100 0 do
+		ascii * emit leave
 	loop ;
 
 ( 11986 -> 4714, 2.5 times faster )
@@ -207,8 +215,9 @@ code ei 251 c, 253 c, 233 c,
 	\ in-out
 	cr test-base
 	mem
+	cr if-then ( prints TRUE FALSE )
 	cr begin-until ( prints *AAAAA* )
-	cr cr do-loop ( prints 0 1 2 3 4 1 2 3 4 5 )
+	cr cr do-loop ( prints 0 1 2 3 4 1 2 3 4 5 * )
 	\ begin-again
 	cr print
 	\ test-inkey
