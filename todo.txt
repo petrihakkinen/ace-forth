@@ -14,6 +14,8 @@
 - add to compile_dict and mcode_dict: 2DUP 2DROP 2OVER NIP 2* 2/ HEX R@
 	- R@ is just an alias for I'
 
+- would byte size arithmetic make sense? C+ C- C* C< C= C> CXOR CAND COR
+
 - SCF sets carry flag, it should probably be used in mcode (at least in MIN and MAX?)
 
 - separate control flow stack

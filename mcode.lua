@@ -522,6 +522,17 @@ local dict = {
 	lit = function()
 		compile_dict.lit()
 	end,
+	['."'] = function()
+		local str = next_symbol("\"")
+		assert(#str <= 128, "string too long (max length 128 bytes)")
+		emit_byte(0x11) -- ld de, <addr>
+		emit_short(here() + 7)	-- NOTE: unrelocatable code!
+		call(0x0979) -- call print embedded string routine
+		emit_byte(0x18)	-- jr <length>
+		emit_byte(#str + 2)
+		emit_short(#str)
+		emit_string(str)
+	end,
 }
 
 -- The following words do not have fast machine code implementation
@@ -543,7 +554,7 @@ end
 --[[
 	TODO:
 
-	." +LOOP
+	+LOOP
 	REPEAT THEN ELSE
 	WHILE IF LEAVE
 	*

@@ -107,6 +107,7 @@ code ei 251 c, 253 c, 233 c,
 	cr 3 spaces ascii * emit
 	10 10 at
 	15424 5 type ( print "FORTH" )
+	space ." RULES"
 	;
 
 :m test-base
