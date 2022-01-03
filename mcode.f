@@ -148,10 +148,17 @@ code ei 251 c, 253 c, 233 c,
 	loop ;
 
 :m test-goto
+	( Forward jump )
 	goto skip
 	." NOT PRINTED"
 	label skip
-	." HERE" ;
+	." HERE" 
+	( Backward jump )
+	3
+	label back
+	1- dup .
+	?dup if goto back then
+	;
 
 :m test-lit [ 5 3 * ] lit . ;
 

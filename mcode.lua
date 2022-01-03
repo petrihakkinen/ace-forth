@@ -569,10 +569,19 @@ local dict = {
 	end,
 	['goto'] = function()
 		local label = next_symbol()
-		emit_byte(0xc3) -- jp <addr>   NOTE: unrelocatable code!
-		local addr = here()
-		emit_short(0) -- placeholder jump addr
-		gotos[addr] = label
+
+		if labels[label] then
+			-- label found -> this is a backward jump
+			-- emit the jump immediately
+			jump(labels[label])
+		else
+			-- label not found -> this is a forward jump
+			-- emit placeholder jump and resolve jump address in ;
+			emit_byte(0xc3) -- jp <addr>
+			local addr = here()
+			emit_short(0) -- placeholder jump addr
+			gotos[addr] = label
+		end
 	end,
 	begin = function()
 		push(here())
@@ -672,7 +681,7 @@ local dict = {
 		local str = next_symbol("\"")
 		assert(#str <= 128, "string too long (max length 128 bytes)")
 		emit_byte(0x11) -- ld de, <addr>
-		emit_short(here() + 7)	-- NOTE: unrelocatable code!
+		emit_short(here() + 7)
 		call(0x0979) -- call print embedded string routine
 		emit_byte(0x18)	-- jr <length>
 		emit_byte(#str + 2)
