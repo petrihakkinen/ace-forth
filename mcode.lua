@@ -18,6 +18,14 @@ local HL = 0x40
 local IX = 0x50
 local IY = 0x60
 local SP = 0x70
+local BC_INDIRECT = 0x80
+local DE_INDIRECT = 0x90
+local HL_INDIRECT = 0xa0
+
+-- system variables
+local SCRPOS = 0x3c1c
+local STKBOT = 0x3c37
+local SPARE = 0x3c3b
 
 -- Pushes DE on Forth stack, trashes HL.
 local function stk_push_de()
@@ -36,11 +44,39 @@ local function stk_pop_bc()
 end
 
 local function _ld(dest, src)
-	-- ld r,r
-	assert(dest >= 0 and dest <= 7, "_ld: unknown dest register")
-	assert(src >= 0 and src <= 7, "_ld: unknown src register")
-	local op = 0x40 + dest * 8 + src
-	emit_byte(op)
+	if dest == BC_INDIRECT and src == A then
+		-- ld (bc), A
+		emit_byte(0x02)
+	elseif dest == DE_INDIRECT and src == A then
+		-- ld (de), A
+		emit_byte(0x12)
+	elseif dest == HL_INDIRECT then
+		-- ld (hl), r
+		assert(src >= 0 and src <= 7, "_ld: unknown src register")
+		emit_byte(0x70 + src)
+	elseif dest == A and src == BC_INDIRECT then
+		-- ld a, (bc)
+		emit_byte(0x0a)
+	elseif dest == A and src == DE_INDIRECT then
+		-- ld a, (de)
+		emit_byte(0x1a)
+	elseif src == HL_INDIRECT then
+		-- ld r, (de)
+		-- LD A,(HL)	7E
+		-- LD B,(HL)	46
+		-- LD C,(HL)	4E
+		-- LD D,(HL)	56
+		-- LD E,(HL)	5E
+		-- LD H,(HL)	66
+		-- LD L,(HL)	6E
+		assert(dest >= 0 and dest <= 7, "_ld: unknown dest register")
+		emit_byte(0x46 + dest * 8)
+	else
+		-- ld r,r
+		assert(dest >= 0 and dest <= 7, "_ld: unknown dest register")
+		assert(src >= 0 and src <= 7, "_ld: unknown src register")
+		emit_byte(0x40 + dest * 8 + src)
+	end
 end
 
 local function _ld_const(r, value)
@@ -79,6 +115,72 @@ local function _ld_const(r, value)
 	else
 		error("_ld_const: unknown register")
 	end
+end
+
+local function _ld_fetch(r, addr)
+	-- LD A,(nn)	3A nn nn
+	-- LD BC,(nn)	ED 4B nn nn
+	-- LD DE,(nn)	ED 5B nn nn	
+	-- LD HL,(nn)	2A nn nn
+	-- LD IX,(nn)	DD 2A nn nn
+	-- LD IY,(nn)	FD 2A nn nn
+	-- LD SP,(nn)	ED 7B nn nn	
+	if r == A then
+		emit_byte(0x3a)
+	elseif r == BC then
+		emit_byte(0xed)
+		emit_byte(0x4b)
+	elseif r == DE then
+		emit_byte(0xed)
+		emit_byte(0x5b)
+	elseif r == HL then
+		emit_byte(0x2a)
+	elseif r == IX then
+		emit_byte(0xdd)
+		emit_byte(0x2a)
+	elseif r == IY then
+		emit_byte(0xfd)
+		emit_byte(0x2a)
+	elseif r == SP then
+		emit_byte(0xed)
+		emit_byte(0x7b)
+	else
+		error("_ld_fetch: unknown register")
+	end
+	emit_short(addr)
+end
+
+local function _ld_store(addr, r)
+	-- LD (nn),A	32 nn nn
+	-- LD (nn),BC	ED 43 nn nn
+	-- LD (nn),DE	ED 53 nn nn
+	-- LD (nn),HL	22 nn nn
+	-- LD (nn),IX	DD 22 nn nn
+	-- LD (nn),IY	FD 22 nn nn
+	-- LD (nn),SP	ED 73 nn nn
+	if r == A then
+		emit_byte(0x32)
+	elseif r == BC then
+		emit_byte(0xed)
+		emit_byte(0x43)
+	elseif r == DE then
+		emit_byte(0xed)
+		emit_byte(0x53)
+	elseif r == HL then
+		emit_byte(0x22)
+	elseif r == IX then
+		emit_byte(0xdd)
+		emit_byte(0x22)
+	elseif r == IY then
+		emit_byte(0xfd)
+		emit_byte(0x22)
+	elseif r == SP then
+		emit_byte(0xed)
+		emit_byte(0x73)
+	else
+		error("_ld_store: unknown register")
+	end
+	emit_short(addr)
 end
 
 local function _ex_de_hl()
@@ -148,6 +250,10 @@ end
 
 local function _ccf()
 	emit_byte(0x3f)
+end
+
+local function _scf()
+	emit_byte(0x37)
 end
 
 local function _add(dest, src)
@@ -421,15 +527,15 @@ local function emit_subroutines()
 	_ex_de_hl()
 	_adc(HL, HL)
 	_ex_de_hl()
-	emit_byte(0x30)		-- jr nc,skip
+	emit_byte(0x30)		-- jr nc, skip
 	emit_byte(0x04)
 	_add(HL, BC)
-	emit_byte(0x30)		-- jr nc,skip
+	emit_byte(0x30)		-- jr nc, skip
 	emit_byte(0x01)
 	_inc(DE)
 	 -- skip:
 	_dec(A)
-	emit_byte(0x20)		-- jr nz,loop
+	emit_byte(0x20)		-- jr nz, loop
 	emit_byte(0xf2)
 	_ex_de_hl()
 	stk_push_de()
@@ -445,14 +551,16 @@ local function emit_subroutines()
 	_ld(H, L)
 	_ld_const(L, 0)
 	_sla(H)
-	emit_byte(0x30) 	-- jr nc,$+3
+	emit_byte(0x30) 	-- jr nc, skip
 	emit_byte(1)
 	_ld(L, E)
+	-- skip:
 	for i = 1, 7 do
 		_add(HL, HL)
-		emit_byte(0x30) -- jr nc,$+3
+		emit_byte(0x30) -- jr nc, skipn
 		emit_byte(1)
 		_add(HL, DE)
+		-- skipn:
 	end
 	_ex_de_hl()
 	stk_push_de()
@@ -480,21 +588,19 @@ local dict = {
 		gotos = {}
 	end,
 	dup = function()
-		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
-		emit_short(0x3c3b)
+		_ld_fetch(HL, SPARE)
 		_dec(HL)
-		emit_byte(0x56) -- ld d,(hl)
+		_ld(D, HL_INDIRECT)
 		_dec(HL)
-		emit_byte(0x5e) -- ld e,(hl)
+		_ld(E, HL_INDIRECT)
 		stk_push_de()
 	end,
 	['?dup'] = function()
-		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
-		emit_short(0x3c3b)
+		_ld_fetch(HL, SPARE)
 		_dec(HL)
-		emit_byte(0x56) -- ld d,(hl)
+		_ld(D, HL_INDIRECT)
 		_dec(HL)
-		emit_byte(0x5e) -- ld e,(hl)
+		_ld(E, HL_INDIRECT)
 		_ld(A, D)
 		_or(E)
 		emit_byte(0x28)	-- jr z, skip
@@ -503,23 +609,20 @@ local dict = {
 		-- skip:
 	end,
 	over = function()
-		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
-		emit_short(0x3c3b)
+		_ld_fetch(HL, SPARE)
 		_dec(HL)
 		_dec(HL)
 		_dec(HL)
-		emit_byte(0x56) -- ld d,(hl)
+		_ld(D, HL_INDIRECT)
 		_dec(HL)
-		emit_byte(0x5e) -- ld e,(hl)
+		_ld(E, HL_INDIRECT)
 		stk_push_de()
 	end,
 	drop = function()
-		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
-		emit_short(0x3c3b)
+		_ld_fetch(HL, SPARE)
 		_dec(HL)
 		_dec(HL)
-		emit_byte(0x22) -- ld (0x3c3b),hl
-		emit_short(0x3c3b)
+		_ld_store(SPARE, HL)
 	end,
 	swap = function()
 		stk_pop_de()
@@ -535,15 +638,13 @@ local dict = {
 	roll = function()
 		call(0x094d)
 		_ex_de_hl()
-		emit_byte(0x2a) -- ld hl,(0x3c37) (load stkbot)
-		emit_short(0x3c37)
+		_ld_fetch(HL, STKBOT)
 		_ld(H, D)
 		_ld(L, E)
 		_inc(HL)
 		_inc(HL)
 		_ldir()
-		emit_short(0x53ed) -- ld (0x3c3b),de (write spare)
-		emit_short(0x3c3b)
+		_ld_store(SPARE, DE)
 	end,
 	['r>'] = function()
 		_pop(BC)
@@ -675,7 +776,7 @@ local dict = {
 		emit_byte(0x28)	-- jr z, skip
 		emit_byte(3)
 		_rl(D)
-		_ccf()
+		_ccf()	-- invert carry flag
 		-- skip:
 		_ld_const(A, 0)
 		_ld(D, A)
@@ -779,11 +880,11 @@ local dict = {
 		stk_pop_de()
 		stk_pop_bc()
 		_ld(A, C)
-		emit_byte(0x12) -- ld (de),a
+		_ld(DE_INDIRECT, A)
 	end,
 	['c@'] = function()
 		stk_pop_de()
-		emit_byte(0x1a) -- ld a,(de)
+		_ld(A, DE_INDIRECT)
 		_ld(E, A)
 		_ld_const(D, 0)
 		stk_push_de()
@@ -792,16 +893,16 @@ local dict = {
 		stk_pop_de()
 		stk_pop_bc()
 		_ex_de_hl()
-		emit_byte(0x71) -- ld (hl),c
+		_ld(HL_INDIRECT, C)
 		_inc(HL)
-		emit_byte(0x70) -- ld (hl),b
+		_ld(HL_INDIRECT, B)
 	end,
 	['@'] = function()
 		stk_pop_de()
 		_ex_de_hl()
-		emit_byte(0x5e) -- ld e,(hl)
+		_ld(E, HL_INDIRECT)
 		_inc(HL)
-		emit_byte(0x56) -- ld d,(hl)
+		_ld(D, HL_INDIRECT)
 		stk_push_de()
 	end,
 	ascii = function()
@@ -837,8 +938,7 @@ local dict = {
 		call(0x084e)
 		_ld(A, C)
 		call(0x0b28)
-		emit_byte(0x22) --ld ($3c1c),hl (update SCRPOS)
-		emit_short(0x3c1c)
+		_ld_store(SCRPOS, HL)
 	end,
 	type = function()
 		stk_pop_bc()
@@ -950,7 +1050,7 @@ local dict = {
 		_inc(DE)
 		_ld(H, B)
 		_ld(L, C)
-		emit_byte(0x37) -- scf (set carry flag)
+		_scf() -- set carry
 		_sbc(HL, DE)
 		emit_byte(0x38) -- jr c, .done
 		local pos = here()
@@ -984,9 +1084,9 @@ local dict = {
 	j = function()
 		_ld_const(HL, 4)
 		_add(HL, SP)
-		emit_byte(0x5e) -- ld e,(hl)
+		_ld(E, HL_INDIRECT)
 		_inc(HL)
-		emit_byte(0x56) -- ld d,(hl)
+		_ld(D, HL_INDIRECT)
 		stk_push_de()
 	end,
 	leave = function()
