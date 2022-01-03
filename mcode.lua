@@ -431,9 +431,59 @@ local function _ret()
 	emit_byte(0xc9)
 end
 
+local function _jp(addr)
+	emit_byte(0xc3)
+	emit_short(addr)
+end
+
+local function _jp_z(addr)
+	emit_byte(0xca)
+	emit_short(addr)
+end
+
+local function _jp_nz(addr)
+	emit_byte(0xc2)
+	emit_short(addr)
+end
+
+local function _jp_c(addr)
+	emit_byte(0xda)
+	emit_short(addr)
+end
+
+local function _jp_nc(addr)
+	emit_byte(0xd2)
+	emit_short(addr)
+end
+
 local function _jp_indirect_iy()
 	emit_byte(0xfd)	-- jp (iy)
 	emit_byte(0xe9)
+end
+
+local function _jr(offset)
+	emit_byte(0x18)
+	emit_byte(offset)
+end
+
+local function _jr_z(offset)
+	emit_byte(0x28)
+	emit_byte(offset)
+end
+
+local function _jr_nz(offset)
+	emit_byte(0x20)
+	emit_byte(offset)
+end
+
+local function _jr_c(offset)
+	emit_byte(0x38)
+	emit_byte(offset)
+end
+
+local function _jr_nc(offset)
+	emit_byte(0x30)
+	emit_byte(offset)
 end
 
 local function _in(r, port)
@@ -485,34 +535,30 @@ local function stk_pop_bc()
 	_call(0x084e)
 end
 
-local function branch_offset(target)
-	local offset = target - here() - 2
+local function branch_offset(addr)
+	local offset = addr - here() - 2
 	if offset < -128 or offset > 127 then return end	-- branch too long
 	if offset < 0 then offset = offset + 256 end
 	return offset
 end
 
--- Emits unconditional jump to <target>.
-local function jump(target)
-	local offset = branch_offset(target)
+-- Emits unconditional jump to <addr>.
+local function jump(addr)
+	local offset = branch_offset(addr)
 	if offset then
-		emit_byte(0x18)	-- jr <offset>
-		emit_byte(offset)
+		_jr(offset)
 	else
-		emit_byte(0xc3) -- jp <addr>
-		emit_short(target)
+		_jp(addr)
 	end
 end
 
 -- Emits conditional jump which causes a jump to <target> if Z flag is set.
-local function jump_z(target)
-	local offset = branch_offset(target)
+local function jump_z(addr)
+	local offset = branch_offset(addr)
 	if offset then
-		emit_byte(0x28)	-- jr z,<offset>
-		emit_byte(offset)
+		_jr_z(offset)
 	else
-		emit_byte(0xca) -- jp z,<addr>
-		emit_short(target)
+		_jp_z(offset)
 	end
 end
 
@@ -551,16 +597,13 @@ local function emit_subroutines()
 	_ex_de_hl()
 	_adc(HL, HL)
 	_ex_de_hl()
-	emit_byte(0x30)		-- jr nc, skip
-	emit_byte(0x04)
+	_jr_nc(4) --> skip
 	_add(HL, BC)
-	emit_byte(0x30)		-- jr nc, skip
-	emit_byte(0x01)
+	_jr_nc(1) --> skip
 	_inc(DE)
 	 -- skip:
 	_dec(A)
-	emit_byte(0x20)		-- jr nz, loop
-	emit_byte(0xf2)
+	_jr_nz(0xf2) --> loop
 	_ex_de_hl()
 	stk_push_de()
 	_ret()
@@ -575,14 +618,12 @@ local function emit_subroutines()
 	_ld(H, L)
 	_ld_const(L, 0)
 	_sla(H)
-	emit_byte(0x30) 	-- jr nc, skip
-	emit_byte(1)
+	_jr_nc(1) --> skip
 	_ld(L, E)
 	-- skip:
 	for i = 1, 7 do
 		_add(HL, HL)
-		emit_byte(0x30) -- jr nc, skipn
-		emit_byte(1)
+		_jr_nc(1) --> skipn
 		_add(HL, DE)
 		-- skipn:
 	end
@@ -627,8 +668,7 @@ local dict = {
 		_ld(E, HL_INDIRECT)
 		_ld(A, D)
 		_or(E)
-		emit_byte(0x28)	-- jr z, skip
-		emit_byte(1)
+		_jr_z(1) --> skip
 		stk_push_de()
 		-- skip:
 	end,
@@ -742,8 +782,7 @@ local dict = {
 		_ld_const(DE, 0)
 		_ld(A, H)
 		_or(L)
-		emit_byte(0x20)	-- jr nz, neg
-		emit_byte(0x01)
+		_jr_nz(1) --> neg
 		_inc(E)
 		-- neg:
 		stk_push_de()
@@ -778,8 +817,7 @@ local dict = {
 		_ld(A, D)
 		_or(E)
 		_ld_const(DE, 1)
-		emit_byte(0x28)	-- jr z, skip
-		emit_byte(1)
+		_jr_z(1) --> skip
 		_ld(E, D) -- clear e
 		-- skip:
 		stk_push_de()
@@ -797,8 +835,7 @@ local dict = {
 		stk_pop_de()
 		_ld(A, D)
 		_or(E)
-		emit_byte(0x28)	-- jr z, skip
-		emit_byte(3)
+		_jr_z(3) --> skip
 		_rl(D)
 		_ccf()	-- invert carry flag
 		-- skip:
@@ -856,14 +893,14 @@ local dict = {
 	abs = function()
 		stk_pop_de()
 		_bit(7, D)
-		emit_byte(0x28) -- jr z,skip
-		emit_byte(6)
+		_jr_z(6) --> skip
 		_xor(A)
 		_sub(E)
 		_ld(E, A)
 		_sbc(A, A)
 		_sub(D)
 		_ld(D, A)
+		-- skip:
 		stk_push_de()
 	end,
 	min = function()
@@ -877,8 +914,7 @@ local dict = {
 		_ld(A, H)
 		_pop(HL)
 		_rl(A)
-		emit_byte(0x30) -- jr nc, skip
-		emit_byte(1)
+		_jr_nc(1) --> skip
 		_ex_de_hl()
 		-- skip:
 		stk_push_de()
@@ -894,8 +930,7 @@ local dict = {
 		_ld(A, H)
 		_pop(HL)
 		_rl(A)
-		emit_byte(0x38) -- jr c, skip
-		emit_byte(1)
+		_jr_c(1) --> skip
 		_ex_de_hl()
 		-- skip:
 		stk_push_de()
@@ -950,12 +985,11 @@ local dict = {
 		-- loop:
 		_dec(DE)
 		_bit(7, D)
-		emit_byte(0x20) -- jr nz, done
-		emit_byte(5)
+		_jr_nz(5) --> done
 		_ld_const(A, 0x20)
 		_rst(8)
-		emit_byte(0x18) -- jr loop
-		emit_byte(0xf6)
+		_jr(0xf6) --> loop
+		-- done:
 	end,
 	at = function()
 		stk_pop_de()
@@ -997,19 +1031,19 @@ local dict = {
 		stk_pop_de()
 		_ld(A, D)
 		_or(E)
-		emit_byte(0xca)	-- jp z,<addr>	TODO: this could be optimized to JR Z,<addr>
-		push(here())
+		push(here() + 1)
 		push('if')
-		emit_short(0) -- placeholder jump target
+		-- TODO: this could be optimized to _jr_z()
+		_jp_z(0)	-- placeholder jump addr
 	end,
 	['else'] = function()
 		comp_assert(pop() == 'if', "ELSE without matching IF")
 		local where = pop()
 		-- emit jump to THEN
-		emit_byte(0xc3) -- jp <addr>	TODO: this could be optimized to JR Z,<addr>
-		push(here())
+		push(here() + 1)
 		push('if')
-		emit_short(0)	-- placeholder jump target
+		-- TODO: this could be optimized to _jr()
+		_jp(0) -- placeholder jump addr
 		-- patch jump target at previous IF
 		write_short(where, here())
 	end,
@@ -1074,13 +1108,13 @@ local dict = {
 		_ld(L, C)
 		_scf() -- set carry
 		_sbc(HL, DE)
-		emit_byte(0x38) -- jr c, .done
-		local pos = here()
-		emit_byte(0)	-- placeholder branch offset
+		local pos = here() + 1
+		_jr_c(0)	--> done (placeholder branch offset)
 		_push(BC) -- push limit to return stack
 		_push(DE) -- push counter to return stack
 		jump(target)
 		write_byte(pos, here() - pos - 1)
+		-- done:
 	end,
 	['+loop'] = function()
 		comp_error("mcode word +LOOP not yet implemented")
@@ -1137,10 +1171,10 @@ local dict = {
 		assert(#str <= 128, "string too long (max length 128 bytes)")
 		_ld_const(DE, here() + 8) -- load string address to DE
 		_call(0x0979) -- call print embedded string routine
-		emit_byte(0x18)	-- jr <length>
-		emit_byte(#str + 2)
+		_jr(#str + 2) --> done
 		emit_short(#str)
 		emit_string(str)
+		-- done:
 	end,
 }
 
