@@ -14,15 +14,5 @@
 
 - would byte size arithmetic make sense? C+ C- C* C< C= C> CXOR CAND COR
 
-- SCF sets carry flag, it should probably be used in mcode (at least in MIN and MAX?)
-
 - separate control flow stack
 	- check that the stack is empty at the end of word definition
-
-- how to call other mcode words from mcode words?
-	- the problem is that each mcode word ends with jp (iy), not ret!
-
-- mcode: long forward jumps in IF, ELSE and GOTO could be optimized to short branches
-	- this is fairly complicated though, we'd either need multiple passes or rewinding the parser
-		- multiple passes: 1st pass records which jumps can be shortened, 2nd pass generates the code
-		- rewinding the parser: if we guessed wrong, rewind the parser and undo generated code since the beginning of jump

@@ -65,6 +65,14 @@ local function call_forth(name)
 	emit_short(0x1a0e) -- end-forth
 end
 
+local function call_mcode(name)
+	local addr = compilation_addresses[name]
+	if addr == nil then
+		comp_error("could not find compilation address of word %s", name)
+	end
+	call(addr + 7) -- call machine code, skipping the wrapper
+end
+
 local mult16_addr
 local mult8_addr
 
@@ -121,9 +129,14 @@ local function emit_subroutines()
 	emit_byte(0xc9)		-- ret
 end
 
+local function emit_mcode_wrapper()
+	call(here() + 5)	-- call machine code
+	emit_short(0xe9fd)	-- jp (iy)
+end
+
 local dict = {
 	[';'] = function()
-		emit_short(0xe9fd)	-- jp (iy)
+		emit_byte(0xc9)	-- ret
 		interpreter_state()
 
 		-- patch gotos
@@ -714,5 +727,7 @@ end
 return {
 	get_dict = get_dict,
 	emit_subroutines = emit_subroutines,
+	emit_mcode_wrapper = emit_mcode_wrapper,
 	call_forth = call_forth,
+	call_mcode = call_mcode,
 }

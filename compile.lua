@@ -642,6 +642,13 @@ interpret_dict = {
 
 			create_word(0, name)
 			write_short(here() - 2, here())	-- patch codefield
+			mcode.emit_mcode_wrapper()
+
+			-- make it possible to call user defined mcode words from :m definitions
+			mcode_dict[name] = function()
+				mcode.call_mcode(name)
+			end
+
 			compile_mode = "mcode"
 		else
 			skip_until(';')

@@ -23,8 +23,8 @@ code ei 251 c, 253 c, 233 c,
 	;
 
 ( Test calling another mcode word from mcode word )
-\ :m test1 1 ;
-\ :m test2 test1 . ;
+:m mc-push1 1 ;
+:m call-mcode mc-push1 . ;
 
 ( Test calling another user defined Forth word from mcode word )
 : push1 1 ;
@@ -230,7 +230,7 @@ code ei 251 c, 253 c, 233 c,
 
 : main
 	fast di
-	cr call-forth
+	cr call-forth call-mcode
 	cr stack
 	cr stack2
 	cr arith ( prints 4 6 -1 7 )

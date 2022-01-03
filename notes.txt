@@ -1,0 +1,27 @@
+Calling mcode words
+===================
+
+We need to be able to call mcode words from Forth and other mcode words.
+
+Each mcode word starts with a short wrapper:
+
+	CALL mc
+	jp (iy) ; returns to Forth interpreter
+mc: ... machine code routine here ...
+	ret
+
+Forth code calls the mcode word using its compilation address, which points to the mcode wrapper. 
+
+Machine code can bypass the wrapper and call the 'mc' routine directly. The machine code address of a word can be found by adding 7 to the compilation address of the word.
+
+
+Short forward jumps
+===================
+
+Currently mcode versions of IF, ELSE and GOTO emit long forward jumps using the JP or JP Z instructions. These could be optimized to short branches, but this is fairly compilated, so it has not been done to keep the compiler simple.
+
+This would either require multiple passes or rewinding the parser.
+
+Multiple passes: 1st pass records which jumps can be shortened, 2nd pass generates the code.
+
+Rewinding the parser: assume either long or short jump. If we guessed wrong, rewind the parser and undo generated code since the beginning of jump.
