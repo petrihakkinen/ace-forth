@@ -154,6 +154,8 @@ code ei 251 c, 253 c, 233 c,
 	label skip
 	." HERE" ;
 
+:m test-lit [ 5 3 * ] lit . ;
+
 ( 11986 -> 4714, 2.5 times faster )
 :m benchmark-stack
 	10000 begin
@@ -223,6 +225,7 @@ code ei 251 c, 253 c, 233 c,
 	mem
 	cr if-then ( prints TRUE FALSE )
 	cr test-goto ( prints HERE )
+	cr test-lit ( prints 15 )
 	cr begin-until ( prints *AAAAA* )
 	cr cr do-loop ( prints 0 1 2 3 4 1 2 3 4 5 * )
 	\ begin-again

@@ -589,6 +589,9 @@ local dict = {
 	['\\'] = function()
 		compile_dict['\\']()
 	end,
+	['['] = function()
+		compile_dict['[']()
+	end,
 	lit = function()
 		compile_dict.lit()
 	end,
@@ -622,7 +625,7 @@ for _, name in ipairs(interpreted_words) do
 end
 
 --[[
-	TODO: * [ ]
+	TODO: *
 --]]
 
 return dict

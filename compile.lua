@@ -123,7 +123,7 @@ local input_file						-- current input filename
 local cur_pos							-- current position in input
 local cur_line							-- current line in input
 local compile_mode = false				-- interpret or compile mode?
-local inside_colon_definition = false	-- are we between : and ; ?
+local prev_compile_mode					-- previous value of compile_mode (before [ was invoked)
 local compile_bytes = false				-- are we between BYTES and ; ?
 local stack = {}						-- the compiler stack
 local mem = { [0] = 10 }				-- compiler memory
@@ -393,7 +393,6 @@ end
 -- Enters interpreter state. Usually called by ;
 function interpreter_state()
 	compile_mode = false
-	inside_colon_definition = false
 end
 
 -- Returns the current numeric base used by the compiler.
@@ -621,7 +620,6 @@ interpret_dict = {
 		if not eliminate_words[name] then
 			last_word = create_word(DO_COLON, name)
 			compile_mode = true
-			inside_colon_definition = true
 		else
 			skip_until(';')
 		end
@@ -632,7 +630,6 @@ interpret_dict = {
 			create_word(0, name)
 			write_short(here() - 2, here())	-- patch codefield
 			compile_mode = "mcode"
-			inside_colon_definition = true
 		else
 			skip_until(';')
 		end
@@ -756,8 +753,9 @@ interpret_dict = {
 		end
 	end,
 	[']'] = function()
-		comp_assert(inside_colon_definition, "] without matching [")
-		compile_mode = true
+		comp_assert(previous_compile_mode ~= nil, "] without matching [")
+		compile_mode = previous_compile_mode
+		previous_compile_mode = nil
 	end,
 	['."'] = function()
 		local str = next_symbol("\"")
@@ -881,7 +879,6 @@ compile_dict = {
 	[';'] = function()
 		emit_short(FORTH_END)
 		compile_mode = false
-		inside_colon_definition = false
 
 		-- patch gotos
 		for patch_loc, label in pairs(gotos) do
@@ -908,6 +905,7 @@ compile_dict = {
 	end,
 	['['] = function()
 		-- temporarily fall back to the interpreter
+		previous_compile_mode = compile_mode
 		compile_mode = false
 	end,
 	['."'] = function()
