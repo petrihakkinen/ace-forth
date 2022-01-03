@@ -17,6 +17,7 @@ local DE = 0x30
 local HL = 0x40
 local IX = 0x50
 local IY = 0x60
+local SP = 0x70
 
 -- Pushes DE on Forth stack, trashes HL.
 local function stk_push_de()
@@ -107,6 +108,120 @@ local function _or(r)
 	emit_byte(0xb0 + r)
 end
 
+local function _ccf()
+	emit_byte(0x3f)
+end
+
+local function _add(dest, src)
+	-- ADD HL,BC	09
+	-- ADD HL,DE	19
+	-- ADD HL,HL	29
+	-- ADD HL,SP	39
+	if dest == HL then
+		if src == BC then
+			emit_byte(0x09)
+		elseif src == DE then
+			emit_byte(0x19)
+		elseif src == HL then
+			emit_byte(0x29)
+		elseif src == SP then
+			emit_byte(0x39)
+		else
+			error("_add: unknown src register")
+		end
+	elseif dest == A then
+		assert(src >= 0 and src <= 7, "_add: unknown src register")
+		emit_byte(0x80 + src)
+	else
+		error("_add: unknown operands")		
+	end
+end
+
+local function _adc(dest, src)
+	-- ADC HL,BC 	ED 4A
+	-- ADC HL,DE 	ED 5A
+	-- ADC HL,HL 	ED 6A
+	-- ADC HL,SP 	ED 7A
+	if dest == HL then
+		if src == BC then
+			emit_byte(0xed)
+			emit_byte(0x4a)
+		elseif src == DE then
+			emit_byte(0xed)
+			emit_byte(0x5a)
+		elseif src == HL then
+			emit_byte(0xed)
+			emit_byte(0x6a)
+		elseif src == SP then
+			emit_byte(0xed)
+			emit_byte(0x7a)
+		else
+			error("_adc: unknown src register")
+		end
+	elseif dest == A then
+		assert(src >= 0 and src <= 7, "_adc: unknown src register")
+		emit_byte(0x88 + src)
+	else
+		error("_adc: unknown operands")		
+	end
+end
+
+local function _sub(r)
+	assert(r >= 0 and r <= 7, "_sub: unknown register")
+	emit_byte(0x90 + r)
+end
+
+local function _sbc(dest, src)
+	-- SBC HL,BC	ED 42
+	-- SBC HL,DE	ED 52
+	-- SBC HL,HL	ED 62
+	-- SBC HL,SP	ED 72
+	if dest == HL then
+		if src == BC then
+			emit_byte(0xed)
+			emit_byte(0x42)
+		elseif src == DE then
+			emit_byte(0xed)
+			emit_byte(0x52)
+		elseif src == HL then
+			emit_byte(0xed)
+			emit_byte(0x62)
+		elseif src == SP then
+			emit_byte(0xed)
+			emit_byte(0x72)
+		else
+			error("_sbc: unknown src register")
+		end
+	elseif dest == A then
+		assert(src >= 0 and src <= 7, "_sbc: unknown src register")
+		emit_byte(0x98 + src)
+	else
+		error("_sbc: unknown operands")		
+	end
+end
+
+local function _bit(i, r)
+	assert(r >= 0 and r <= 7, "_bit: unknown register")
+	emit_byte(0xcb)
+	emit_byte(0x40 + 8 * i + r)
+end
+
+local function _sla(r)
+	assert(r >= 0 and r <= 7, "_sla: unknown register")
+	emit_byte(0xcb)
+	emit_byte(0x20 + r)
+end
+
+local function _rl(r)
+	assert(r >= 0 and r <= 7, "_rl: unknown register")
+	emit_byte(0xcb)
+	emit_byte(0x10 + r)
+end
+
+local function _rla()
+	emit_byte(0x17)
+end
+
 local function _ldir()
 	emit_byte(0xed)
 	emit_byte(0xb0)
@@ -162,6 +277,39 @@ local function _pop(r)
 	else
 		error("_pop: unknown register")
 	end
+end
+
+local function _ret()
+	emit_byte(0xc9)
+end
+
+local function _in(r, port)
+	-- IN A,(C)		ED 78
+	-- IN B,(C)		ED 40
+	-- IN C,(C)		ED 48
+	-- IN D,(C)		ED 50
+	-- IN E,(C)		ED 58
+	-- IN H,(C)		ED 60
+	-- IN L,(C)		ED 68
+	-- IN F,(C)		ED 70	not implemented!
+	assert(port == C, "_in: invalid port")
+	assert(r >= 0 and r <= 7, "_in: unknown register")
+	emit_byte(0xed)
+	emit_byte(0x40 + r * 8)
+end
+
+local function _out(port, r)
+	-- OUT (C),A	ED 79
+	-- OUT (C),B	ED 41
+	-- OUT (C),C	ED 49
+	-- OUT (C),D	ED 51
+	-- OUT (C),E	ED 59
+	-- OUT (C),H	ED 61
+	-- OUT (C),L	ED 69
+	assert(port == C, "_out: invalid port")
+	assert(r >= 0 and r <= 7, "_out: unknown register")
+	emit_byte(0xed)
+	emit_byte(0x41 + r * 8)
 end
 
 local function branch_offset(target)
@@ -234,11 +382,11 @@ local function emit_subroutines()
 	emit_byte(0x10)
 	emit_byte(0x29)		-- loop: add hl,hl
 	_ex_de_hl()
-	emit_short(0x6aed)	-- adc hl,hl
+	_adc(HL, HL)
 	_ex_de_hl()
 	emit_byte(0x30)		-- jr nc,skip
 	emit_byte(0x04)
-	emit_byte(0x09)		-- add hl,bc
+	_add(HL, BC)
 	emit_byte(0x30)		-- jr nc,skip
 	emit_byte(0x01)
 	_inc(DE)
@@ -248,7 +396,7 @@ local function emit_subroutines()
 	emit_byte(0xf2)
 	_ex_de_hl()
 	stk_push_de()
-	emit_byte(0xc9)		-- ret
+	_ret()
 
 	-- unsigned 8-bit * 8-bit multiplication routine
 	-- source: http://map.grauw.nl/sources/external/z80bits.html#1.1
@@ -260,19 +408,19 @@ local function emit_subroutines()
 	_ld(H, L)
 	emit_byte(0x2e)		-- ld l,0
 	emit_byte(0)
-	emit_short(0x24cb)	-- sla h
+	_sla(H)
 	emit_byte(0x30) 	-- jr nc,$+3
 	emit_byte(1)
 	_ld(L, E)
 	for i = 1, 7 do
-		emit_byte(0x29)	-- add hl,hl
+		_add(HL, HL)
 		emit_byte(0x30) -- jr nc,$+3
 		emit_byte(1)
-		emit_byte(0x19) -- add hl,de
+		_add(HL, DE)
 	end
 	_ex_de_hl()
 	stk_push_de()
-	emit_byte(0xc9)		-- ret
+	_ret()
 end
 
 local function emit_mcode_wrapper()
@@ -282,7 +430,7 @@ end
 
 local dict = {
 	[';'] = function()
-		emit_byte(0xc9)	-- ret
+		_ret()
 		interpreter_state()
 
 		-- patch gotos
@@ -378,7 +526,7 @@ local dict = {
 		_push(DE)
 		stk_pop_de()
 		_pop(HL)
-		emit_byte(0x19) -- add hl,de
+		_add(HL, DE)
 		_ex_de_hl()
 		stk_push_de()
 	end,
@@ -389,7 +537,7 @@ local dict = {
 		_pop(HL)
 		_ex_de_hl()
 		_or(A) -- clear carry
-		emit_short(0x52ed) -- sbc hl,de
+		_sbc(HL, DE)
 		_ex_de_hl()
 		stk_push_de()
 	end,
@@ -429,7 +577,7 @@ local dict = {
 		stk_pop_de()
 		_pop(HL)
 		_or(A) -- clear carry
-		emit_short(0x52ed) -- sbc hl, de
+		_sbc(HL, DE)
 		emit_byte(0x11) -- ld de, 0
 		emit_short(0)
 		_ld(A, H)
@@ -449,7 +597,7 @@ local dict = {
 		emit_byte(0x3e) -- ld a,0
 		emit_byte(0)
 		_ld(D, A)
-		emit_byte(0x17) -- rla
+		_rla()
 		_ld(E, A)
 		stk_push_de()
 	end,
@@ -463,7 +611,7 @@ local dict = {
 		emit_byte(0x3e) -- ld a,0
 		emit_byte(0)
 		_ld(D, A)
-		emit_byte(0x17) -- rla
+		_rla()
 		_ld(E, A)
 		stk_push_de()
 	end,
@@ -481,11 +629,11 @@ local dict = {
 	end,
 	['0<'] = function()
 		stk_pop_de()
-		emit_short(0x12cb)	-- rl d
+		_rl(D)
 		emit_byte(0x3e) -- ld a,0
 		emit_byte(0)
 		_ld(D, A)
-		emit_byte(0x17) -- rla
+		_rla()
 		_ld(E, A)
         stk_push_de()
 	end,
@@ -496,12 +644,12 @@ local dict = {
 		emit_byte(0x28)	-- jr z, skip
 		emit_byte(3)
 		emit_short(0x12cb)	-- rl d
-		emit_byte(0x3f) -- ccf
+		_ccf()
 		-- skip:
 		emit_byte(0x3e) -- ld a,0
 		emit_byte(0)
 		_ld(D, A)
-		emit_byte(0x17) -- rla
+		_rla()
 		_ld(E, A)
 		stk_push_de()
 	end,
@@ -542,10 +690,10 @@ local dict = {
 		stk_pop_de()
 		_ex_de_hl()
 		_xor(A)
-		emit_byte(0x95) -- sub l
+		_sub(L)
 		_ld(L, A)
-		emit_byte(0x9f) -- sbc a,a
-		emit_byte(0x94) -- sub h
+		_sbc(A, A)
+		_sub(H)
 		_ld(H, A)
 		_ex_de_hl()
 		stk_push_de()
@@ -556,10 +704,10 @@ local dict = {
 		emit_byte(0x28) -- jr z,skip
 		emit_byte(6)
 		_xor(A)
-		emit_byte(0x93) -- sub e
+		_sub(E)
 		_ld(E, A)
-		emit_byte(0x9f) -- sbc a,a
-		emit_byte(0x92) -- sub d
+		_sbc(A, A)
+		_sub(D)
 		_ld(D, A)
 		stk_push_de()
 	end,
@@ -570,10 +718,10 @@ local dict = {
 		_pop(HL)
 		_push(HL)
 		_or(A) -- clear carry
-		emit_short(0x52ed) -- sbc hl, de
+		_sbc(HL, DE)
 		_ld(A, H)
 		_pop(HL)
-		emit_short(0x17cb) -- rl a
+		_rl(A)
 		emit_byte(0x30) -- jr nc, skip
 		emit_byte(1)
 		_ex_de_hl()
@@ -587,10 +735,10 @@ local dict = {
 		_pop(HL)
 		_push(HL)
 		_or(A) -- clear carry
-		emit_short(0x52ed) -- sbc hl, de
+		_sbc(HL, DE)
 		_ld(A, H)
 		_pop(HL)
-		emit_short(0x17cb) -- rl a
+		_rl(A)
 		emit_byte(0x38) -- jr c, skip
 		emit_byte(1)
 		_ex_de_hl()
@@ -649,7 +797,7 @@ local dict = {
 		stk_pop_de()
 		-- loop:
 		_dec(DE)
-		emit_short(0x7acb) -- bit 7,d
+		_bit(7, D)
 		emit_byte(0x20) -- jr nz, done
 		emit_byte(5)
 		emit_byte(0x3e) -- ld a,0x20
@@ -682,15 +830,15 @@ local dict = {
 		emit_byte(0x0a)
 	end,
 	out = function()
-		stk_pop_bc()
-		stk_pop_de()
-		emit_short(0x59ed) -- out (c),e
+		stk_pop_bc()	-- c = port
+		stk_pop_de()	-- e = value to output
+		_out(C, E)
 	end,
 	['in'] = function()
 		stk_pop_bc()
 		emit_byte(0x16) -- ld d,0
 		emit_byte(0)
-		emit_short(0x58ed) -- in e,(c)
+		_in(E, C)
 		stk_push_de()
 	end,
 	inkey = function()
@@ -780,7 +928,7 @@ local dict = {
 		_ld(H, B)
 		_ld(L, C)
 		emit_byte(0x37) -- scf (set carry flag)
-		emit_short(0x52ed) -- sbc hl,de
+		_sbc(HL, DE)
 		emit_byte(0x38) -- jr c, .done
 		local pos = here()
 		emit_byte(0)	-- placeholder branch offset
@@ -813,7 +961,7 @@ local dict = {
 	j = function()
 		emit_byte(0x21)	-- ld hl,4
 		emit_short(4)
-		emit_byte(0x39) -- add hl,sp
+		_add(HL, SP)
 		emit_byte(0x5e) -- ld e,(hl)
 		_inc(HL)
 		emit_byte(0x56) -- ld d,(hl)
