@@ -43,6 +43,44 @@ local function _ld(dest, src)
 	emit_byte(op)
 end
 
+local function _ld_const(r, value)
+	-- LD A,n		3E n
+	-- LD B,n		06 n
+	-- LD C,n		0E n
+	-- LD D,n		16 n
+	-- LD E,n		1E n
+	-- LD H,n		26 n
+	-- LD L,n		2E n
+	-- LD BC,nn		01 nn nn
+	-- LD DE,nn		11 nn nn
+	-- LD HL,nn		21 nn nn
+	-- LD IX,nn		DD 21 nn nn
+	-- LD IY,nn		FD 21 nn nn
+	if r == BC then
+		emit_byte(0x01)
+		emit_short(value)
+	elseif r == DE then
+		emit_byte(0x11)
+		emit_short(value)
+	elseif r == HL then
+		emit_byte(0x21)
+		emit_short(value)
+	elseif r == IX then
+		emit_byte(0xdd)
+		emit_byte(0x21)
+		emit_short(value)
+	elseif r == IY then
+		emit_byte(0xfd)
+		emit_byte(0x21)
+		emit_short(value)
+	elseif r >= 0 and r <= 7 then
+		emit_byte(0x06 + r * 8)
+		emit_byte(value)
+	else
+		error("_ld_const: unknown register")
+	end
+end
+
 local function _ex_de_hl()
 	emit_byte(0xeb)
 end
@@ -376,11 +414,10 @@ local function emit_subroutines()
 	mult16_addr = here()
 	stk_pop_de()
 	stk_pop_bc()
-	emit_byte(0x21)		-- ld hl,0
-	emit_short(0)
-	emit_byte(0x3e)		-- ld a,16
-	emit_byte(0x10)
-	emit_byte(0x29)		-- loop: add hl,hl
+	_ld_const(HL, 0)
+	_ld_const(A, 16)
+	-- loop:
+	_add(HL, HL)
 	_ex_de_hl()
 	_adc(HL, HL)
 	_ex_de_hl()
@@ -406,8 +443,7 @@ local function emit_subroutines()
 	stk_pop_de()
 	_pop(HL)
 	_ld(H, L)
-	emit_byte(0x2e)		-- ld l,0
-	emit_byte(0)
+	_ld_const(L, 0)
 	_sla(H)
 	emit_byte(0x30) 	-- jr nc,$+3
 	emit_byte(1)
@@ -578,8 +614,7 @@ local dict = {
 		_pop(HL)
 		_or(A) -- clear carry
 		_sbc(HL, DE)
-		emit_byte(0x11) -- ld de, 0
-		emit_short(0)
+		_ld_const(DE, 0)
 		_ld(A, H)
 		_or(L)
 		emit_byte(0x20)	-- jr nz, neg
@@ -594,8 +629,7 @@ local dict = {
 		stk_pop_de()
 		_pop(HL)
 		call(0x0c99)
-		emit_byte(0x3e) -- ld a,0
-		emit_byte(0)
+		_ld_const(A, 0)
 		_ld(D, A)
 		_rla()
 		_ld(E, A)
@@ -608,8 +642,7 @@ local dict = {
 		_pop(HL)
 		_ex_de_hl()
 		call(0x0c99)
-		emit_byte(0x3e) -- ld a,0
-		emit_byte(0)
+		_ld_const(A, 0)
 		_ld(D, A)
 		_rla()
 		_ld(E, A)
@@ -619,8 +652,7 @@ local dict = {
 		stk_pop_de()
 		_ld(A, D)
 		_or(E)
-		emit_byte(0x11)	-- ld de,1
-		emit_short(1)
+		_ld_const(DE, 1)
 		emit_byte(0x28)	-- jr z, skip
 		emit_byte(1)
 		_ld(E, D) -- clear e
@@ -630,8 +662,7 @@ local dict = {
 	['0<'] = function()
 		stk_pop_de()
 		_rl(D)
-		emit_byte(0x3e) -- ld a,0
-		emit_byte(0)
+		_ld_const(A, 0)
 		_ld(D, A)
 		_rla()
 		_ld(E, A)
@@ -643,11 +674,10 @@ local dict = {
 		_or(E)
 		emit_byte(0x28)	-- jr z, skip
 		emit_byte(3)
-		emit_short(0x12cb)	-- rl d
+		_rl(D)
 		_ccf()
 		-- skip:
-		emit_byte(0x3e) -- ld a,0
-		emit_byte(0)
+		_ld_const(A, 0)
 		_ld(D, A)
 		_rla()
 		_ld(E, A)
@@ -700,7 +730,7 @@ local dict = {
 	end,
 	abs = function()
 		stk_pop_de()
-		emit_short(0x7acb) -- bit 7,d
+		_bit(7, D)
 		emit_byte(0x28) -- jr z,skip
 		emit_byte(6)
 		_xor(A)
@@ -755,8 +785,7 @@ local dict = {
 		stk_pop_de()
 		emit_byte(0x1a) -- ld a,(de)
 		_ld(E, A)
-		emit_byte(0x16) -- ld d,0
-		emit_byte(0)
+		_ld_const(D, 0)
 		stk_push_de()
 	end,
 	['!'] = function()
@@ -784,13 +813,11 @@ local dict = {
 		emit_byte(0xcf) -- rst 8
 	end,
 	cr = function()
-		emit_byte(0x3e) -- ld a,0x0d
-		emit_byte(0x0d)
+		_ld_const(A, 0x0d)
 		emit_byte(0xcf) -- rst 8
 	end,
 	space = function()
-		emit_byte(0x3e) -- ld a,0x20
-		emit_byte(0x20)
+		_ld_const(A, 0x20)
 		emit_byte(0xcf) -- rst 8
 	end,
 	spaces = function()
@@ -800,8 +827,7 @@ local dict = {
 		_bit(7, D)
 		emit_byte(0x20) -- jr nz, done
 		emit_byte(5)
-		emit_byte(0x3e) -- ld a,0x20
-		emit_byte(0x20)
+		_ld_const(A, 0x20)
 		emit_byte(0xcf) -- rst 8
 		emit_byte(0x18) -- jr loop
 		emit_byte(0xf6)
@@ -820,8 +846,7 @@ local dict = {
 		call(0x097f) -- call print string routine
 	end,
 	base = function()
-		emit_byte(0x11) -- ld de, 0x3c3f
-		emit_short(0x3c3f)
+		_ld_const(DE, 0x3c3f)
 		stk_push_de()
 	end,
 	decimal = function()
@@ -836,16 +861,14 @@ local dict = {
 	end,
 	['in'] = function()
 		stk_pop_bc()
-		emit_byte(0x16) -- ld d,0
-		emit_byte(0)
+		_ld_const(D, 0)
 		_in(E, C)
 		stk_push_de()
 	end,
 	inkey = function()
 		call(0x0336) -- call keyscan routine
 		_ld(E, A)
-		emit_byte(0x16) -- ld d,0
-		emit_byte(0)
+		_ld_const(D, 0)
 		stk_push_de()
 	end,
 	['if'] = function()
@@ -959,8 +982,7 @@ local dict = {
 		stk_push_de()
 	end,
 	j = function()
-		emit_byte(0x21)	-- ld hl,4
-		emit_short(4)
+		_ld_const(HL, 4)
 		_add(HL, SP)
 		emit_byte(0x5e) -- ld e,(hl)
 		_inc(HL)
@@ -991,8 +1013,7 @@ local dict = {
 	['."'] = function()
 		local str = next_symbol("\"")
 		assert(#str <= 128, "string too long (max length 128 bytes)")
-		emit_byte(0x11) -- ld de, <addr>
-		emit_short(here() + 7)
+		_ld_const(DE, here() + 8) -- load string address to DE
 		call(0x0979) -- call print embedded string routine
 		emit_byte(0x18)	-- jr <length>
 		emit_byte(#str + 2)
