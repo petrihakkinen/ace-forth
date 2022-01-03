@@ -148,6 +148,12 @@ code ei 251 c, 253 c, 233 c,
 		ascii * emit leave
 	loop ;
 
+:m test-goto
+	goto skip
+	." NOT PRINTED"
+	label skip
+	." HERE" ;
+
 ( 11986 -> 4714, 2.5 times faster )
 :m benchmark-stack
 	10000 begin
@@ -216,6 +222,7 @@ code ei 251 c, 253 c, 233 c,
 	cr test-base
 	mem
 	cr if-then ( prints TRUE FALSE )
+	cr test-goto ( prints HERE )
 	cr begin-until ( prints *AAAAA* )
 	cr cr do-loop ( prints 0 1 2 3 4 1 2 3 4 5 * )
 	\ begin-again

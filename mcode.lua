@@ -1,5 +1,8 @@
 -- Machine code compile dictionary
 
+local labels = {}	-- label -> address for current word
+local gotos = {}	-- address to be patched -> label for current word
+
 -- Pushes DE on Forth stack, trashes HL.
 local function stk_push_de()
 	emit_byte(0xd7)	 -- rst 16
@@ -54,6 +57,16 @@ local dict = {
 	[';'] = function()
 		emit_short(0xe9fd)	-- jp (iy)
 		interpreter_state()
+
+		-- patch gotos
+		for patch_loc, label in pairs(gotos) do
+			local target_addr = labels[label]
+			if target_addr == nil then comp_error("undefined label '%s'", label) end
+			write_short(patch_loc, target_addr)
+		end
+
+		labels = {}
+		gotos = {}
 	end,
 	dup = function()
 		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
@@ -479,6 +492,17 @@ local dict = {
 		assert(offset >= 0 and offset < 256, "branch too long")	-- TODO: long jump
 		write_byte(where, offset)
 	end,
+	label = function()
+		local label = next_symbol()
+		labels[label] = here()
+	end,
+	['goto'] = function()
+		local label = next_symbol()
+		emit_byte(0xc3) -- jp <addr>   NOTE: unrelocatable code!
+		local addr = here()
+		emit_short(0) -- placeholder jump addr
+		gotos[addr] = label
+	end,
 	begin = function()
 		push(here())
 		push('begin')
@@ -598,11 +622,7 @@ for _, name in ipairs(interpreted_words) do
 end
 
 --[[
-	TODO:
-
-	*
-
-	GOTO LABEL [ ]
+	TODO: * [ ]
 --]]
 
 return dict
