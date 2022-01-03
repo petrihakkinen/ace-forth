@@ -172,7 +172,7 @@ rom_words = {
 local word_start_addresses = {}
 
 -- compilation addresses of user defined words
-local compilation_addresses = {}
+compilation_addresses = {}
 
 -- inverse mapping of compilation addresses back to word names (for executing compiled code)
 local compilation_addr_to_name = {}
@@ -623,6 +623,11 @@ interpret_dict = {
 		if not eliminate_words[name] then
 			last_word = create_word(DO_COLON, name)
 			compile_mode = true
+
+			-- make it possible to call user defined Forth words from :m definitions
+			mcode_dict[name] = function()
+				mcode.call_forth(name)
+			end
 		else
 			skip_until(';')
 		end

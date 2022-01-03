@@ -22,3 +22,6 @@
 
 - separate control flow stack
 	- check that the stack is empty at the end of word definition
+
+- how to call other mcode words from mcode words?
+	- the problem is that each mcode word ends with jp (iy), not ret!

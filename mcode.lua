@@ -44,13 +44,13 @@ local function call(addr)
 end
 
 local function call_forth(name)
-	local addr = rom_words[string.upper(name)]
+	local addr = compilation_addresses[name] or rom_words[string.upper(name)]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
 	call(0x04b9) -- call forth
 	emit_short(addr)
-	emit_short(0x1A0E) -- end-forth
+	emit_short(0x1a0e) -- end-forth
 end
 
 local mult16_addr
@@ -699,4 +699,5 @@ end
 return {
 	get_dict = get_dict,
 	emit_subroutines = emit_subroutines,
+	call_forth = call_forth,
 }

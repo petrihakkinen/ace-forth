@@ -22,6 +22,14 @@ code ei 251 c, 253 c, 233 c,
 	3 7 >r . r> . ( 3 7 )
 	;
 
+( Test calling another mcode word from mcode word )
+\ :m test1 1 ;
+\ :m test2 test1 . ;
+
+( Test calling another user defined Forth word from mcode word )
+: push1 1 ;
+:m call-forth push1 . ;
+
 :m pull-speaker 65278 in drop ;
 :m push-speaker 0 65278 out ;
 
@@ -227,6 +235,7 @@ code ei 251 c, 253 c, 233 c,
 
 : main
 	fast di
+	cr call-forth
 	cr stack
 	cr stack2
 	cr arith ( prints 4 6 -1 7 )
@@ -237,7 +246,7 @@ code ei 251 c, 253 c, 233 c,
 	\ cr begin-profile benchmark-stack end-profile
 	\ cr begin-profile benchmark-over end-profile
 	\ cr begin-profile benchmark-do-loop end-profile
-	cr begin-profile benchmark-c* end-profile
+	\ cr begin-profile benchmark-c* end-profile
 	\ in-out
 	cr test-base
 	mem
