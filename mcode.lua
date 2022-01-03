@@ -92,6 +92,21 @@ local function _dec(r)
 	end
 end
 
+local function _xor(r)
+	assert(r >= 0 and r <= 7, "_xor: unknown register")
+	emit_byte(0xa8 + r)
+end
+
+local function _and(r)
+	assert(r >= 0 and r <= 7, "_and: unknown register")
+	emit_byte(0xa0 + r)
+end
+
+local function _or(r)
+	assert(r >= 0 and r <= 7, "_or: unknown register")
+	emit_byte(0xb0 + r)
+end
+
 local function _ldir()
 	emit_byte(0xed)
 	emit_byte(0xb0)
@@ -297,7 +312,7 @@ local dict = {
 		_dec(HL)
 		emit_byte(0x5e) -- ld e,(hl)
 		_ld(A, D)
-		emit_byte(0xb3) -- or e
+		_or(E)
 		emit_byte(0x28)	-- jr z, skip
 		emit_byte(1)
 		stk_push_de()
@@ -373,7 +388,7 @@ local dict = {
 		stk_pop_de()
 		_pop(HL)
 		_ex_de_hl()
-		emit_byte(0xb7)	-- or a (clear carry)
+		_or(A) -- clear carry
 		emit_short(0x52ed) -- sbc hl,de
 		_ex_de_hl()
 		stk_push_de()
@@ -413,12 +428,12 @@ local dict = {
 		_push(DE)
 		stk_pop_de()
 		_pop(HL)
-		emit_byte(0xb7)	-- or a (clear carry)
+		_or(A) -- clear carry
 		emit_short(0x52ed) -- sbc hl, de
 		emit_byte(0x11) -- ld de, 0
 		emit_short(0)
 		_ld(A, H)
-		emit_byte(0xb5) -- or l
+		_or(L)
 		emit_byte(0x20)	-- jr nz, neg
 		emit_byte(0x01)
 		_inc(E)
@@ -455,7 +470,7 @@ local dict = {
 	['0='] = function()
 		stk_pop_de()
 		_ld(A, D)
-		emit_byte(0xb3) -- or e
+		_or(E)
 		emit_byte(0x11)	-- ld de,1
 		emit_short(1)
 		emit_byte(0x28)	-- jr z, skip
@@ -477,7 +492,7 @@ local dict = {
 	['0>'] = function()
 		stk_pop_de()
 		_ld(A, D)
-		emit_byte(0xb3) -- or e
+		_or(E)
 		emit_byte(0x28)	-- jr z, skip
 		emit_byte(3)
 		emit_short(0x12cb)	-- rl d
@@ -494,10 +509,10 @@ local dict = {
 		stk_pop_de()
 		stk_pop_bc()
 		_ld(A, E)
-		emit_byte(0xa9) -- xor c
+		_xor(C)
 		_ld(E, A)
 		_ld(A, D)
-		emit_byte(0xa8) -- xor b
+		_xor(B)
 		_ld(D, A)
 		stk_push_de()
 	end,
@@ -505,10 +520,10 @@ local dict = {
 		stk_pop_de()
 		stk_pop_bc()
 		_ld(A, E)
-		emit_byte(0xa1) -- and c
+		_and(C)
 		_ld(E, A)
 		_ld(A, D)
-		emit_byte(0xa0) -- and b
+		_and(B)
 		_ld(D, A)
 		stk_push_de()
 	end,
@@ -516,17 +531,17 @@ local dict = {
 		stk_pop_de()
 		stk_pop_bc()
 		_ld(A, E)
-		emit_byte(0xb1) -- or c
+		_or(C)
 		_ld(E, A)
 		_ld(A, D)
-		emit_byte(0xb0) -- or b
+		_or(B)
 		_ld(D, A)
 		stk_push_de()
 	end,
 	negate = function()
 		stk_pop_de()
 		_ex_de_hl()
-		emit_byte(0xaf) -- xor a
+		_xor(A)
 		emit_byte(0x95) -- sub l
 		_ld(L, A)
 		emit_byte(0x9f) -- sbc a,a
@@ -540,7 +555,7 @@ local dict = {
 		emit_short(0x7acb) -- bit 7,d
 		emit_byte(0x28) -- jr z,skip
 		emit_byte(6)
-		emit_byte(0xaf) -- xor a
+		_xor(A)
 		emit_byte(0x93) -- sub e
 		_ld(E, A)
 		emit_byte(0x9f) -- sbc a,a
@@ -554,7 +569,7 @@ local dict = {
 		stk_pop_de()
 		_pop(HL)
 		_push(HL)
-		emit_byte(0xb7)	-- or a (clear carry)
+		_or(A) -- clear carry
 		emit_short(0x52ed) -- sbc hl, de
 		_ld(A, H)
 		_pop(HL)
@@ -571,7 +586,7 @@ local dict = {
 		stk_pop_de()
 		_pop(HL)
 		_push(HL)
-		emit_byte(0xb7)	-- or a (clear carry)
+		_or(A) -- clear carry
 		emit_short(0x52ed) -- sbc hl, de
 		_ld(A, H)
 		_pop(HL)
@@ -688,7 +703,7 @@ local dict = {
 	['if'] = function()
 		stk_pop_de()
 		_ld(A, D)
-		emit_byte(0xb3) -- or e
+		_or(E)
 		emit_byte(0xca)	-- jp z,<addr>	TODO: this could be optimized to JR Z,<addr>
 		push(here())
 		push('if')
@@ -745,7 +760,7 @@ local dict = {
 		local target = pop()
 		stk_pop_de()
 		_ld(A, D)
-		emit_byte(0xb3) -- or e
+		_or(E)
 		jump_z(target)
 	end,
 	['do'] = function()
