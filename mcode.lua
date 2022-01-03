@@ -3,6 +3,18 @@
 local labels = {}	-- label -> address for current word
 local gotos = {}	-- address to be patched -> label for current word
 
+-- Z80 registers
+local A = 7
+local B = 0
+local C = 1
+local D = 2
+local E = 3
+local H = 4
+local L = 5
+local BC = 0x10
+local DE = 0x20
+local HL = 0x30
+
 -- Pushes DE on Forth stack, trashes HL.
 local function stk_push_de()
 	emit_byte(0xd7)	 -- rst 16
@@ -17,6 +29,65 @@ end
 local function stk_pop_bc()
 	emit_byte(0xcd)	-- call 084e 
 	emit_short(0x084e)
+end
+
+local function _ld(dest, src)
+	-- ld r,r
+	assert(dest >= 0 and dest <= 7)
+	assert(src >= 0 and src <= 7)
+	local op = 0x40 + dest * 8 + src
+	emit_byte(op)
+end
+
+local function _ex_de_hl()
+	emit_byte(0xeb)
+end
+
+local function _inc(r)
+	-- INC A	3C
+	-- INC B	04
+	-- INC C	0C
+	-- INC D	14
+	-- INC E	1C
+	-- INC H	24
+	-- INC BC	03
+	-- INC DE	13
+	-- INC HL	23
+	if r == BC then
+		emit_byte(0x03)
+	elseif r == DE then
+		emit_byte(0x13)
+	elseif r == HL then
+		emit_byte(0x23)
+	else
+		emit_byte(0x04 + r * 8)
+	end
+end
+
+local function _dec(r)
+	-- DEC A	3D
+	-- DEC B	05
+	-- DEC C	0D
+	-- DEC D	15
+	-- DEC E	1D
+	-- DEC H	25
+	-- DEC BC	0B
+	-- DEC DE	1B
+	-- DEC HL	2B
+	if r == BC then
+		emit_byte(0x0b)
+	elseif r == DE then
+		emit_byte(0x1b)
+	elseif r == HL then
+		emit_byte(0x2b)
+	else
+		emit_byte(0x05 + r * 8)
+	end
+end
+
+local function _ldir()
+	emit_byte(0xed)
+	emit_byte(0xb0)
 end
 
 local function branch_offset(target)
@@ -88,19 +159,20 @@ local function emit_subroutines()
 	emit_byte(0x3e)		-- ld a,16
 	emit_byte(0x10)
 	emit_byte(0x29)		-- loop: add hl,hl
-	emit_byte(0xeb)		-- ex de,hl
+	_ex_de_hl()
 	emit_short(0x6aed)	-- adc hl,hl
-	emit_byte(0xeb)		-- ex de,hl
+	_ex_de_hl()
 	emit_byte(0x30)		-- jr nc,skip
 	emit_byte(0x04)
 	emit_byte(0x09)		-- add hl,bc
 	emit_byte(0x30)		-- jr nc,skip
 	emit_byte(0x01)
-	emit_byte(0x13)		-- inc de
-	emit_byte(0x3d)		-- skip: dec a
+	_inc(DE)
+	 -- skip:
+	_dec(A)
 	emit_byte(0x20)		-- jr nz,loop
 	emit_byte(0xf2)
-	emit_byte(0xeb)		-- ex de,hl
+	_ex_de_hl()
 	stk_push_de()
 	emit_byte(0xc9)		-- ret
 
@@ -111,20 +183,20 @@ local function emit_subroutines()
 	emit_byte(0xd5)		-- push de
 	stk_pop_de()
 	emit_byte(0xe1)		-- pop hl
-	emit_byte(0x65)		-- ld h,l
+	_ld(H, L)
 	emit_byte(0x2e)		-- ld l,0
 	emit_byte(0)
 	emit_short(0x24cb)	-- sla h
 	emit_byte(0x30) 	-- jr nc,$+3
 	emit_byte(1)
-	emit_byte(0x6b)		-- ld l,e
+	_ld(L, E)
 	for i = 1, 7 do
 		emit_byte(0x29)	-- add hl,hl
 		emit_byte(0x30) -- jr nc,$+3
 		emit_byte(1)
 		emit_byte(0x19) -- add hl,de
 	end
-	emit_byte(0xeb)		-- ex de,hl
+	_ex_de_hl()
 	stk_push_de()
 	emit_byte(0xc9)		-- ret
 end
@@ -152,20 +224,20 @@ local dict = {
 	dup = function()
 		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
 		emit_short(0x3c3b)
-		emit_byte(0x2b) -- dec hl
+		_dec(HL)
 		emit_byte(0x56) -- ld d,(hl)
-		emit_byte(0x2b) -- dec hl
+		_dec(HL)
 		emit_byte(0x5e) -- ld e,(hl)
 		stk_push_de()
 	end,
 	['?dup'] = function()
 		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
 		emit_short(0x3c3b)
-		emit_byte(0x2b) -- dec hl
+		_dec(HL)
 		emit_byte(0x56) -- ld d,(hl)
-		emit_byte(0x2b) -- dec hl
+		_dec(HL)
 		emit_byte(0x5e) -- ld e,(hl)
-		emit_byte(0x7a) -- ld a,d
+		_ld(A, D)
 		emit_byte(0xb3) -- or e
 		emit_byte(0x28)	-- jr z,.skip
 		emit_byte(1)
@@ -174,19 +246,19 @@ local dict = {
 	over = function()
 		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
 		emit_short(0x3c3b)
-		emit_byte(0x2b) -- dec hl
-		emit_byte(0x2b) -- dec hl
-		emit_byte(0x2b) -- dec hl
+		_dec(HL)
+		_dec(HL)
+		_dec(HL)
 		emit_byte(0x56) -- ld d,(hl)
-		emit_byte(0x2b) -- dec hl
+		_dec(HL)
 		emit_byte(0x5e) -- ld e,(hl)
 		stk_push_de()
 	end,
 	drop = function()
 		emit_byte(0x2a) -- ld hl,(0x3c3b)   (load spare)
 		emit_short(0x3c3b)
-		emit_byte(0x2b) -- dec hl
-		emit_byte(0x2b) -- dec hl
+		_dec(HL)
+		_dec(HL)
 		emit_byte(0x22) -- ld (0x3c3b),hl
 		emit_short(0x3c3b)
 	end,
@@ -194,8 +266,8 @@ local dict = {
 		stk_pop_de()
 		stk_pop_bc()
 		stk_push_de()
-		emit_byte(0x50) -- ld d,b
-		emit_byte(0x59) -- ld e,c
+		_ld(D, B)
+		_ld(E, C)
 		stk_push_de()
 	end,
 	pick = function()
@@ -203,14 +275,14 @@ local dict = {
 	end,
 	roll = function()
 		call(0x094d)
-		emit_byte(0xeb) -- ex de,hl
+		_ex_de_hl()
 		emit_byte(0x2a) -- ld hl,(0x3c37) (load stkbot)
 		emit_short(0x3c37)
-		emit_byte(0x62) -- ld h,d
-		emit_byte(0x6b) -- ld l,e
-		emit_byte(0x23) -- inc hl
-		emit_byte(0x23) -- inc hl
-		emit_short(0xb0ed) -- ldir
+		_ld(H, D)
+		_ld(L, E)
+		_inc(HL)
+		_inc(HL)
+		_ldir()
 		emit_short(0x53ed) -- ld (0x3c3b),de (write spare)
 		emit_short(0x3c3b)
 	end,
@@ -232,7 +304,7 @@ local dict = {
 		stk_pop_de()
 		emit_byte(0xe1)	-- pop hl
 		emit_byte(0x19) -- add hl,de
-		emit_byte(0xeb)	-- ex de,hl
+		_ex_de_hl()
 		stk_push_de()
 	end,
 	['-'] = function()
@@ -240,10 +312,10 @@ local dict = {
 		emit_byte(0xd5)	-- push de
 		stk_pop_de()
 		emit_byte(0xe1)	-- pop hl
-		emit_byte(0xeb)	-- ex de,hl
+		_ex_de_hl()
 		emit_byte(0xb7)	-- or a (clear carry)
 		emit_short(0x52ed) -- sbc hl,de
-		emit_byte(0xeb)	-- ex de,hl
+		_ex_de_hl()
 		stk_push_de()
 	end,
 	['*'] = function()
@@ -256,24 +328,24 @@ local dict = {
 	end,
 	['1+'] = function()
 		stk_pop_de()
-		emit_byte(0x13) -- inc de
+		_inc(DE)
 		stk_push_de()
 	end,
 	['1-'] = function()
 		stk_pop_de()
-		emit_byte(0x1b) -- dec de
+		_dec(DE)
 		stk_push_de()
 	end,
 	['2+'] = function()
 		stk_pop_de()
-		emit_byte(0x13) -- inc de
-		emit_byte(0x13) -- inc de
+		_inc(DE)
+		_inc(DE)
 		stk_push_de()
 	end,
 	['2-'] = function()
 		stk_pop_de()
-		emit_byte(0x1b) -- dec de
-		emit_byte(0x1b) -- dec de
+		_dec(DE)
+		_dec(DE)
 		stk_push_de()
 	end,
 	['='] = function()
@@ -285,11 +357,11 @@ local dict = {
 		emit_short(0x52ed) -- sbc hl, de
 		emit_byte(0x11) -- ld de, 0
 		emit_short(0)
-		emit_byte(0x7c) -- ld a, h
+		_ld(A, H)
 		emit_byte(0xb5) -- or l
 		emit_byte(0x20)	-- jr nz, .neg
 		emit_byte(0x01)
-		emit_byte(0x1c)	-- inc e
+		_inc(E)
 		stk_push_de() -- .neg:
 	end,
 	['>'] = function()
@@ -300,9 +372,9 @@ local dict = {
 		call(0x0c99)
 		emit_byte(0x3e) -- ld a,0
 		emit_byte(0)
-		emit_byte(0x57) -- ld d,a
+		_ld(D, A)
 		emit_byte(0x17) -- rla
-		emit_byte(0x5f) -- ld e,a
+		_ld(E, A)
 		stk_push_de()
 	end,
 	['<'] = function()
@@ -310,24 +382,24 @@ local dict = {
 		emit_byte(0xd5)	-- push de
 		stk_pop_de()
 		emit_byte(0xe1)	-- pop hl
-		emit_byte(0xeb)	-- ex de,hl
+		_ex_de_hl()
 		call(0x0c99)
 		emit_byte(0x3e) -- ld a,0
 		emit_byte(0)
-		emit_byte(0x57) -- ld d,a
+		_ld(D, A)
 		emit_byte(0x17) -- rla
-		emit_byte(0x5f) -- ld e,a
+		_ld(E, A)
 		stk_push_de()
 	end,
 	['0='] = function()
 		stk_pop_de()
-		emit_byte(0x7a) -- ld a,d
+		_ld(A, D)
 		emit_byte(0xb3) -- or e
 		emit_byte(0x11)	-- ld de,1
 		emit_short(1)
 		emit_byte(0x28)	-- jr z,.skip
 		emit_byte(1)
-		emit_byte(0x5a) -- ld e,d (clear e)
+		_ld(E, D) -- clear e
 		stk_push_de()	-- .skip
 	end,
 	['0<'] = function()
@@ -335,14 +407,14 @@ local dict = {
 		emit_short(0x12cb)	-- rl d
 		emit_byte(0x3e) -- ld a,0
 		emit_byte(0)
-		emit_byte(0x57) -- ld d,a
+		_ld(D, A)
 		emit_byte(0x17) -- rla
-		emit_byte(0x5f) -- ld e,a
+		_ld(E, A)
         stk_push_de()
 	end,
 	['0>'] = function()
 		stk_pop_de()
-		emit_byte(0x7a) -- ld a,d
+		_ld(A, D)
 		emit_byte(0xb3) -- or e
 		emit_byte(0x28)	-- jr z,.skip
 		emit_byte(3)
@@ -350,54 +422,54 @@ local dict = {
 		emit_byte(0x3f) -- ccf
 		emit_byte(0x3e) -- skip: ld a,0
 		emit_byte(0)
-		emit_byte(0x57) -- ld d,a
+		_ld(D, A)
 		emit_byte(0x17) -- rla
-		emit_byte(0x5f) -- ld e,a
+		_ld(E, A)
 		stk_push_de()
 	end,
 	xor = function()
 		stk_pop_de()
 		stk_pop_bc()
-		emit_byte(0x7b) -- ld a,e
+		_ld(A, E)
 		emit_byte(0xa9) -- xor c
-		emit_byte(0x5f) -- ld e,a
-		emit_byte(0x7a) -- ld a,d
+		_ld(E, A)
+		_ld(A, D)
 		emit_byte(0xa8) -- xor b
-		emit_byte(0x57) -- ld d,a
+		_ld(D, A)
 		stk_push_de()
 	end,
 	['and'] = function()
 		stk_pop_de()
 		stk_pop_bc()
-		emit_byte(0x7b) -- ld a,e
+		_ld(A, E)
 		emit_byte(0xa1) -- and c
-		emit_byte(0x5f) -- ld e,a
-		emit_byte(0x7a) -- ld a,d
+		_ld(E, A)
+		_ld(A, D)
 		emit_byte(0xa0) -- and b
-		emit_byte(0x57) -- ld d,a
+		_ld(D, A)
 		stk_push_de()
 	end,
 	['or'] = function()
 		stk_pop_de()
 		stk_pop_bc()
-		emit_byte(0x7b) -- ld a,e
+		_ld(A, E)
 		emit_byte(0xb1) -- or c
-		emit_byte(0x5f) -- ld e,a
-		emit_byte(0x7a) -- ld a,d
+		_ld(E, A)
+		_ld(A, D)
 		emit_byte(0xb0) -- or b
-		emit_byte(0x57) -- ld d,a
+		_ld(D, A)
 		stk_push_de()
 	end,
 	negate = function()
 		stk_pop_de()
-		emit_byte(0xeb) -- ex de, hl
+		_ex_de_hl()
 		emit_byte(0xaf) -- xor a
 		emit_byte(0x95) -- sub l
-		emit_byte(0x6f) -- ld l,a
+		_ld(L, A)
 		emit_byte(0x9f) -- sbc a,a
 		emit_byte(0x94) -- sub h
-		emit_byte(0x67) -- ld h,a
-		emit_byte(0xeb) -- ex de, hl
+		_ld(H, A)
+		_ex_de_hl()
 		stk_push_de()
 	end,
 	abs = function()
@@ -407,10 +479,10 @@ local dict = {
 		emit_byte(6)
 		emit_byte(0xaf) -- xor a
 		emit_byte(0x93) -- sub e
-		emit_byte(0x5f) -- ld e,a
+		_ld(E, A)
 		emit_byte(0x9f) -- sbc a,a
 		emit_byte(0x92) -- sub d
-		emit_byte(0x57) -- ld d,a
+		_ld(D, A)
 		stk_push_de()
 	end,
 	min = function()
@@ -421,12 +493,12 @@ local dict = {
 		emit_byte(0xe5) -- push hl
 		emit_byte(0xb7)	-- or a (clear carry)
 		emit_short(0x52ed) -- sbc hl, de
-		emit_byte(0x7c)	-- ld a,h
+		_ld(A, H)
 		emit_byte(0xe1)	-- pop hl
 		emit_short(0x17cb) -- rl a
 		emit_byte(0x30) -- jr nc, .skip
 		emit_byte(1)
-		emit_byte(0xeb) -- ex de, hl
+		_ex_de_hl()
 		stk_push_de()	-- .skip
 	end,
 	max = function()
@@ -437,24 +509,24 @@ local dict = {
 		emit_byte(0xe5) -- push hl
 		emit_byte(0xb7)	-- or a (clear carry)
 		emit_short(0x52ed) -- sbc hl, de
-		emit_byte(0x7c)	-- ld a,h
+		_ld(A, H)
 		emit_byte(0xe1)	-- pop hl
 		emit_short(0x17cb) -- rl a
 		emit_byte(0x38) -- jr c, .skip
 		emit_byte(1)
-		emit_byte(0xeb) -- ex de, hl
+		_ex_de_hl()
 		stk_push_de()	-- .skip
 	end,
 	['c!'] = function()
 		stk_pop_de()
 		stk_pop_bc()
-		emit_byte(0x79) -- ld a,c
+		_ld(A, C)
 		emit_byte(0x12) -- ld (de),a
 	end,
 	['c@'] = function()
 		stk_pop_de()
 		emit_byte(0x1a) -- ld a,(de)
-		emit_byte(0x5f) -- ld e,a
+		_ld(E, A)
 		emit_byte(0x16) -- ld d,0
 		emit_byte(0)
 		stk_push_de()
@@ -462,16 +534,16 @@ local dict = {
 	['!'] = function()
 		stk_pop_de()
 		stk_pop_bc()
-		emit_byte(0xeb) -- ex de,hl
+		_ex_de_hl()
 		emit_byte(0x71) -- ld (hl),c
-		emit_byte(0x23) -- inc hl
+		_inc(HL)
 		emit_byte(0x70) -- ld (hl),b
 	end,
 	['@'] = function()
 		stk_pop_de()
-		emit_byte(0xeb) -- ex de,hl
+		_ex_de_hl()
 		emit_byte(0x5e) -- ld e,(hl)
-		emit_byte(0x23) -- inc hl
+		_inc(HL)
 		emit_byte(0x56) -- ld d,(hl)
 		stk_push_de()
 	end,
@@ -480,7 +552,7 @@ local dict = {
 	end,
 	emit = function()
 		stk_pop_de()
-		emit_byte(0x7b) -- ld a,e
+		_ld(A, E)
 		emit_byte(0xcf) -- rst 8
 	end,
 	cr = function()
@@ -495,7 +567,8 @@ local dict = {
 	end,
 	spaces = function()
 		stk_pop_de()
-		emit_byte(0x1b)	-- loop: dec de
+		-- loop:
+		_dec(DE)
 		emit_short(0x7acb) -- bit 7,d
 		emit_byte(0x20) -- jr nz, done
 		emit_byte(5)
@@ -508,7 +581,7 @@ local dict = {
 	at = function()
 		stk_pop_de()
 		call(0x084e)
-		emit_byte(0x79) --ld a,c
+		_ld(A, C)
 		call(0x0b28)
 		emit_byte(0x22) --ld ($3c1c),hl (update SCRPOS)
 		emit_short(0x3c1c)
@@ -542,14 +615,14 @@ local dict = {
 	end,
 	inkey = function()
 		call(0x0336) -- call keyscan routine
-		emit_byte(0x5f) -- ld e,a
+		_ld(E, A)
 		emit_byte(0x16) -- ld d,0
 		emit_byte(0)
 		stk_push_de()
 	end,
 	['if'] = function()
 		stk_pop_de()
-		emit_byte(0x7a) -- ld a,d
+		_ld(A, D)
 		emit_byte(0xb3) -- or e
 		emit_byte(0xca)	-- jp z,<addr>	TODO: this could be optimized to JR Z,<addr>
 		push(here())
@@ -606,7 +679,7 @@ local dict = {
 		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = pop()
 		stk_pop_de()
-		emit_byte(0x7a) -- ld a,d
+		_ld(A, D)
 		emit_byte(0xb3) -- or e
 		jump_z(target)
 	end,
@@ -623,9 +696,9 @@ local dict = {
 		local target = pop()
 		emit_byte(0xd1) -- pop de (pop counter)
 		emit_byte(0xc1) -- pop bc (pop limit) 
-		emit_byte(0x13) -- inc de
-		emit_byte(0x60) -- ld h,b
-		emit_byte(0x69) -- ld l,c
+		_inc(DE)
+		_ld(H, B)
+		_ld(L, C)
 		emit_byte(0x37) -- scf (set carry flag)
 		emit_short(0x52ed) -- sbc hl,de
 		emit_byte(0x38) -- jr c, .done
@@ -662,7 +735,7 @@ local dict = {
 		emit_short(4)
 		emit_byte(0x39) -- add hl,sp
 		emit_byte(0x5e) -- ld e,(hl)
-		emit_byte(0x23) -- inc hl
+		_inc(HL)
 		emit_byte(0x56) -- ld d,(hl)
 		stk_push_de()
 	end,
