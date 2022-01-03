@@ -53,12 +53,14 @@ local function call_forth(name)
 	emit_short(0x1A0E) -- end-forth
 end
 
-local mult_addr
+local mult16_addr
+local mult8_addr
 
 -- Emits invisible subroutine words to be used by mcode words.
 local function emit_subroutines()
-	create_word(0, "_mul", true)
-	mult_addr = here()
+	-- signed 16-bit * 16-bit multiplication routine
+	create_word(0, "_mcode", true)
+	mult16_addr = here()
 	stk_pop_de()
 	stk_pop_bc()
 	emit_byte(0x21)		-- ld hl,0
@@ -78,6 +80,30 @@ local function emit_subroutines()
 	emit_byte(0x3d)		-- skip: dec a
 	emit_byte(0x20)		-- jr nz,loop
 	emit_byte(0xf2)
+	emit_byte(0xeb)		-- ex de,hl
+	stk_push_de()
+	emit_byte(0xc9)		-- ret
+
+	-- unsigned 8-bit * 8-bit multiplication routine
+	-- source: http://map.grauw.nl/sources/external/z80bits.html#1.1
+	mult8_addr = here()
+	stk_pop_de()
+	emit_byte(0xd5)		-- push de
+	stk_pop_de()
+	emit_byte(0xe1)		-- pop hl
+	emit_byte(0x65)		-- ld h,l
+	emit_byte(0x2e)		-- ld l,0
+	emit_byte(0)
+	emit_short(0x24cb)	-- sla h
+	emit_byte(0x30) 	-- jr nc,$+3
+	emit_byte(1)
+	emit_byte(0x6b)		-- ld l,e
+	for i = 1, 7 do
+		emit_byte(0x29)	-- add hl,hl
+		emit_byte(0x30) -- jr nc,$+3
+		emit_byte(1)
+		emit_byte(0x19) -- add hl,de
+	end
 	emit_byte(0xeb)		-- ex de,hl
 	stk_push_de()
 	emit_byte(0xc9)		-- ret
@@ -196,8 +222,12 @@ local dict = {
 		stk_push_de()
 	end,
 	['*'] = function()
-		assert(mult_addr, "mcode subroutines not found")
-		call(mult_addr)
+		assert(mult16_addr, "mcode subroutines not found")
+		call(mult16_addr)
+	end,
+	['c*'] = function()
+		assert(mult8_addr, "mcode subroutines not found")
+		call(mult8_addr)
 	end,
 	['1+'] = function()
 		stk_pop_de()

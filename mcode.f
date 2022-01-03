@@ -53,6 +53,7 @@ code ei 251 c, 253 c, 233 c,
 	-1234 negate . ( 1234 )
 	1000 5 * . ( 5000 )
 	-123 5 * . ( -615 )
+	5 50 c* . ( 250 )
 	;
 
 :m arith-funcs
@@ -191,6 +192,20 @@ code ei 251 c, 253 c, 233 c,
 	30000 0 do
 	loop ;
 
+( 3430 -> 2269 -> 1.5 times faster )
+:m benchmark-*
+	2
+	1000 0 do
+		2 * 7 * 123 * 256 * 789 *
+	loop drop ;
+
+( 2230 -> 986 -> 2.3 times faster )
+:m benchmark-c*
+	2
+	1000 0 do
+		2 c* 5 c* 8 c* 10 c* 7 c*
+	loop drop ;
+
 : time ( -- time )
 	252 in ( lo byte )
 	253 in ( hi byte )
@@ -222,6 +237,7 @@ code ei 251 c, 253 c, 233 c,
 	\ cr begin-profile benchmark-stack end-profile
 	\ cr begin-profile benchmark-over end-profile
 	\ cr begin-profile benchmark-do-loop end-profile
+	cr begin-profile benchmark-c* end-profile
 	\ in-out
 	cr test-base
 	mem
