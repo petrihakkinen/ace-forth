@@ -27,22 +27,6 @@ local SCRPOS = 0x3c1c
 local STKBOT = 0x3c37
 local SPARE = 0x3c3b
 
--- Pushes DE on Forth stack, trashes HL.
-local function stk_push_de()
-	emit_byte(0xd7)	 -- rst 16
-end
-
--- Pops value from Forth stack and puts it in DE register, trashes HL.
-local function stk_pop_de()
-	emit_byte(0xdf)	-- rst 24
-end
-
--- Pops value from Forth stack and puts it in BC register.
-local function stk_pop_bc()
-	emit_byte(0xcd)	-- call 084e 
-	emit_short(0x084e)
-end
-
 local function _ld(dest, src)
 	if dest == BC_INDIRECT and src == A then
 		-- ld (bc), A
@@ -181,6 +165,21 @@ local function _ld_store(addr, r)
 		error("_ld_store: unknown register")
 	end
 	emit_short(addr)
+end
+
+local function _ld_store_offset_const(r, offset, value)
+	-- LD (IX+OFFSET),N		DD 36 o n
+	-- LD (IY+OFFSET),N		FD 36 o n
+	if r == IX then
+		emit_byte(0xdd)
+	elseif r == IY then
+		emit_byte(0xfd)
+	else
+		error("_ld_store_offset_const: unknown register")
+	end
+	emit_byte(0x36)
+	emit_byte(offset)
+	emit_byte(value)
 end
 
 local function _ex_de_hl()
@@ -423,8 +422,18 @@ local function _pop(r)
 	end
 end
 
+local function _call(addr)
+	emit_byte(0xcd)
+	emit_short(addr)
+end
+
 local function _ret()
 	emit_byte(0xc9)
+end
+
+local function _jp_indirect_iy()
+	emit_byte(0xfd)	-- jp (iy)
+	emit_byte(0xe9)
 end
 
 local function _in(r, port)
@@ -454,6 +463,26 @@ local function _out(port, r)
 	assert(r >= 0 and r <= 7, "_out: unknown register")
 	emit_byte(0xed)
 	emit_byte(0x41 + r * 8)
+end
+
+local function _rst(i)
+	assert(i >= 0 and i <= 0x38 and (i & 7) == 0, "invalid reset vector")
+	emit_byte(0xc7 + i)
+end
+
+-- Pushes DE on Forth stack, trashes HL.
+local function stk_push_de()
+	_rst(16)
+end
+
+-- Pops value from Forth stack and puts it in DE register, trashes HL.
+local function stk_pop_de()
+	_rst(24)
+end
+
+-- Pops value from Forth stack and puts it in BC register.
+local function stk_pop_bc()
+	_call(0x084e)
 end
 
 local function branch_offset(target)
@@ -487,17 +516,12 @@ local function jump_z(target)
 	end
 end
 
-local function call(addr)
-	emit_byte(0xcd)
-	emit_short(addr)
-end
-
 local function call_forth(name)
 	local addr = compilation_addresses[name] or rom_words[string.upper(name)]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	call(0x04b9) -- call forth
+	_call(0x04b9) -- call forth
 	emit_short(addr)
 	emit_short(0x1a0e) -- end-forth
 end
@@ -507,7 +531,7 @@ local function call_mcode(name)
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	call(addr + 7) -- call machine code, skipping the wrapper
+	_call(addr + 7) -- call machine code, skipping the wrapper
 end
 
 local mult16_addr
@@ -568,8 +592,8 @@ local function emit_subroutines()
 end
 
 local function emit_mcode_wrapper()
-	call(here() + 5)	-- call machine code
-	emit_short(0xe9fd)	-- jp (iy)
+	_call(here() + 5)	-- call machine code
+	_jp_indirect_iy()
 end
 
 local dict = {
@@ -633,10 +657,10 @@ local dict = {
 		stk_push_de()
 	end,
 	pick = function()
-		call(0x094d)
+		_call(0x094d)
 	end,
 	roll = function()
-		call(0x094d)
+		_call(0x094d)
 		_ex_de_hl()
 		_ld_fetch(HL, STKBOT)
 		_ld(H, D)
@@ -680,11 +704,11 @@ local dict = {
 	end,
 	['*'] = function()
 		assert(mult16_addr, "mcode subroutines not found")
-		call(mult16_addr)
+		_call(mult16_addr)
 	end,
 	['c*'] = function()
 		assert(mult8_addr, "mcode subroutines not found")
-		call(mult8_addr)
+		_call(mult8_addr)
 	end,
 	['1+'] = function()
 		stk_pop_de()
@@ -729,7 +753,7 @@ local dict = {
 		_push(DE)
 		stk_pop_de()
 		_pop(HL)
-		call(0x0c99)
+		_call(0x0c99)
 		_ld_const(A, 0)
 		_ld(D, A)
 		_rla()
@@ -742,7 +766,7 @@ local dict = {
 		stk_pop_de()
 		_pop(HL)
 		_ex_de_hl()
-		call(0x0c99)
+		_call(0x0c99)
 		_ld_const(A, 0)
 		_ld(D, A)
 		_rla()
@@ -911,15 +935,15 @@ local dict = {
 	emit = function()
 		stk_pop_de()
 		_ld(A, E)
-		emit_byte(0xcf) -- rst 8
+		_rst(8)
 	end,
 	cr = function()
 		_ld_const(A, 0x0d)
-		emit_byte(0xcf) -- rst 8
+		_rst(8)
 	end,
 	space = function()
 		_ld_const(A, 0x20)
-		emit_byte(0xcf) -- rst 8
+		_rst(8)
 	end,
 	spaces = function()
 		stk_pop_de()
@@ -929,30 +953,28 @@ local dict = {
 		emit_byte(0x20) -- jr nz, done
 		emit_byte(5)
 		_ld_const(A, 0x20)
-		emit_byte(0xcf) -- rst 8
+		_rst(8)
 		emit_byte(0x18) -- jr loop
 		emit_byte(0xf6)
 	end,
 	at = function()
 		stk_pop_de()
-		call(0x084e)
+		_call(0x084e)
 		_ld(A, C)
-		call(0x0b28)
+		_call(0x0b28)
 		_ld_store(SCRPOS, HL)
 	end,
 	type = function()
 		stk_pop_bc()
 		stk_pop_de()
-		call(0x097f) -- call print string routine
+		_call(0x097f) -- call print string routine
 	end,
 	base = function()
 		_ld_const(DE, 0x3c3f)
 		stk_push_de()
 	end,
 	decimal = function()
-		emit_short(0x36dd) -- ld (ix+0x3f),0x0a
-		emit_byte(0x3f)
-		emit_byte(0x0a)
+		_ld_store_offset_const(IX, 0x3f, 0x0a)
 	end,
 	out = function()
 		stk_pop_bc()	-- c = port
@@ -966,7 +988,7 @@ local dict = {
 		stk_push_de()
 	end,
 	inkey = function()
-		call(0x0336) -- call keyscan routine
+		_call(0x0336) -- call keyscan routine
 		_ld(E, A)
 		_ld_const(D, 0)
 		stk_push_de()
@@ -1096,7 +1118,7 @@ local dict = {
 		_push(HL) -- push limit as new counter
 	end,
 	exit = function()
-		emit_short(0xe9fd)	-- jp (iy)
+		_jp_indirect_iy()
 	end,
 	['('] = function()
 		compile_dict['(']()
@@ -1114,7 +1136,7 @@ local dict = {
 		local str = next_symbol("\"")
 		assert(#str <= 128, "string too long (max length 128 bytes)")
 		_ld_const(DE, here() + 8) -- load string address to DE
-		call(0x0979) -- call print embedded string routine
+		_call(0x0979) -- call print embedded string routine
 		emit_byte(0x18)	-- jr <length>
 		emit_byte(#str + 2)
 		emit_short(#str)
