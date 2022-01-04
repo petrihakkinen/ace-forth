@@ -39,13 +39,15 @@ code ei 251 c, 253 c, 233 c,
 :m arith
 	." +      " 3 4 +            7 chk cr
 	." -      " 3 4 -            -1 chk cr
-	." 1+     " 5 1+             6 chk cr
-	." 1-     " 5 1-             4 chk cr
-	." NEGATE " 1234 negate      -1234 chk space
-	            -1234 negate     1234 chk cr
 	." *      " 1000 5 *         5000 chk space
 	            -123 5 *         -615 chk cr
 	." C*     " 5 50 c*          250 chk cr
+	." 1+     " 5 1+             6 chk cr
+	." 1-     " 5 1-             4 chk cr
+	." 2+     " 1000 2+          1002 chk cr
+	." 2-     " 1000 2-          998 chk cr
+	." NEGATE " 1234 negate      -1234 chk space
+	            -1234 negate     1234 chk cr
 	." ABS    " 4892 abs         4892 chk space
 	            -4892 abs        4892 chk cr
 	." MIN    " 7000 123 min     123 chk space
@@ -240,9 +242,9 @@ code ei 251 c, 253 c, 233 c,
 : main
 	fast di cls invis
 	stack
+	arith
 	exit
 
-	arith
 	boolean-ops
 	rel-ops
 	mem

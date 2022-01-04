@@ -767,7 +767,6 @@ local function emit_subroutines()
 	create_word(0, "_mcode", true)
 	mult16_addr = here()
 	list_header("mult16")
-	stk_pop_de()
 	stk_pop_bc()
 	_ld_const(HL, 0)
 	_ld_const(A, 16)
@@ -784,18 +783,14 @@ local function emit_subroutines()
 	_dec(A)
 	_jr_nz(0xf2) --> loop
 	_ex_de_hl()
-	stk_push_de()
 	_ret()
 
 	-- unsigned 8-bit * 8-bit multiplication routine
 	-- source: http://map.grauw.nl/sources/external/z80bits.html#1.1
 	mult8_addr = here()
 	list_header("mult8")
-	stk_pop_de()
-	_push(DE)
-	stk_pop_de()
-	_pop(HL)
-	_ld(H, L)
+	stk_pop_bc()
+	_ld(H, C)
 	_ld_const(L, 0)
 	_sla(H)
 	_jr_nc(1) --> skip
@@ -808,7 +803,6 @@ local function emit_subroutines()
 		-- skipn:
 	end
 	_ex_de_hl()
-	stk_push_de()
 	_ret()
 end
 
@@ -902,26 +896,22 @@ local dict = {
 		_push(DE); list_comment(">r")
 		stk_pop_de()
 	end,
-	------- not converted below this line! ------
     ['+'] = function()
-		stk_pop_de(); list_comment("+")
-		_push(DE)
-		stk_pop_de()
-		_pop(HL)
-		_add(HL, DE)
+		-- TODO: optimize <literal> + as a special case
+		stk_pop_bc(); list_comment("+")
 		_ex_de_hl()
-		stk_push_de()
+		_add(HL, BC)
+		_ex_de_hl()
 	end,
 	['-'] = function()
-		stk_pop_de(); list_comment("-")
-		_push(DE)
+		-- TODO: optimize <literal> - as a special case
+		_ld(B, D); list_comment("-")
+		_ld(C, E)
 		stk_pop_de()
-		_pop(HL)
 		_ex_de_hl()
 		_or(A) -- clear carry
-		_sbc(HL, DE)
+		_sbc(HL, BC)
 		_ex_de_hl()
-		stk_push_de()
 	end,
 	['*'] = function()
 		assert(mult16_addr, "mcode subroutines not found")
@@ -932,27 +922,63 @@ local dict = {
 		_call(mult8_addr); list_comment("c*")
 	end,
 	['1+'] = function()
-		stk_pop_de(); list_comment("1+")
-		_inc(DE)
-		stk_push_de()
+		_inc(DE); list_comment("1+")
 	end,
 	['1-'] = function()
-		stk_pop_de(); list_comment("1-")
-		_dec(DE)
-		stk_push_de()
+		_dec(DE); list_comment("1-")
 	end,
 	['2+'] = function()
-		stk_pop_de(); list_comment("2+")
+		_inc(DE); list_comment("2+")
 		_inc(DE)
-		_inc(DE)
-		stk_push_de()
 	end,
 	['2-'] = function()
-		stk_pop_de(); list_comment("2-")
+		_dec(DE); list_comment("2-")
 		_dec(DE)
-		_dec(DE)
-		stk_push_de()
 	end,
+	negate = function()
+		_xor(A); list_comment("negate")
+		_sub(E)
+		_ld(E, A)
+		_sbc(A, A)
+		_sub(D)
+		_ld(D, A)
+	end,
+	abs = function()
+		_bit(7, D); list_comment("abs")
+		_jr_z(6) --> skip
+		_xor(A)
+		_sub(E)
+		_ld(E, A)
+		_sbc(A, A)
+		_sub(D)
+		_ld(D, A)
+		-- skip:
+	end,
+	min = function()
+		stk_pop_bc(); list_comment("min")
+		_ld(H, D)
+		_ld(L, E)
+		_or(A) -- clear carry
+		_sbc(HL, BC)
+		_rl(H)
+		_jr_c(2) --> skip
+		_ld(D, B)
+		_ld(E, C)
+		-- skip:
+	end,
+	max = function()
+		stk_pop_bc(); list_comment("max")
+		_ld(H, D)
+		_ld(L, E)
+		_or(A) -- clear carry
+		_sbc(HL, BC)
+		_rl(H)
+		_jr_nc(2) --> skip
+		_ld(D, B)
+		_ld(E, C)
+		-- skip:
+	end,
+	------- not converted below this line! ------
 	['='] = function()
 		stk_pop_de(); list_comment("=")
 		_push(DE)
@@ -1057,63 +1083,6 @@ local dict = {
 		_ld(A, D)
 		_or(B)
 		_ld(D, A)
-		stk_push_de()
-	end,
-	negate = function()
-		stk_pop_de(); list_comment("negate")
-		_ex_de_hl()
-		_xor(A)
-		_sub(L)
-		_ld(L, A)
-		_sbc(A, A)
-		_sub(H)
-		_ld(H, A)
-		_ex_de_hl()
-		stk_push_de()
-	end,
-	abs = function()
-		stk_pop_de(); list_comment("abs")
-		_bit(7, D)
-		_jr_z(6) --> skip
-		_xor(A)
-		_sub(E)
-		_ld(E, A)
-		_sbc(A, A)
-		_sub(D)
-		_ld(D, A)
-		-- skip:
-		stk_push_de()
-	end,
-	min = function()
-		stk_pop_de(); list_comment("min")
-		_push(DE)
-		stk_pop_de()
-		_pop(HL)
-		_push(HL)
-		_or(A) -- clear carry
-		_sbc(HL, DE)
-		_ld(A, H)
-		_pop(HL)
-		_rl(A)
-		_jr_nc(1) --> skip
-		_ex_de_hl()
-		-- skip:
-		stk_push_de()
-	end,
-	max = function()
-		stk_pop_de(); list_comment("max")
-		_push(DE)
-		stk_pop_de()
-		_pop(HL)
-		_push(HL)
-		_or(A) -- clear carry
-		_sbc(HL, DE)
-		_ld(A, H)
-		_pop(HL)
-		_rl(A)
-		_jr_c(1) --> skip
-		_ex_de_hl()
-		-- skip:
 		stk_push_de()
 	end,
 	['c!'] = function()
