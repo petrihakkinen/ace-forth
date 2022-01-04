@@ -29,6 +29,7 @@ code ei 251 c, 253 c, 233 c,
 	." OVER   " 123 456 over     123 456 123 chk3 cr
 	." ?DUP   " 123 ?dup         123 123 chk2 space
 	            123 0 ?dup 456   123 0 456 chk3 cr
+	." SWAP   " 123 456 swap     456 123 chk2 cr
 	." PICK   " 3 4 2 pick       3 4 3 chk3 cr
 	." ROLL   " 1 2 2 roll       2 1 chk2 space
 	            1 2 3 3 roll     2 3 1 chk3 cr
@@ -239,6 +240,8 @@ code ei 251 c, 253 c, 233 c,
 : main
 	fast di cls invis
 	stack
+	exit
+
 	arith
 	boolean-ops
 	rel-ops

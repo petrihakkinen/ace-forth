@@ -738,6 +738,7 @@ local function call_forth(name)
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
+	stk_push_de()
 	_call(0x04b9) -- call forth
 	list_comment("call forth")
 	list_here()
@@ -746,6 +747,7 @@ local function call_forth(name)
 	list_here()
 	emit_short(0x1a0e) -- end-forth
 	list_instr("end-forth")
+	stk_pop_de()
 end
 
 local function call_mcode(name)
@@ -813,20 +815,23 @@ end
 local function emit_mcode_wrapper()
 	_call(here() + 5)	-- call machine code
 	_jp_indirect_iy()
+	-- machine code starts from here
+	stk_pop_de()
 end
 
 local function emit_literal(n, comment)
+	stk_push_de()
 	_ld_const(DE, n)
 	if comment then
 		list_comment(comment)
 	else
 		list_comment("lit %d", n)
 	end
-	_rst(16)
 end
 
 local dict = {
 	[';'] = function()
+		stk_push_de()
 		_ret()
 
 		interpreter_state()
@@ -842,54 +847,43 @@ local dict = {
 		gotos = {}
 	end,
 	dup = function()
-		_ld_fetch(HL, SPARE); list_comment("dup")
-		_dec(HL)
-		_ld(D, HL_INDIRECT)
-		_dec(HL)
-		_ld(E, HL_INDIRECT)
-		stk_push_de()
+		stk_push_de(); list_comment("dup")
 	end,
 	['?dup'] = function()
-		_ld_fetch(HL, SPARE); list_comment("?dup")
-		_dec(HL)
-		_ld(D, HL_INDIRECT)
-		_dec(HL)
-		_ld(E, HL_INDIRECT)
-		_ld(A, D)
+		_ld(A, D); list_comment("?dup")
 		_or(E)
 		_jr_z(1) --> skip
 		stk_push_de()
 		-- skip:
 	end,
 	over = function()
-		_ld_fetch(HL, SPARE); list_comment("over")
-		_dec(HL)
-		_dec(HL)
-		_dec(HL)
-		_ld(D, HL_INDIRECT)
-		_dec(HL)
-		_ld(E, HL_INDIRECT)
-		stk_push_de()
+		_ld_fetch(BC, SPARE); list_comment("over")
+		stk_push_de() -- push old top
+		_dec(BC)
+		_ld(A, BC_INDIRECT)
+		_ld(D, A)
+		_dec(BC)
+		_ld(A, BC_INDIRECT)
+		_ld(E, A)
 	end,
 	drop = function()
-		_ld_fetch(HL, SPARE); list_comment("drop")
-		_dec(HL)
-		_dec(HL)
-		_ld_store(SPARE, HL)
+		stk_pop_de(); list_comment("drop")
 	end,
 	swap = function()
-		stk_pop_de(); list_comment("swap")
-		stk_pop_bc()
+		stk_pop_bc(); list_comment("swap")
 		stk_push_de()
 		_ld(D, B)
 		_ld(E, C)
-		stk_push_de()
 	end,
 	pick = function()
-		_call(0x094d); list_comment("pick")
+		stk_push_de(); list_comment("pick")
+		_call(0x094d)
+		stk_pop_de()
 	end,
 	roll = function()
-		_call(0x094d); list_comment("roll")
+		-- TODO: subroutine?
+		stk_push_de(); list_comment("roll")
+		_call(0x094d);
 		_ex_de_hl()
 		_ld_fetch(HL, STKBOT)
 		_ld(H, D)
@@ -898,19 +892,17 @@ local dict = {
 		_inc(HL)
 		_ldir()
 		_ld_store(SPARE, DE)
+		stk_pop_de()
 	end,
 	['r>'] = function()
-		_pop(BC); list_comment("r>")
+		stk_push_de(); list_comment("r>")
 		_pop(DE)
-		_push(BC)
-		stk_push_de()
 	end,
 	['>r'] = function()
-		stk_pop_de(); list_comment(">r")
-		_pop(BC)
-		_push(DE)
-		_push(BC)
+		_push(DE); list_comment(">r")
+		stk_pop_de()
 	end,
+	------- not converted below this line! ------
     ['+'] = function()
 		stk_pop_de(); list_comment("+")
 		_push(DE)
@@ -1217,9 +1209,9 @@ local dict = {
 		stk_push_de()
 	end,
 	['if'] = function()
-		stk_pop_de(); list_comment("if")
-		_ld(A, D)
+		_ld(A, D); list_comment("if")
 		_or(E)
+		stk_pop_de()
 		push(here())
 		push(list_pos())
 		push('if')
@@ -1367,8 +1359,10 @@ local dict = {
 	['."'] = function()
 		local str = next_symbol("\"")
 		assert(#str <= 128, "string too long (max length 128 bytes)")
-		_ld_const(DE, here() + 8); list_comment('."') -- load string address to DE
+		_push(DE)
+		_ld_const(DE, here() + 9); list_comment('."') -- load string address to DE
 		_call(0x0979) -- call print embedded string routine
+		_pop(DE)
 		_jr(#str + 2) --> done
 		list_here()
 		emit_short(#str)
