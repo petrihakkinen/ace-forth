@@ -84,6 +84,10 @@ do
 				i = i + 1
 				output_file = args[i]
 				if output_file == nil then fatal_error("Output filename must follow -o") end
+			elseif arg == "-l" then
+				i = i + 1
+				opts.listing_file = args[i]
+				if opts.listing_file == nil then fatal_error("Listing filename must follow -l") end
 			else
 				fatal_error("Invalid option: " .. arg)
 			end
@@ -98,6 +102,7 @@ if #input_files == 0 then
 	print("Usage: compile.lua [options] <inputfile1> <inputfile2> ...")
 	print("\nOptions:")
 	print("  -o <filename>             Sets output filename")
+	print("  -l <filename>             Write listing to file")
 	print("  --minimal-word-names      Rename all words as '@', except main word")
 	print("  --inline                  Inline words that are only used once")
 	print("  --eliminate-unused-words  Eliminate unused words when possible")
@@ -137,6 +142,8 @@ local words_with_side_exits = {}		-- words that have side exists and therefore c
 local noinline_words = {}				-- words that have been explicitly marked as 'noinline'
 local no_eliminate_words = {}			-- words that cannot be eliminated even if they're unused
 local mcode_subroutines_emitted = false	-- have subroutines for mcode words been emitted?
+local listing = {}						-- array of strings
+local listing_line_len = 0				-- length of current listing line
 
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
@@ -345,6 +352,7 @@ function emit_byte(x)
 	comp_assert(output_pos < 65536, "out of space")
 	mem[output_pos] = x
 	output_pos = output_pos + 1
+	write_listing(" %02x", x)
 end
 
 function emit_short(x)
@@ -371,6 +379,8 @@ function emit_literal(n)
 		-- this optimization seems to be unsafe and causes the tape loader in ROM to mess up
 		--if n == 0 and opts.small_literals then
 		--	emit_short(PUSH_ZERO)
+
+		list_here()
 		if n >= 0 and n < 256 and opts.small_literals then
 			emit_short(PUSH_BYTE)
 			emit_byte(n)
@@ -381,6 +391,7 @@ function emit_literal(n)
 		else
 			comp_error("literal out of range")
 		end
+		list_instr("lit %d", n)
 	end
 end
 
@@ -455,6 +466,9 @@ function create_word(code_field, name, invisible)
 
 	update_word_length()
 
+	list_header(name)
+	list_here()
+
 	if skip_header then
 		emit_byte(0)
 	else
@@ -481,7 +495,9 @@ function create_word(code_field, name, invisible)
 	if not invisible then
 		compile_dict[name] = function()
 			word_counts[name] = (word_counts[name] or 0) + 1
+			list_here()
 			emit_short(compilation_addr)
+			list_instr(name)
 		end
 	end
 
@@ -594,6 +610,61 @@ function execute(pc)
 		else
 			comp_error("unknown compilation address $%04x encountered when executing compiled code", instr)
 		end
+	end
+end
+
+-- Writes string to listing file.
+function write_listing(...)
+	if opts.listing_file then
+		local str = string.format(...)
+		listing[#listing + 1] = str
+
+		-- find last newline char
+		local npos = string.find(str, "\n[^\n]*$")
+
+		-- update listing line length
+		if npos then
+			listing_line_len = #str - npos
+		else
+			listing_line_len = listing_line_len + #str
+		end
+	end
+end
+
+function list_header(name)
+	if opts.listing_file then
+		if #listing == 0 then
+			write_listing("%s:", name)
+		else
+			write_listing("\n\n%s:", name)
+		end
+	end
+end
+
+function list_here()
+	if opts.listing_file then
+		write_listing("\n%04x", here())
+	end
+end
+
+function list_align(x)
+	if opts.listing_file then
+		write_listing(string.rep(" ", x - listing_line_len))
+	end
+end
+
+function list_instr(...)
+	if opts.listing_file then
+		list_align(20)
+		write_listing(...)
+	end
+end
+
+function list_comment(...)
+	if opts.listing_file then
+		list_align(39)
+		write_listing(" ; ")
+		write_listing(...)
 	end
 end
 
@@ -723,11 +794,13 @@ interpret_dict = {
 		-- add compile time word which emits the constant as literal
 		compile_dict[name] = function()
 			emit_literal(value)
+			list_comment(name)
 		end
 
 		-- add mcode behavior for the word which emits the constant as machine code literal
 		mcode_dict[name] = function()
 			emit_literal(value)
+			list_comment(name)
 		end
 
 		-- add word to interpreter dictionary so that the constant can be used at compile time
@@ -895,7 +968,9 @@ compile_dict = {
 		comp_error("invalid :")
 	end,
 	[';'] = function()
+		list_here()
 		emit_short(FORTH_END)
+		list_instr("forth-end")
 		compile_mode = false
 
 		-- patch gotos
@@ -928,27 +1003,33 @@ compile_dict = {
 	end,
 	['."'] = function()
 		local str = next_symbol("\"")
+		list_here()
 		emit_short(PRINT)
 		emit_short(#str)
 		emit_string(str)
+		list_instr(' ." %s"', str)
 	end,
 	['if'] = function()
 		-- emit conditional branch
+		list_here()
 		emit_short(CBRANCH)
 		push(here())
 		push('if')
 		emit_short(0)	-- placeholder branch offset
+		list_instr("?branch ?")
 	end,
 	['else'] = function()
 		comp_assert(pop() == 'if', "ELSE without matching IF")
 		local where = pop()
 		-- emit jump to THEN
+		list_here()
 		emit_short(BRANCH)
 		push(here())
 		push('if')
 		emit_short(0)	-- placeholder branch offset
 		-- patch branch offset for ?branch at IF
 		write_short(where, here() - where - 1)
+		list_instr("branch ?")
 	end,
 	['then']= function()
 		-- patch branch offset for ?branch at IF
@@ -963,47 +1044,63 @@ compile_dict = {
 	['until'] = function()
 		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = pop()
+		list_here()
 		emit_short(CBRANCH)
 		emit_short(target - here() - 1)
+		list_instr("?branch %04x", target)
 	end,
 	again = function()
 		comp_assert(pop() == 'begin', "AGAIN without matching BEGIN")
 		local target = pop()
+		list_here()
 		emit_short(BRANCH)
 		emit_short(target - here() - 1)
+		list_instr("branch %04x", target)
 	end,
 	['do'] = function()
+		list_here()
 		emit_short(DO)
+		list_instr("do")
 		push(here())
 		push('do')
 	end,
 	loop = function()
 		comp_assert(pop() == 'do', "LOOP without matching DO")
 		local target = pop()
+		list_here()
 		emit_short(LOOP)
 		emit_short(target - here() - 1)		
+		list_instr("loop %04x", target)
 	end,
 	['+loop'] = function()
 		comp_assert(pop() == 'do', "+LOOP without matching DO")
 		local target = pop()
+		list_here()
 		emit_short(PLUS_LOOP)
 		emit_short(target - here() - 1)		
+		list_instr("+loop %04x", target)
 	end,
 	['while'] = function() comp_error("WHILE not implemented") end,
 	['repeat'] = function() comp_error("REPEAT not implemented") end,
 	['goto'] = function()
 		local label = next_symbol()
+		list_here()
 		emit_short(BRANCH)
 		local addr = here()
 		emit_short(0)	-- place holder branch offset
+		list_instr("branch <%s>", label)
 		gotos[addr] = label
 	end,
 	label = function()
 		local label = next_symbol()
 		labels[label] = here()
+		list_here()
+		list_instr("label <%s>", label)
 	end,
 	exit = function()
+		list_here()
 		emit_short(rom_words.EXIT)
+		list_instr("exit")
 		words_with_side_exits[last_word] = true
 	end,
 	ascii = function()
@@ -1015,9 +1112,11 @@ compile_dict = {
 	postpone = function()
 		local name = next_word()
 		if compile_dict[name] == nil then comp_error("undefined word %s", name) end
+		list_here()
 		emit_short(POSTPONE)
 		emit_short(#name)
 		emit_string(name)
+		list_instr("postpone %s", name)
 	end,
 }
 
@@ -1033,7 +1132,9 @@ end
 for name, addr in pairs(rom_words) do
 	name = string.lower(name)
 	compile_dict[name] = compile_dict[name] or function()
+		list_here()
 		emit_short(addr)
+		list_instr(name)
 	end
 
 	compilation_addr_to_name[addr] = name
@@ -1172,5 +1273,12 @@ if output_file then
 		chk = chk ~ byte
 	end
 	file:write(string.char(chk & 0xff))
+	file:close()
+end
+
+-- write listing file
+if opts.listing_file then
+	local file = io.open(opts.listing_file, "wb")
+	file:write(table.concat(listing, ""))
 	file:close()
 end
