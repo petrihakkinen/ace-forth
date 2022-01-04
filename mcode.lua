@@ -637,6 +637,11 @@ local function emit_mcode_wrapper()
 	_jp_indirect_iy()
 end
 
+local function emit_literal(n)
+	_ld_const(DE, n)
+	_rst(16)
+end
+
 local dict = {
 	[';'] = function()
 		_ret()
@@ -1067,10 +1072,8 @@ local dict = {
 		else
 			-- label not found -> this is a forward jump
 			-- emit placeholder jump and resolve jump address in ;
-			emit_byte(0xc3) -- jp <addr>
-			local addr = here()
-			emit_short(0) -- placeholder jump addr
-			gotos[addr] = label
+			gotos[here() + 1] = label
+			_jp(0)
 		end
 	end,
 	begin = function()
@@ -1206,6 +1209,7 @@ return {
 	get_dict = get_dict,
 	emit_subroutines = emit_subroutines,
 	emit_mcode_wrapper = emit_mcode_wrapper,
+	emit_literal = emit_literal,
 	call_forth = call_forth,
 	call_mcode = call_mcode,
 }

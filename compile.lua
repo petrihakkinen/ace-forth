@@ -363,9 +363,7 @@ function emit_literal(n)
 	if compile_mode == "mcode" then
 		if n >= -32768 and n < 65536 then
 			if n < 0 then n = 65536 + n end
-			emit_byte(0x11)	-- ld de, <literal>
-			emit_short(n)
-			emit_byte(0xd7)	-- rst 16
+			mcode.emit_literal(n)
 		else
 			comp_error("literal out of range")
 		end
