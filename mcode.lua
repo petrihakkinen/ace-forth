@@ -1005,69 +1005,24 @@ local dict = {
 		_or(B)
 		_ld(D, A)
 	end,
-	------- not converted below this line! ------
-	['='] = function()
-		stk_pop_de(); list_comment("=")
-		_push(DE)
-		stk_pop_de()
-		_pop(HL)
-		_or(A) -- clear carry
-		_sbc(HL, DE)
-		_ld_const(DE, 0)
-		_ld(A, H)
-		_or(L)
-		_jr_nz(1) --> neg
-		_inc(E)
-		-- neg:
-		stk_push_de()
-	end,
-	['>'] = function()
-		stk_pop_de(); list_comment(">")
-		_push(DE)
-		stk_pop_de()
-		_pop(HL)
-		_call(0x0c99)
-		_ld_const(A, 0)
-		_ld(D, A)
-		_rla()
-		_ld(E, A)
-		stk_push_de()
-	end,
-	['<'] = function()
-		stk_pop_de(); list_comment("<")
-		_push(DE)
-		stk_pop_de()
-		_pop(HL)
-		_ex_de_hl()
-		_call(0x0c99)
-		_ld_const(A, 0)
-		_ld(D, A)
-		_rla()
-		_ld(E, A)
-		stk_push_de()
-	end,
 	['0='] = function()
-		stk_pop_de(); list_comment("0=")
-		_ld(A, D)
+		_ld(A, D); list_comment("0=")
 		_or(E)
 		_ld_const(DE, 1)
 		_jr_z(1) --> skip
 		_ld(E, D) -- clear e
 		-- skip:
-		stk_push_de()
 	end,
 	['0<'] = function()
-		stk_pop_de(); list_comment("0<")
-		_rl(D)
+		_rl(D); list_comment("0<")
 		_ld_const(A, 0)
 		_ld(D, A)
 		_rla()
 		_ld(E, A)
-        stk_push_de()
 	end,
 	['0>'] = function()
-		stk_pop_de(); list_comment("0>")
-		_ld(A, D)
+		-- TODO: surely there must be a better way!
+		_ld(A, D); list_comment("0>")
 		_or(E)
 		_jr_z(3) --> skip
 		_rl(D)
@@ -1077,8 +1032,41 @@ local dict = {
 		_ld(D, A)
 		_rla()
 		_ld(E, A)
-		stk_push_de()
 	end,
+	['='] = function()
+		stk_pop_bc(); list_comment("=")
+		_ex_de_hl()
+		_or(A) -- clear carry
+		_sbc(HL, BC)
+		_ld_const(DE, 0)
+		_jr_nz(1) --> skip
+		_inc(E)
+		-- skip:
+	end,
+	['>'] = function()
+		-- TODO: subroutine? (inline routine at $0c99)
+		stk_pop_bc(); list_comment(">")
+		_ld(H, B)
+		_ld(L, C)
+		_ex_de_hl()
+		_call(0x0c99)	-- sign routine in ROM, in: HL = value1, DE = value2
+		_ld_const(A, 0)
+		_ld(D, A)
+		_rla()
+		_ld(E, A)
+	end,
+	['<'] = function()
+		-- TODO: subroutine? (inline routine at $0c99)
+		stk_pop_bc(); list_comment(">")
+		_ld(H, B)
+		_ld(L, C)
+		_call(0x0c99)	-- sign routine in ROM, in: HL = value1, DE = value2
+		_ld_const(A, 0)
+		_ld(D, A)
+		_rla()
+		_ld(E, A)
+	end,
+	------- not converted below this line! ------
 	['c!'] = function()
 		stk_pop_de(); list_comment("c!")
 		stk_pop_bc()

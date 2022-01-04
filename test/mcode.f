@@ -63,24 +63,24 @@ code ei 251 c, 253 c, 233 c,
 	." 0=     " 0 0=             1 chk space
 	            256 0=           0 chk cr
 
-	." 0<     " -123 0<          1 chk space
+	." 0<     " -5000 0<         1 chk space
 	            0 0<             0 chk space
-	            123 0<           0 chk cr
+	            5000 0<          0 chk cr
 
-	." 0>     " 5 0>             1 chk space
+	." 0>     " 5000 0>          1 chk space
 	            0 0>             0 chk space
-	            -5 0>            0 chk cr
+	            -5000 0>         0 chk cr
 
 	." =      " 3 5 =            0 chk space
 	            12345 12345 =    1 chk space
 	            -12345 12345 =   0 chk cr
 
-	." >      " 3 5 >            0 chk space
-	            5 -3 >           1 chk space
+	." >      " 3000 5000 >      0 chk space
+	            5000 -3000 >     1 chk space
 	            0 0 >            0 chk cr
 
-	." <      " 3 5 <            1 chk space
-	            5 -3 <           0 chk space
+	." <      " 3000 5000 <      1 chk space
+	            5000 -3000 <     0 chk space
 	            0 0 <            0 chk cr
 	;
 
@@ -240,9 +240,9 @@ code ei 251 c, 253 c, 233 c,
 	fast di cls invis
 	stack
 	arith
+	rel-ops
 	exit
 
-	rel-ops
 	mem
 	control-flow
 	inter-op
