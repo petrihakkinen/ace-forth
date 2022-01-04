@@ -54,13 +54,10 @@ code ei 251 c, 253 c, 233 c,
 	            -7000 123 min    -7000 chk cr
 	." MAX    " 7000 123 max     7000 chk space
 	           -7000 123 max     123 chk cr
-	;
-
-:m boolean-ops
  	." XOR    " 10123 2063 xor   12164 chk cr
  	." AND    " 11131 1241 and   89 chk cr
  	." OR     " 7072 32120 or    32760 chk cr
- 	;
+	;
 
 :m rel-ops
 	." 0=     " 0 0=             1 chk space
@@ -245,7 +242,6 @@ code ei 251 c, 253 c, 233 c,
 	arith
 	exit
 
-	boolean-ops
 	rel-ops
 	mem
 	control-flow
