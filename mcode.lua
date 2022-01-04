@@ -231,10 +231,22 @@ local function _ld_store_offset_const(r, offset, value)
 	list_instr("ld (%s+$%02x),$%02x", reg_name[r], offset, value)
 end
 
+local function _exx()
+	list_here()
+	emit_byte(0xd9)
+	list_instr("exx")
+end
+
 local function _ex_de_hl()
 	list_here()
 	emit_byte(0xeb)
 	list_instr("ex de,hl")
+end
+
+local function _ex_af_af()
+	list_here()
+	emit_byte(0x08)
+	list_instr("ex af,af'")
 end
 
 local function _inc(r)
@@ -1021,7 +1033,6 @@ local dict = {
 		_ld(E, A)
 	end,
 	['0>'] = function()
-		-- TODO: surely there must be a better way!
 		_ld(A, D); list_comment("0>")
 		_or(E)
 		_jr_z(3) --> skip
@@ -1066,43 +1077,42 @@ local dict = {
 		_rla()
 		_ld(E, A)
 	end,
-	------- not converted below this line! ------
-	['c!'] = function()
-		stk_pop_de(); list_comment("c!")
-		stk_pop_bc()
-		_ld(A, C)
-		_ld(DE_INDIRECT, A)
-	end,
-	['c@'] = function()
-		stk_pop_de(); list_comment("c@")
-		_ld(A, DE_INDIRECT)
-		_ld(E, A)
-		_ld_const(D, 0)
-		stk_push_de()
-	end,
 	['!'] = function()
-		stk_pop_de(); list_comment("!")
-		stk_pop_bc()
+		-- ( n addr -- )
+		stk_pop_bc(); list_comment("!")
 		_ex_de_hl()
 		_ld(HL_INDIRECT, C)
 		_inc(HL)
 		_ld(HL_INDIRECT, B)
+		stk_pop_de()
 	end,
 	['@'] = function()
-		stk_pop_de(); list_comment("@")
-		_ex_de_hl()
+		-- ( addr -- n )
+		_ex_de_hl(); list_comment("@")
 		_ld(E, HL_INDIRECT)
 		_inc(HL)
 		_ld(D, HL_INDIRECT)
-		stk_push_de()
+	end,
+	['c!'] = function()
+		-- ( n addr -- )
+		stk_pop_bc(); list_comment("c!")
+		_ld(A, C)
+		_ld(DE_INDIRECT, A)
+		stk_pop_de()
+	end,
+	['c@'] = function()
+		-- ( addr - n )
+		_ld(A, DE_INDIRECT); list_comment("c@")
+		_ld(E, A)
+		_ld_const(D, 0)
 	end,
 	ascii = function()
 		compile_dict.ascii()
 	end,
 	emit = function()
-		stk_pop_de(); list_comment("emit")
-		_ld(A, E)
+		_ld(A, E); list_comment("emit")
 		_rst(8)
+		stk_pop_de()
 	end,
 	cr = function()
 		_ld_const(A, 0x0d); list_comment("cr")
@@ -1113,51 +1123,57 @@ local dict = {
 		_rst(8)
 	end,
 	spaces = function()
-		stk_pop_de(); list_comment("spaces")
 		-- loop:
-		_dec(DE)
+		_dec(DE); list_comment("spaces")
 		_bit(7, D)
 		_jr_nz(5) --> done
 		_ld_const(A, 0x20)
 		_rst(8)
 		_jr(0xf6) --> loop
 		-- done:
+		stk_pop_de()
 	end,
 	at = function()
-		stk_pop_de(); list_comment("at")
-		_call(0x084e)
+		_call(0x084e); list_comment("at")
 		_ld(A, C)
 		_call(0x0b28)
 		_ld_store(SCRPOS, HL)
+		stk_pop_de()
 	end,
 	type = function()
-		stk_pop_bc(); list_comment("type")
+		-- ( addr count -- )
+		_ld(B, D); list_comment("type")	-- move count from DE to BC
+		_ld(C, E)
 		stk_pop_de()
-		_call(0x097f) -- call print string routine
+		_call(0x097f) -- call print string routine (BC = count, DE = addr)
+		stk_pop_de()
 	end,
 	base = function()
-		_ld_const(DE, 0x3c3f); list_comment("base")
-		stk_push_de()
+		stk_push_de(); list_comment("base")
+		_ld_const(DE, 0x3c3f)
 	end,
 	decimal = function()
 		_ld_store_offset_const(IX, 0x3f, 0x0a); list_comment("decimal")
 	end,
 	out = function()
-		stk_pop_bc(); list_comment("out")	-- c = port
-		stk_pop_de()	-- e = value to output
+		-- ( n port -- )
+		_ld(C, E); list_comment("out")	-- C = port
+		stk_pop_de()	-- E = value to output (stk_pop_de does not trash C)
 		_out(C, E)
+		stk_pop_de()
 	end,
 	['in'] = function()
-		stk_pop_bc(); list_comment("in")
+		-- ( port -- n )
+		_ld(C, E); list_comment("in")	-- C = port
 		_ld_const(D, 0)
 		_in(E, C)
-		stk_push_de()
 	end,
 	inkey = function()
-		_call(0x0336); list_comment("inkey") -- call keyscan routine
+		-- ( -- n )
+		stk_push_de(); list_comment("inkey")
+		_call(0x0336) -- call keyscan routine
 		_ld(E, A)
 		_ld_const(D, 0)
-		stk_push_de()
 	end,
 	['if'] = function()
 		_ld(A, D); list_comment("if")
@@ -1223,23 +1239,27 @@ local dict = {
 	['until'] = function()
 		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = pop()
-		stk_pop_de(); list_comment("until")
-		_ld(A, D)
+		_ld(A, D); list_comment("until")
 		_or(E)
+		_ex_af_af()	-- store Z flag
+		stk_pop_de()
+		_ex_af_af()	-- restore Z flag
 		jump_z(target)
 	end,
 	['do'] = function()
-		stk_pop_de(); list_comment("do") -- pop counter
-		stk_pop_bc() -- pop limit
+		-- ( limit counter -- )
+		stk_pop_bc(); list_comment("do") -- pop limit
 		_push(BC) -- push limit to return stack
 		_push(DE) -- push counter to return stack
+		stk_pop_de()
 		push(here())
 		push('do')
 	end,
 	loop = function()
 		comp_assert(pop() == 'do', "LOOP without matching DO")
 		local target = pop()
-		_pop(DE); list_comment("loop") -- pop counter
+		_exx(); list_comment("loop")
+		_pop(DE) -- pop counter
 		_pop(BC) -- pop limit
 		_inc(DE)
 		_ld(H, B)
@@ -1251,11 +1271,13 @@ local dict = {
 		_jr_c(0)	--> done (placeholder branch offset)
 		_push(BC) -- push limit to return stack
 		_push(DE) -- push counter to return stack
+		_exx()
 		jump(target)
 		-- patch jump offset
 		write_byte(pos + 1, here() - pos - 2)
 		patch_jump_listing(lpos, pos)
 		-- done:
+		_exx()
 	end,
 	['+loop'] = function()
 		comp_error("mcode word +LOOP not yet implemented")
@@ -1267,24 +1289,25 @@ local dict = {
 		comp_error("mcode word WHILE not yet implemented")
 	end,
 	i = function()
-		_pop(DE); list_comment("i")
+		stk_push_de(); list_comment("i")
+		_pop(DE)
 		_push(DE)
-		stk_push_de()
 	end,
 	['i\''] = function()
-		_pop(BC); list_comment("i'")
+		stk_push_de(); list_comment("i'")
+		_pop(BC)
 		_pop(DE)
 		_push(DE)
 		_push(BC)
-		stk_push_de()
+		
 	end,
 	j = function()
-		_ld_const(HL, 4); list_comment("j")
+		stk_push_de(); list_comment("j")
+		_ld_const(HL, 4)
 		_add(HL, SP)
 		_ld(E, HL_INDIRECT)
 		_inc(HL)
 		_ld(D, HL_INDIRECT)
-		stk_push_de()
 	end,
 	leave = function()
 		_pop(HL); list_comment("leave") -- pop counter

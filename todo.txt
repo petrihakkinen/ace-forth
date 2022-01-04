@@ -16,3 +16,8 @@
 
 - separate control flow stack
 	- check that the stack is empty at the end of word definition
+
+- mcode:
+	- missing test cases for LEAVE and I'
+	- Error 2 after running tests
+	- LOOP generates a lot of code, can it be optimized?

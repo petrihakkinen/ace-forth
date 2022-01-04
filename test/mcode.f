@@ -241,10 +241,8 @@ code ei 251 c, 253 c, 233 c,
 	stack
 	arith
 	rel-ops
-	exit
-
 	mem
-	control-flow
+	control-flow	( Bug: this test causes Error 2 at the end! )
 	inter-op
 	print
 	misc
