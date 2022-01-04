@@ -1345,7 +1345,7 @@ local dict = {
 		_push(HL) -- push limit as new counter
 	end,
 	exit = function()
-		_jp_indirect_iy(); list_comment("exit")
+		_ret(); list_comment("exit")
 	end,
 	['('] = function()
 		compile_dict['(']()

@@ -85,7 +85,7 @@ code ei 251 c, 253 c, 233 c,
 	;
 
 ( Bug: this test fails if compiled to machine code! )
-:m test-again-new
+:m test-again
 	1
 	begin
 		dup +			
@@ -114,7 +114,7 @@ code ei 251 c, 253 c, 233 c,
 	            1 0 if 2 else 3 then      1 3 chk2 cr
 
 	." UNTIL  " 6 1 0 0 begin 5 >r until  r> r> r> 5 5 5 chk3 space 6 chk cr
-	." AGAIN  " test-again-new            1024 chk cr
+	." AGAIN  " test-again                1024 chk cr
 	." LOOP   " 0 1000 0 do i + loop      -24788 chk space
 	            test-loop                 25 chk cr
 	." GOTO   " 5 goto skip 6 label skip  5 chk space ( Forward goto )
