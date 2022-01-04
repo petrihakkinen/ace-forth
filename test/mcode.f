@@ -84,7 +84,13 @@ code ei 251 c, 253 c, 233 c,
 	            0 0 <            0 chk cr
 	;
 
-( Bug: this test fails if compiled to machine code! )
+0 variable v
+
+:m mem
+	." ! @    " 12345 v ! v @    12345 chk cr
+	." C! C@  " 123 v c! v c@    123 chk cr
+	;
+
 :m test-again
 	1
 	begin
@@ -128,14 +134,6 @@ code ei 251 c, 253 c, 233 c,
 :m inter-op
 	." FCALL  " push1            1 chk cr ( Call Forth word from mcode word )
 	." MCALL  " push1-mc         1 chk cr ( Call mcode word from mcode word )
-	;
-
-0 variable v
-
-( Bug: Undefined word 'v' error if this is compiled to machine code! )
-: mem
-	." ! @    " 12345 v ! v @    12345 chk cr
-	." C! C@  " 123 v c! v c@    123 chk cr
 	;
 
 :m print
@@ -244,9 +242,9 @@ code ei 251 c, 253 c, 233 c,
 	arith
 	boolean-ops
 	rel-ops
+	mem
 	control-flow
 	inter-op
-	mem
 	print
 	misc
 	cr ." ALL TESTS PASSED!" 

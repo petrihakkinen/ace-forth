@@ -815,8 +815,13 @@ local function emit_mcode_wrapper()
 	_jp_indirect_iy()
 end
 
-local function emit_literal(n)
-	_ld_const(DE, n); list_comment("lit %d", n)
+local function emit_literal(n, comment)
+	_ld_const(DE, n)
+	if comment then
+		list_comment(comment)
+	else
+		list_comment("lit %d", n)
+	end
 	_rst(16)
 end
 

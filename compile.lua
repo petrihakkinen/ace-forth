@@ -688,16 +688,28 @@ end
 
 interpret_dict = {
 	create = function()
-		local name = next_word()
-		create_word(DO_PARAM, name)
+		local name = create_word(DO_PARAM)
+
 		-- this word cannot be dead-code eliminated, because we don't know where it ends
 		-- (this is not strictly true since every word has a length field!)
-		no_eliminate_words[name] = true	
+		no_eliminate_words[name] = true
+
+		-- make it possible to refer to the word from :m definitions
+		local addr = here()
+		mcode_dict[name] = function()
+			mcode.emit_literal(addr, name)
+		end
 	end,
 	['create{'] = function()	-- create{ is like create but it can be eliminated since } marks the end of the word
 		local name = next_word()
 		if not eliminate_words[name] then
 			create_word(DO_PARAM, name)
+
+			-- make it possible to refer to the word from :m definitions
+			local addr = here()
+			mcode_dict[name] = function()
+				mcode.emit_literal(addr, name)
+			end
 		else
 			skip_until('}')
 		end
@@ -769,16 +781,21 @@ interpret_dict = {
 		noinline_words[last_word] = true
 	end,
 	code = function()
-		local name = next_word()
-		create_word(0, name)
+		local name = create_word(0)
 		write_short(here() - 2, here())	-- patch codefield
 		no_eliminate_words[name] = true
 	end,
 	byte = function()	-- byte-sized variable
-		create_word(DO_PARAM)
+		local name = create_word(DO_PARAM)
 		local value = pop()
 		comp_assert(value >= 0 and value < 256, "byte variable out of range")
+		local addr = here()
 		emit_byte(value)
+
+		-- make it possible to refer to variable from :m definitions
+		mcode_dict[name] = function()
+			mcode.emit_literal(addr, name)
+		end
 	end,
 	bytes = function()	-- emit bytes, terminated by ; symbol
 		push('bytes')
@@ -802,8 +819,14 @@ interpret_dict = {
 		compile_bytes = false
 	end,
 	variable = function()
-		create_word(DO_PARAM)
+		local name = create_word(DO_PARAM)
+		local addr = here()
 		emit_short(pop())	-- write variable value to dictionary
+
+		-- make it possible to refer to variable from :m definitions
+		mcode_dict[name] = function()
+			mcode.emit_literal(addr, name)
+		end
 	end,
 	const = function()
 		local name = next_word()
