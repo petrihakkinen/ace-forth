@@ -585,39 +585,44 @@ local function _jp_indirect_iy()
 	list_instr("jp (iy)")
 end
 
+local function offset_to_absolute(offset)
+	if offset > 127 then offset = offset - 256 end
+	return here() + offset
+end
+
 local function _jr(offset)
 	list_here()
 	emit_byte(0x18)
 	emit_byte(offset)
-	list_instr("jr $%02x", offset)
+	list_instr("jr $%04x", offset_to_absolute(offset))
 end
 
 local function _jr_z(offset)
 	list_here()
 	emit_byte(0x28)
 	emit_byte(offset)
-	list_instr("jr z,$%02x", offset)
+	list_instr("jr z,$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_nz(offset)
 	list_here()
 	emit_byte(0x20)
 	emit_byte(offset)
-	list_instr("jr nz,$%02x", offset)
+	list_instr("jr nz,$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_c(offset)
 	list_here()
 	emit_byte(0x38)
 	emit_byte(offset)
-	list_instr("jr c,$%02x", offset)
+	list_instr("jr c,$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_nc(offset)
 	list_here()
 	emit_byte(0x30)
 	emit_byte(offset)
-	list_instr("jr nc,$%02x", offset)
+	list_instr("jr nc,$%04x", offset_to_absolute(offset))
 end
 
 local function _in(r, port)
