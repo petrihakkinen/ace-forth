@@ -21,3 +21,4 @@
 	- missing test cases for LEAVE and I'
 	- Error 2 after running tests
 	- LOOP generates a lot of code, can it be optimized?
+	- optimize <literal> + and <literal> - as special cases (maybe others too)

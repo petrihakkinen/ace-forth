@@ -1332,17 +1332,30 @@ local dict = {
 	end,
 	['."'] = function()
 		local str = next_symbol("\"")
-		assert(#str <= 128, "string too long (max length 128 bytes)")
-		_push(DE)
-		_ld_const(DE, here() + 9); list_comment('."') -- load string address to DE
+		local offset = #str + 2 -- branch offset for jumping over string data
+
+		_exx(); list_comment('."')	-- preserve DE
+
+		-- compute address of string
+		local str_addr = here() + 9
+		if offset >= 128 then str_addr = str_addr + 1 end
+
+		_ld_const(DE, str_addr) -- load string address to DE
 		_call(0x0979) -- call print embedded string routine
-		_pop(DE)
-		_jr(#str + 2) --> done
+		_exx()
+
+		-- jump over following string data
+		if offset < 128 then
+			_jr(offset)
+		else
+			_jp(here() + #str + 2)
+		end
+
+		-- emit string data
 		list_here()
 		emit_short(#str)
 		emit_string(str)
 		list_comment('"%s"', str)
-		-- done:
 	end,
 }
 
