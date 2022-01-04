@@ -547,35 +547,40 @@ local function _jp(addr)
 	list_here()
 	emit_byte(0xc3)
 	emit_short(addr)
-	list_instr("jp $%04x", addr)
+	list_instr("jp ")
+	list_instr("$%04x", addr)
 end
 
 local function _jp_z(addr)
 	list_here()
 	emit_byte(0xca)
 	emit_short(addr)
-	list_instr("jp z,$%04x", addr)
+	list_instr("jp z,")
+	list_instr("$%04x", addr)
 end
 
 local function _jp_nz(addr)
 	list_here()
 	emit_byte(0xc2)
 	emit_short(addr)
-	list_instr("jp nz,$%04x", addr)
+	list_instr("jp nz,")
+	list_instr("$%04x", addr)
 end
 
 local function _jp_c(addr)
 	list_here()
 	emit_byte(0xda)
 	emit_short(addr)
-	list_instr("jp c,$%04x", addr)
+	list_instr("jp c,")
+	list_instr("$%04x", addr)
 end
 
 local function _jp_nc(addr)
 	list_here()
 	emit_byte(0xd2)
 	emit_short(addr)
-	list_instr("jp nc,$%04x", addr)
+	list_instr("jp nc,")
+	list_instr("$%04x", addr)
 end
 
 local function _jp_indirect_iy()
@@ -590,39 +595,60 @@ local function offset_to_absolute(offset)
 	return here() + offset
 end
 
+local function patch_jump_listing(listing_pos, addr)
+	local opcode = read_byte(addr)
+	if opcode < 0x80 then
+		-- relative jump
+		local offset = read_byte(addr + 1)
+		list_patch(listing_pos + 2, string.format(" %02x", offset))
+		list_patch(listing_pos + 5, string.format("$%04x", addr + offset + 2))
+	else
+		-- absolute jump
+		local target_addr = read_short(addr + 1)
+		list_patch(listing_pos + 2, string.format(" %02x", target_addr & 0xff))
+		list_patch(listing_pos + 3, string.format(" %02x", target_addr >> 8))
+		list_patch(listing_pos + 6, string.format("$%04x", target_addr))
+	end
+end
+
 local function _jr(offset)
 	list_here()
 	emit_byte(0x18)
 	emit_byte(offset)
-	list_instr("jr $%04x", offset_to_absolute(offset))
+	list_instr("jr ")
+	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_z(offset)
 	list_here()
 	emit_byte(0x28)
 	emit_byte(offset)
-	list_instr("jr z,$%04x", offset_to_absolute(offset))
+	list_instr("jr z,")
+	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_nz(offset)
 	list_here()
 	emit_byte(0x20)
 	emit_byte(offset)
-	list_instr("jr nz,$%04x", offset_to_absolute(offset))
+	list_instr("jr nz,")
+	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_c(offset)
 	list_here()
 	emit_byte(0x38)
 	emit_byte(offset)
-	list_instr("jr c,$%04x", offset_to_absolute(offset))
+	list_instr("jr c,")
+	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_nc(offset)
 	list_here()
 	emit_byte(0x30)
 	emit_byte(offset)
-	list_instr("jr nc,$%04x", offset_to_absolute(offset))
+	list_instr("jr nc,")
+	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _in(r, port)
@@ -1189,27 +1215,33 @@ local dict = {
 		stk_pop_de(); list_comment("if")
 		_ld(A, D)
 		_or(E)
-		push(here() + 1)
+		push(here())
+		push(list_pos())
 		push('if')
 		-- TODO: this could be optimized to _jr_z()
 		_jp_z(0)	-- placeholder jump addr
 	end,
 	['else'] = function()
 		comp_assert(pop() == 'if', "ELSE without matching IF")
+		local listing_pos = pop()
 		local where = pop()
 		-- emit jump to THEN
-		push(here() + 1)
+		push(here())
+		push(list_pos())
 		push('if')
 		-- TODO: this could be optimized to _jr()
 		_jp(0); list_comment("else") -- placeholder jump addr
 		-- patch jump target at previous IF
-		write_short(where, here())
+		write_short(where + 1, here())
+		patch_jump_listing(listing_pos, where)
 	end,
 	['then'] = function()
 		comp_assert(pop() == 'if', "THEN without matching IF")
+		local listing_pos = pop()
 		local where = pop()
 		-- patch jump target at previous IF or ELSE
-		write_short(where, here())
+		write_short(where + 1, here())
+		patch_jump_listing(listing_pos, where)
 	end,
 	label = function()
 		local label = next_symbol()
@@ -1266,12 +1298,15 @@ local dict = {
 		_ld(L, C)
 		_scf() -- set carry
 		_sbc(HL, DE)
-		local pos = here() + 1
+		local pos = here()
+		local lpos = list_pos()
 		_jr_c(0)	--> done (placeholder branch offset)
 		_push(BC) -- push limit to return stack
 		_push(DE) -- push counter to return stack
 		jump(target)
-		write_byte(pos, here() - pos - 1)
+		-- patch jump offset
+		write_byte(pos + 1, here() - pos - 2)
+		patch_jump_listing(lpos, pos)
 		-- done:
 	end,
 	['+loop'] = function()

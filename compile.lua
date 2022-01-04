@@ -330,6 +330,11 @@ function skip_until(end_marker)
 	end
 end
 
+function read_byte(address)
+	comp_assert(address < 65536, "address out of range")
+	return mem[address] or 0
+end
+
 function read_short(address, x)
 	comp_assert(address < 65536 - 1, "address out of range")
 	return (mem[address] or 0) | ((mem[address + 1] or 0) << 8)
@@ -649,7 +654,10 @@ end
 
 function list_align(x)
 	if opts.listing_file then
-		write_listing(string.rep(" ", x - listing_line_len))
+		local spaces = x - listing_line_len
+		if spaces > 0 then
+			write_listing(string.rep(" ", spaces))
+		end
 	end
 end
 
@@ -666,6 +674,16 @@ function list_comment(...)
 		write_listing(" ; ")
 		write_listing(...)
 	end
+end
+
+function list_pos()
+	return #listing + 1
+end
+
+-- Patches an entry in the listing file.
+-- For patching jump instructions after the jump target has been resolved.
+function list_patch(pos, str)
+	listing[pos] = str
 end
 
 interpret_dict = {
