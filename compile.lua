@@ -587,6 +587,12 @@ function create_constant(name, value)
 	end
 end
 
+function create_alias(alias_name, name)
+	interpret_dict[alias_name] = interpret_dict[name]
+	compile_dict[alias_name] = compile_dict[name]
+	mcode_dict[alias_name] = mcode_dict[name]
+end
+
 -- Erases previously compiled word from dictionary.
 -- Returns the contents of the parameter field of the erased word.
 function erase_previous_word()
@@ -1284,12 +1290,6 @@ compile_dict = {
 
 mcode_dict = mcode.get_dict()
 
--- some predefined constants
-create_constant("TRUE", 1)
-create_constant("FALSE", 0)
-create_constant("BL", 32)
-create_constant("PAD", 0x2701)
-
 local immediate_words = { "(", "\\", "[if]", "[else]", "[then]", "[defined]" }
 
 for _, name in ipairs(immediate_words) do
@@ -1307,6 +1307,14 @@ for name, addr in pairs(rom_words) do
 
 	compilation_addr_to_name[addr] = name
 end
+
+-- some predefined constants
+create_constant("TRUE", 1)
+create_constant("FALSE", 0)
+create_constant("BL", 32)
+create_constant("PAD", 0x2701)
+
+create_alias("not", "0=")
 
 -- compile library words
 execute_string(library_words, "<library>")
