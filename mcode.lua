@@ -767,7 +767,8 @@ local function call_mcode(name)
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	_call(addr + 7) -- call machine code, skipping the wrapper
+	_call(addr + 9) -- call machine code, skipping the wrapper
+	list_comment(name)
 end
 
 local mult16_addr
@@ -819,10 +820,11 @@ local function emit_subroutines()
 end
 
 local function emit_mcode_wrapper()
-	_call(here() + 5)	-- call machine code
-	_jp_indirect_iy()
-	-- machine code starts from here
-	stk_pop_de()
+	-- calling mcode from Forth
+	stk_pop_de()		-- move top of stack to DE
+	_call(here() + 6)	-- call machine code
+	stk_push_de()		-- push top of stack back to Forth stack
+	_jp_indirect_iy()	-- return to Forth
 end
 
 local function emit_literal(n, comment)
@@ -837,7 +839,6 @@ end
 
 local dict = {
 	[';'] = function()
-		stk_push_de()
 		_ret()
 
 		interpreter_state()

@@ -242,8 +242,8 @@ code ei 251 c, 253 c, 233 c,
 	arith
 	rel-ops
 	mem
-	control-flow	( Bug: this test causes Error 2 at the end! )
 	inter-op
+	control-flow
 	print
 	misc
 	cr ." ALL TESTS PASSED!" 
