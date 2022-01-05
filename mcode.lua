@@ -2,6 +2,7 @@
 
 local labels = {}	-- label -> address for current word
 local gotos = {}	-- address to be patched -> label for current word
+local strings = {}	-- strings to be enclosed into dictionary after current word (str, patch-addr, str, patch-addr, ...)
 
 -- Z80 registers
 local A = 7
@@ -877,8 +878,20 @@ local dict = {
 			write_short(patch_loc, target_addr)
 		end
 
+		-- write strings
+		for i = 1, #strings, 2 do
+			local str = strings[i]
+			local patch_loc = strings[i + 1]
+			write_short(patch_loc, here()) -- patch address at ."
+			list_here()
+			emit_short(#str)
+			emit_string(str)
+			list_comment('"%s"', str)
+		end
+		
 		labels = {}
 		gotos = {}
+		strings = {}
 	end,
 	dup = function()
 		stk_push_de(); list_comment("dup")
@@ -1418,30 +1431,12 @@ local dict = {
 	end,
 	['."'] = function()
 		local str = next_symbol_with_delimiter('"')
-		local offset = #str + 2 -- branch offset for jumping over string data
-
+		strings[#strings + 1] = str	-- store string to be added later
 		_exx(); list_comment('."')	-- preserve DE
-
-		-- compute address of string
-		local str_addr = here() + 9
-		if offset >= 128 then str_addr = str_addr + 1 end
-
-		_ld_const(DE, str_addr) -- load string address to DE
+		strings[#strings + 1] = here() + 1 -- store patch location for string addr
+		_ld_const(DE, 0) -- load placeholder string address to DE
 		_call(0x0979) -- call print embedded string routine
 		_exx()
-
-		-- jump over following string data
-		if offset < 128 then
-			_jr(offset)
-		else
-			_jp(here() + #str + 2)
-		end
-
-		-- emit string data
-		list_here()
-		emit_short(#str)
-		emit_string(str)
-		list_comment('"%s"', str)
 	end,
 }
 
