@@ -210,7 +210,7 @@ The following letters are used to denote values on the stack:
 | ]                 | ( - )              | Change from interpreter to compile state                                |
 | "                 | ( - )              | Enclose the following characters up until " into the dictionary         |
 | CREATE \<name\>   | ( - )              | Add new (empty) word to dictionary with name \<name\>                   |
-| CREATE{ \<name\>  | ( - )              | Same as CREATE but the word but be terminated with }                    |
+| CREATE{ \<name\>  | ( - )              | Same as CREATE, except the end of the word must be marked with }        |
 | }                 | ( - )              | Marks the end of word created with CREATE{ (for dead code elimination)  |
 | CODE \<name\>     | ( - )              | Defines a new word with machine code defined as following bytes of data |
 | CONST \<name\>    | ( n - )            | Capture value to a new word with name \<name\>                          |
@@ -241,10 +241,12 @@ The following letters are used to denote values on the stack:
 | TRUE            | ( - flag )         | Push one                                                            |
 | FALSE           | ( - flag )         | Push zero                                                           |
 | BL              | ( - n )            | Push 32, the ASCII code of space character                          |
+| PAD             | ( - n )            | Push the address of PAD (2701 in hex)                               |
 | BASE            | ( - addr )         | Push the address of built-in numeric base variable                  |
 | DECIMAL         | ( - )              | Switch numeric base to decimal (shortcut for 10 BASE C!)            |
 | HEX             | ( - )              | Switch numeric base to hexadecimal (shortcut for 16 BASE C!)        |
 
+Note: names of constants (i.e. TRUE, FALSE, BL and PAD) are always written in upper-case!
 
 ### Logical Operations
 

@@ -568,6 +568,25 @@ function create_word(code_field, name, invisible)
 	return name
 end
 
+function create_constant(name, value)
+	-- add compile time word which emits the constant as literal
+	compile_dict[name] = function()
+		emit_literal(value)
+		list_comment(name)
+	end
+
+	-- add mcode behavior for the word which emits the constant as machine code literal
+	mcode_dict[name] = function()
+		emit_literal(value)
+		list_comment(name)
+	end
+
+	-- add word to interpreter dictionary so that the constant can be used at compile time
+	interpret_dict[name] = function()
+		push(value)
+	end
+end
+
 -- Erases previously compiled word from dictionary.
 -- Returns the contents of the parameter field of the erased word.
 function erase_previous_word()
@@ -934,23 +953,7 @@ interpret_dict = {
 	const = function()
 		local name = next_word()
 		local value = pop()
-
-		-- add compile time word which emits the constant as literal
-		compile_dict[name] = function()
-			emit_literal(value)
-			list_comment(name)
-		end
-
-		-- add mcode behavior for the word which emits the constant as machine code literal
-		mcode_dict[name] = function()
-			emit_literal(value)
-			list_comment(name)
-		end
-
-		-- add word to interpreter dictionary so that the constant can be used at compile time
-		interpret_dict[name] = function()
-			push(value)
-		end
+		create_constant(name, value)
 	end,
 	allot = function()
 		local count = pop()
@@ -1280,6 +1283,12 @@ compile_dict = {
 }
 
 mcode_dict = mcode.get_dict()
+
+-- some predefined constants
+create_constant("TRUE", 1)
+create_constant("FALSE", 0)
+create_constant("BL", 32)
+create_constant("PAD", 0x2701)
 
 local immediate_words = { "(", "\\", "[if]", "[else]", "[then]", "[defined]" }
 
