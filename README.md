@@ -103,7 +103,7 @@ Machine code words, however, have some disadvantages:
 
 ### Performance Considerations
 
-Some words contained inside `:m` definitions cannot be compiled into machine code currently. Therefore, there is a performance penalty when the following words are used inside :m definitions:
+Some words contained inside `:m` definitions cannot be compiled into machine code currently. Therefore, there is a performance penalty when the following words are used inside `:m` definitions:
 
 	FNEGATE F+ F- F* F/ F. UFLOAT INT D+ D< DNEGATE U/MOD */ MOD */MOD /MOD U. U* U<
 	. # #S #> <# SIGN HOLD
@@ -114,7 +114,7 @@ It's strongly recommended to not use any of these words inside `:m` definitions!
 
 The words `*` and `/`, when compiled to machine code, have specializations for values 1, 2, 4 and 256. Multiplying or dividing by any of these values is very fast. Division by any other value falls so the Forth interpreter code which is very slow.
 
-For 8-bit multiplication where both operands and the result fits into 8 bits, it is recommended to use the new word `C*` (it is more than twice as fast as `*`). The word `C*` is currently only supported inside `:m` definitions.
+For 8-bit multiplication where both operands and the result fits into 8 bits, it is recommended to use the new word `C*` (it is more than twice as fast as `*`). `C*` is currently only supported inside `:m` definitions.
 
 The following table contains some benchmark results comparing the speed of machine code compiled Forth vs. interpreted Forth running on the Jupiter Ace. "Speed up" is how many times faster the machine code version runs.
 
@@ -134,8 +134,7 @@ The following table contains some benchmark results comparing the speed of machi
 
 The following letters are used to denote values on the stack:
 
-- `x` any value
-- `n` float or integer number
+- `n` number (16-bit signed integer)
 - `flag` a boolean flag with possible values 1 (representing true) and 0 (representing false)
 - `addr` numeric address in the memory (where compiled words and variables go)
 
@@ -143,21 +142,21 @@ The following letters are used to denote values on the stack:
 
 | Word       | Stack                           | Description                                                         |
 | ---------- | ------------------------------- | ------------------------------------------------------------------- |
-| DUP        | ( x - x x )                     | Duplicate topmost stack element                                     |
-| ?DUP       | ( x - x x )                     | Duplicate topmost stack element unless it is zero                   |
-| DROP       | ( x - )                         | Remove topmost stack element                                        |
-| NIP        | ( x1 x2 - x2 )                  | Remove the second topmost stack element                             |
-| OVER       | ( x1 x2 - x1 x2 x1 )            | Duplicate the second topmost stack element                          |
-| SWAP       | ( x1 x2 - x2 x1 )               | Swap two elements                                                   |
-| ROT        | ( x1 x2 n3 - x2 x3 x1 )         | Rotate three topmost stack elements                                 |
-| PICK       | ( n - x )                       | Duplicate the Nth topmost stack element                             |
+| DUP        | ( n - n n )                     | Duplicate topmost stack element                                     |
+| ?DUP       | ( n - n n )                     | Duplicate topmost stack element unless it is zero                   |
+| DROP       | ( n - )                         | Remove topmost stack element                                        |
+| NIP        | ( n1 n2 - n2 )                  | Remove the second topmost stack element                             |
+| OVER       | ( n1 n2 - n1 n2 n1 )            | Duplicate the second topmost stack element                          |
+| SWAP       | ( n1 n2 - n2 n1 )               | Swap two elements                                                   |
+| ROT        | ( n1 n2 n3 - n2 n3 n1 )         | Rotate three topmost stack elements                                 |
+| PICK       | ( n - n )                       | Duplicate the Nth topmost stack element                             |
 | ROLL       | ( n - )                         | Extract the Nth element from stack, moving it to the top            |
-| 2DUP       | ( x1 x2 - x1 x2 x1 x2 )         | Duplicate two topmost stack elements                                |
-| 2DROP      | ( x x - )                       | Remove two topmost stack elements                                   |
-| 2OVER      | ( x1 x2 n n - x1 x2 n n x1 x2 ) | Duplicates two elements on the stack                                |
-| >R         | S: ( x - ) R: ( - x )           | Move value from data stack to return stack                          |
-| R>         | S: ( - x ) R: ( x - )           | Move value from return stack to data stack                          |
-| R@         | S: ( - x ) R: ( x - x )         | Copy value from return stack to data stack (without removing it)    |
+| 2DUP       | ( n1 n2 - n1 n2 n1 n2 )         | Duplicate two topmost stack elements                                |
+| 2DROP      | ( n n - )                       | Remove two topmost stack elements                                   |
+| 2OVER      | ( n1 n2 n n - n1 n2 n n n1 n2 ) | Duplicates two elements on the stack                                |
+| >R         | S: ( n - ) R: ( - n )           | Move value from data stack to return stack                          |
+| R>         | S: ( - n ) R: ( n - )           | Move value from return stack to data stack                          |
+| R@         | S: ( - n ) R: ( n - n )         | Copy value from return stack to data stack (without removing it)    |
 
 ### Arithmetic
 
