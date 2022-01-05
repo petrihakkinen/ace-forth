@@ -179,47 +179,38 @@ code ei 251 c, 253 c, 233 c,
 	." IN OUT  " test-in-out cr    12345 chk cr
 	;
 
-( 11986 -> 4714, 2.5 times faster )
 :m benchmark-stack
-	10000 begin
-		dup dup dup dup dup drop drop drop drop drop
-		1-
-		dup 0=
-	until drop ;
+	10000 0 do
+		dup dup dup dup dup dup dup dup dup dup
+		drop drop drop drop drop drop drop drop drop drop
+	loop ;
 
-( 9 times faster! )
 :m benchmark-over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	over over over over over over over over over over
-	;
+	10 0 do
+		over over over over over over over over over over
+		over over over over over over over over over over
+		over over over over over over over over over over
+		over over over over over over over over over over
+		over over over over over over over over over over
+	loop ;
 
-( 3454 -> 869 -> 4 times faster! )
-:m benchmark-do-loop
+:m benchmark-loop
 	30000 0 do
 	loop ;
 
-( 3430 -> 2269 -> 1.5 times faster )
+:m benchmark-1+
+	0
+	10000 0 do
+		1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+
+	loop drop ;
+
 :m benchmark-*
 	2
 	1000 0 do
 		2 * 7 * 123 * 256 * 789 *
 	loop drop ;
 
-( 2230 -> 986 -> 2.3 times faster )
+( This benchmark cannot be run without it being compiled to machine code! )
 :m benchmark-c*
 	2
 	1000 0 do
@@ -233,17 +224,7 @@ code ei 251 c, 253 c, 233 c,
 
 : begin-profile ( -- start-time ) time ;
 
-: end-profile ( start-time -- ) time swap - ." RESULT: " . ;
-
-: dump ( address count -- )
-	16 base c!
-	0 do
-		i 7 and 0= if cr then ( Line break every 8 bytes )
-		dup i + c@ ( Fetch byte )
-		dup 16 < if ascii 0 emit then  ( Prefix with "0" if byte is less than 10 in hex )
-		.
-	loop
-	decimal ; immediate
+: end-profile ( start-time -- ) time swap - . cr ;
 
 : main
 	fast di cls invis
@@ -254,10 +235,16 @@ code ei 251 c, 253 c, 233 c,
 	inter-op
 	control-flow
 	print
-	misc
-	cr ." ALL TESTS PASSED!" 
-	\ cr begin-profile benchmark-stack end-profile
-	\ cr begin-profile benchmark-over end-profile
-	\ cr begin-profile benchmark-do-loop end-profile
-	\ cr begin-profile benchmark-c* end-profile
+	\ misc
+	cr ." All tests passed!" cr cr
+
+	." Running benchmarks..." cr
+	." STACK " begin-profile benchmark-stack end-profile 	( 17829 -> 5792, 3.1 times faster )
+	." OVER  " begin-profile benchmark-over end-profile		( 222 -> 23, 9.7 times faster )
+	." LOOP  " begin-profile benchmark-loop end-profile		( 3454 -> 943, 3.7 times faster )
+	." 1+    " begin-profile benchmark-1+ end-profile		( 12266 -> 537, 23 times faster )
+	." *     " begin-profile benchmark-* end-profile		( 3430 -> 1996, 1.7 times faster )
+	." C*    " begin-profile benchmark-c* end-profile		( 3430 -> 659,> 5.2 times faster )
+
+	cr ." All done!"
 	;
