@@ -225,7 +225,7 @@ end
 -- and if not, raises an appropriate error.
 function check_control_flow_stack()
 	local v = control_flow_stack[#control_flow_stack]
-	
+
 	if v == "if" then
 		comp_error("IF without matching THEN")
 	elseif v == "begin" then
@@ -945,6 +945,9 @@ interpret_dict = {
 	swap = function() local a, b = pop2(); push(b); push(a) end,
 	pick = function() push(peek(-pop())) end,
 	roll = function() local i = pop(); push(peek(-i)); remove(-i - 1) end,
+	['>r'] = function() r_push(pop()) end,
+	['r>'] = function() push(r_pop()) end,
+	['r@'] = function() push(r_peek(-1)) end,
 	['+'] = function() local a, b = pop2(); push(a + b) end,
 	['-'] = function() local a, b = pop2(); push(a - b) end,
 	['*'] = function() local a, b = pop2(); push(a * b) end,
@@ -1094,6 +1097,12 @@ compile_dict = {
 		emit_short(#str)
 		emit_string(str)
 		list_instr(' ." %s"', str)
+	end,
+	['r@'] = function()
+		-- r@ is just an alias for i
+		list_here()
+		emit_short(rom_words.I)
+		list_instr("r@")
 	end,
 	['if'] = function()
 		-- emit conditional branch

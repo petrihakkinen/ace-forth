@@ -853,7 +853,7 @@ local dict = {
 
 		interpreter_state()
 		check_control_flow_stack()
-		
+
 		-- patch gotos
 		for patch_loc, label in pairs(gotos) do
 			local target_addr = labels[label]
@@ -919,6 +919,11 @@ local dict = {
 	['>r'] = function()
 		_push(DE); list_comment(">r")
 		stk_pop_de()
+	end,
+	['r@'] = function()
+		stk_push_de(); list_comment("r@")
+		_pop(DE)
+		_push(DE)
 	end,
     ['+'] = function()
 		-- TODO: optimize <literal> + as a special case

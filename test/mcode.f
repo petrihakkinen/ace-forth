@@ -34,6 +34,7 @@ code ei 251 c, 253 c, 233 c,
 	." ROLL   " 1 2 2 roll       2 1 chk2 space
 	            1 2 3 3 roll     2 3 1 chk3 cr
 	." >R R>  " 3 7 >r           3 chk space r> 7 chk cr
+	." R@     " 1 2 >r r@        1 2 chk2 cr    ( Clean up: ) r> drop
 	;
 
 :m arith
