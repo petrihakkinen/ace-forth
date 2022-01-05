@@ -459,12 +459,28 @@ local function _sla(r)
 	list_instr("sla %s", reg_name[r])
 end
 
+local function _sra(r)
+	assert(r >= 0 and r <= 7, "_sra: unknown register")
+	list_here()
+	emit_byte(0xcb)
+	emit_byte(0x28 + r)
+	list_instr("sra %s", reg_name[r])
+end
+
 local function _rl(r)
 	assert(r >= 0 and r <= 7, "_rl: unknown register")
 	list_here()
 	emit_byte(0xcb)
 	emit_byte(0x10 + r)
 	list_instr("rl %s", reg_name[r])
+end
+
+local function _rr(r)
+	assert(r >= 0 and r <= 7, "_rr: unknown register")
+	list_here()
+	emit_byte(0xcb)
+	emit_byte(0x18 + r)
+	list_instr("rr %s", reg_name[r])
 end
 
 local function _rla()
@@ -887,11 +903,49 @@ local dict = {
 	drop = function()
 		stk_pop_de(); list_comment("drop")
 	end,
+	nip = function()
+		-- swap drop
+		stk_pop_bc(); list_comment("nip")
+	end,
 	swap = function()
 		stk_pop_bc(); list_comment("swap")
 		stk_push_de()
 		_ld(D, B)
 		_ld(E, C)
+	end,
+	['2dup'] = function()
+		-- over over
+		_ld_fetch(BC, SPARE); list_comment("2dup")
+		stk_push_de() -- push old top
+		_dec(BC)
+		_ld(A, BC_INDIRECT)
+		_ld(D, A)
+		_dec(BC)
+		_ld(A, BC_INDIRECT)
+		_ld(E, A)
+		_ld_fetch(BC, SPARE)
+		stk_push_de() -- push old top
+		_dec(BC)
+		_ld(A, BC_INDIRECT)
+		_ld(D, A)
+		_dec(BC)
+		_ld(A, BC_INDIRECT)
+		_ld(E, A)
+	end,
+	['2drop'] = function()
+		stk_pop_de(); list_comment("2drop")
+		stk_pop_de()
+	end,
+	['2over'] = function()
+		-- 4 pick 4 pick
+		stk_push_de(); list_comment("2over")
+		_ld_const(DE, 4)
+		stk_push_de()
+		_call(0x094d)
+		_ld_const(DE, 4)
+		stk_push_de()
+		_call(0x094d)
+		stk_pop_de()
 	end,
 	pick = function()
 		stk_push_de(); list_comment("pick")
@@ -964,6 +1018,14 @@ local dict = {
 		_dec(DE); list_comment("2-")
 		_dec(DE)
 	end,
+	['2*'] = function()
+		_sla(E); list_comment("2*")
+		_rl(D)
+	end,
+	['2/'] = function()
+		_sra(D); list_comment("2/")
+		_rr(E)
+	end,
 	negate = function()
 		_xor(A); list_comment("negate")
 		_sub(E)
@@ -1033,6 +1095,14 @@ local dict = {
 		_ld(A, D)
 		_or(B)
 		_ld(D, A)
+	end,
+	['not'] = function()
+		_ld(A, D); list_comment("not")
+		_or(E)
+		_ld_const(DE, 1)
+		_jr_z(1) --> skip
+		_ld(E, D) -- clear e
+		-- skip:
 	end,
 	['0='] = function()
 		_ld(A, D); list_comment("0=")
@@ -1168,6 +1238,9 @@ local dict = {
 	base = function()
 		stk_push_de(); list_comment("base")
 		_ld_const(DE, 0x3c3f)
+	end,
+	hex = function()
+		_ld_store_offset_const(IX, 0x3f, 0x10); list_comment("hex")
 	end,
 	decimal = function()
 		_ld_store_offset_const(IX, 0x3f, 0x0a); list_comment("decimal")

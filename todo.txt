@@ -1,9 +1,13 @@
-- add mcode words: 2dup 2drop 2over nip 2* 2/ hex .s
-
 - would byte size arithmetic make sense? C+ C- C* C< C= C> CXOR CAND COR
 
 - mcode:
 	- optimize <literal> + and <literal> - as special cases (maybe others too)
 
-- test/mcode.f does not compile with --optimize
+- mcode: find smaller versions of OVER and 2DUP
+
+- BUG: test/mcode.f does not compile with --optimize
 	test/mcode.f:27: undefined word 'chk2'
+
+- BUG: 2DUP test fails if chk2 is defined with :m
+
+- BUG: [if], [else], [then], [defined] don't work inside :m definitions

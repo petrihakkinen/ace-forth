@@ -26,10 +26,14 @@ code ei 251 c, 253 c, 233 c,
 :m stack
 	." DUP    " 123 dup          123 123 chk2 cr
 	." DROP   " 123 456 drop     123 chk cr
+	." NIP    " 1 2 3 nip        1 3 chk2 cr
 	." OVER   " 123 456 over     123 456 123 chk3 cr
 	." ?DUP   " 123 ?dup         123 123 chk2 space
 	            123 0 ?dup 456   123 0 456 chk3 cr
 	." SWAP   " 123 456 swap     456 123 chk2 cr
+	." 2DUP   " 123 456 2dup     123 456 chk2 space 123 456 chk2 cr
+	." 2DROP  " 1 2 3 2drop      1 chk cr
+	." 2OVER  " 1 2 3 4 2over    1 2 chk2 3 4 space chk2 space 1 2 chk2 cr
 	." PICK   " 3 4 2 pick       3 4 3 chk3 cr
 	." ROLL   " 1 2 2 roll       2 1 chk2 space
 	            1 2 3 3 roll     2 3 1 chk3 cr
@@ -47,6 +51,10 @@ code ei 251 c, 253 c, 233 c,
 	." 1-     " 5 1-             4 chk cr
 	." 2+     " 1000 2+          1002 chk cr
 	." 2-     " 1000 2-          998 chk cr
+	." 2*     " 1000 2*          2000 chk space
+	            -1000 2*         -2000 chk cr
+	." 2/     " 1000 2/          500 chk space
+	            -1000 2/         -500 chk cr
 	." NEGATE " 1234 negate      -1234 chk space
 	            -1234 negate     1234 chk cr
 	." ABS    " 4892 abs         4892 chk space
@@ -174,10 +182,15 @@ code ei 251 c, 253 c, 233 c,
 :m misc
 	." LIT    " [ 5 3 * ] lit      15 chk cr
 	." CONST  " SCREEN             9216 chk cr
-	." BASE   " 16 base c! 255 . cr ( ff )
-	." DECIMAL " decimal 255 . cr ( 255 )
-	." INKEY   " test-inkey cr
-	." IN OUT  " test-in-out cr    12345 chk cr
+	." BASE   " 8 base c! 255 . cr ( ff )
+	." HEX    " hex 255 . cr ( ff )
+	." DEC    " decimal 255 . cr ( 255 )
+	." .S     " 1 2 3 .s drop drop drop cr
+	;
+
+:m i/o
+	." INKEY  " test-inkey cr
+	." IN OUT " test-in-out cr    12345 chk cr
 	;
 
 :m benchmark-stack
@@ -217,6 +230,16 @@ code ei 251 c, 253 c, 233 c,
 		1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+
 	loop drop ;
 
+:m benchmark-2*
+	5000 0 do
+		3 2* 2* 2* 2* 2* 2* 2* 2* 2* drop
+	loop ;
+
+:m benchmark-2/
+	500 0 do
+		31111 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ drop
+	loop ;
+
 :m benchmark-*
 	2
 	1000 0 do
@@ -251,18 +274,21 @@ code ei 251 c, 253 c, 233 c,
 	inter-op
 	control-flow
 	print
-	\ misc
-	cr ." All tests passed!" cr cr
+	misc
 
-	." Running benchmarks..." cr
+	cr ." Running benchmarks..." cr
 	." STACK " begin-profile benchmark-stack end-profile 	( 17829 -> 5771, 3.1 times faster )
 	." OVER  " begin-profile benchmark-over end-profile		( 2204 -> 224, 9.8 times faster )
 	." LOOP  " begin-profile benchmark-loop end-profile		( 3454 -> 878, 3.9 times faster )
 	." >R R> " begin-profile benchmark-rstack end-profile 	( 11088 -> 5046, 2.2 times faster )
 	." ARITH " begin-profile benchmark-arith end-profile	( 24795 -> 5291, 4.7 times faster )
 	." 1+    " begin-profile benchmark-1+ end-profile		( 12266 -> 515, 24 times faster )
+	." 2*    " begin-profile benchmark-2* end-profile		( 14248 -> 659, 22 times faster )
+	." 2/    " begin-profile benchmark-2/ end-profile		( 19151 -> 68, 282 times faster )
 	." *     " begin-profile benchmark-* end-profile		( 3430 -> 1995, 1.7 times faster )
 	." C*    " begin-profile benchmark-c* end-profile		( 3430 -> 657, 5.2 times faster )
 
-	cr ." All done!"
+	cr i/o
+
+	cr ." All tests passed!"
 	;

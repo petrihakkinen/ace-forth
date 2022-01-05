@@ -147,6 +147,7 @@ local no_eliminate_words = {}			-- words that cannot be eliminated even if they'
 local mcode_subroutines_emitted = false	-- have subroutines for mcode words been emitted?
 local listing = {}						-- array of strings
 local listing_line_len = 0				-- length of current listing line
+local dont_allow_redefining = false		-- if set, do not allow redefining word behaviors (hack for library words)
 
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
@@ -177,19 +178,6 @@ rom_words = {
 	RETYPE = 0x0578, QUERY = 0x058c, LINE = 0x0506, [";"] = 0x04a1, PAD = 0x0499, BASE = 0x048a,
 	CURRENT = 0x0480, CONTEXT = 0x0473, HERE = 0x0460, ABORT = 0x00ab, QUIT = 0x0099
 }
-
--- Library words are words are not natively available on Jupiter Ace's ROM.
--- These are added at the beginning of every program, but they may be dead code eliminated.
-local library_words = [[
-: 2dup over over ;
-: 2drop drop drop ;
-: 2over 4 pick 4 pick ;
-: nip swap drop ;
-: 2* dup + ;
-: 2/ 2 / ;
-: hex 16 base c! ;
-: .s 15419 @ here 12 + over over - if do i @ . 2 +loop else drop drop then ;
-]]
 
 -- starting addresses of user defined words
 local word_start_addresses = {}
@@ -568,31 +556,6 @@ function create_word(code_field, name, invisible)
 	return name
 end
 
-function create_constant(name, value)
-	-- add compile time word which emits the constant as literal
-	compile_dict[name] = function()
-		emit_literal(value)
-		list_comment(name)
-	end
-
-	-- add mcode behavior for the word which emits the constant as machine code literal
-	mcode_dict[name] = function()
-		emit_literal(value)
-		list_comment(name)
-	end
-
-	-- add word to interpreter dictionary so that the constant can be used at compile time
-	interpret_dict[name] = function()
-		push(value)
-	end
-end
-
-function create_alias(alias_name, name)
-	interpret_dict[alias_name] = interpret_dict[name]
-	compile_dict[alias_name] = compile_dict[name]
-	mcode_dict[alias_name] = mcode_dict[name]
-end
-
 -- Erases previously compiled word from dictionary.
 -- Returns the contents of the parameter field of the erased word.
 function erase_previous_word()
@@ -848,12 +811,17 @@ interpret_dict = {
 	[':'] = function() 
 		local name = next_word()
 		if not eliminate_words[name] then
-			last_word = create_word(DO_COLON, name)
+			local invisible = false
+			if compile_dict[name] and dont_allow_redefining then invisible = true end
+
+			last_word = create_word(DO_COLON, name, invisible)
 			compile_mode = true
 
 			-- make it possible to call user defined Forth words from :m definitions
-			mcode_dict[name] = function()
-				mcode.call_forth(name)
+			if mcode_dict[name] == nil or not dont_allow_redefining then
+				mcode_dict[name] = function()
+					mcode.call_forth(name)
+				end
 			end
 		else
 			skip_until(';')
@@ -959,7 +927,23 @@ interpret_dict = {
 	const = function()
 		local name = next_word()
 		local value = pop()
-		create_constant(name, value)
+
+		-- add compile time word which emits the constant as literal
+		compile_dict[name] = function()
+			emit_literal(value)
+			list_comment(name)
+		end
+
+		-- add mcode behavior for the word which emits the constant as machine code literal
+		mcode_dict[name] = function()
+			emit_literal(value)
+			list_comment(name)
+		end
+
+		-- add word to interpreter dictionary so that the constant can be used at compile time
+		interpret_dict[name] = function()
+			push(value)
+		end
 	end,
 	allot = function()
 		local count = pop()
@@ -1035,9 +1019,9 @@ interpret_dict = {
 	['2/'] = function() push(pop() // 2) end,
 	['.'] = function() io.write(format_number(pop()), " ") end,
 	negate = function() push(-pop()) end,
+	xor = function() local a, b = pop2(); push(a ~ b) end,
 	['and'] = function() local a, b = pop2(); push(a & b) end,
 	['or'] = function() local a, b = pop2(); push(a | b) end,
-	xor = function() local a, b = pop2(); push(a ~ b) end,
 	['not'] = function() push_bool(pop() == 0) end,
 	abs = function() push(math.abs(pop())) end,
 	min = function() local a, b = pop2(); push(math.min(a, b)) end,
@@ -1171,12 +1155,6 @@ compile_dict = {
 		emit_string(str)
 		list_instr(' ." %s"', str)
 	end,
-	['r@'] = function()
-		-- r@ is just an alias for i
-		list_here()
-		emit_short(rom_words.I)
-		list_instr("r@")
-	end,
 	['if'] = function()
 		-- emit conditional branch
 		list_here()
@@ -1286,12 +1264,24 @@ compile_dict = {
 		emit_string(name)
 		list_instr("postpone %s", name)
 	end,
+	['r@'] = function()
+		-- R@ is alias for I
+		list_here()
+		emit_short(rom_words.I)
+		list_instr("r@")
+	end,
+	['not'] = function()
+		-- NOT is alias for 0=
+		list_here()
+		emit_short(rom_words['0='])
+		list_instr("not")
+	end,
 }
 
 mcode_dict = mcode.get_dict()
 
+-- TODO: this does not work with mcode dictionary properly!
 local immediate_words = { "(", "\\", "[if]", "[else]", "[then]", "[defined]" }
-
 for _, name in ipairs(immediate_words) do
 	compile_dict[name] = assert(interpret_dict[name])
 end
@@ -1308,16 +1298,30 @@ for name, addr in pairs(rom_words) do
 	compilation_addr_to_name[addr] = name
 end
 
--- some predefined constants
-create_constant("TRUE", 1)
-create_constant("FALSE", 0)
-create_constant("BL", 32)
-create_constant("PAD", 0x2701)
+local library_words = [[
+1 const TRUE
+0 const FALSE
+32 const BL
+9985 const PAD
 
-create_alias("not", "0=")
+: 2dup over over ;
+: 2drop drop drop ;
+: 2over 4 pick 4 pick ;
+: nip swap drop ;
+: 2* dup + ;
+: 2/ 2 / ;
+: hex 16 base c! ;
+: .s 15419 @ here 12 + over over - if do i @ . 2 +loop else drop drop then ;
+]]
 
--- compile library words
+-- Compile library words which are not natively available on Jupiter Ace's ROM.
+-- These are added at the beginning of every program, but they may be dead code eliminated.
+-- Note that behaviors for some of these words may already exist and it's important
+-- that we don't overwrite for example the optimized machine code implementations.
+-- We prevent that by setting this ugly flag here...
+dont_allow_redefining = true
 execute_string(library_words, "<library>")
+dont_allow_redefining = false
 
 -- convert all words to uppercase if we're in case insensitive mode
 if opts.ignore_case then
