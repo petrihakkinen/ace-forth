@@ -238,8 +238,8 @@ The following letters are used to denote values on the stack:
 
 | Word            | Stack              | Description                                                         |
 | --------------- | ------------------ | ------------------------------------------------------------------- |
-| TRUE            | ( - 1 )            | Push one                                                            |
-| FALSE           | ( - 0 )            | Push zero                                                           |
+| TRUE            | ( - flag )         | Push one                                                            |
+| FALSE           | ( - flag )         | Push zero                                                           |
 | BL              | ( - n )            | Push 32, the ASCII code of space character                          |
 | BASE            | ( - addr )         | Push the address of built-in numeric base variable                  |
 | DECIMAL         | ( - )              | Switch numeric base to decimal (shortcut for 10 BASE C!)            |
@@ -265,16 +265,16 @@ The following letters are used to denote values on the stack:
 | -------------- | ------------------ | --------------------------------------------------------------------------------- |
 | IF             | ( flag - )         | If flag is zero, skip to next ELSE or THEN, otherwise continue to next statement  |
 | ELSE           | ( - )              | See IF                                                                            |
-| THEN           | ( - n )            | See IF                                                                            |
+| THEN           | ( - )              | See IF                                                                            |
 | BEGIN          | ( - )              | Mark the beginning of indefinite or until loop                                    |
 | UNTIL          | ( flag - )         | If flag is zero, jump to previous BEGIN, otherwise continue to next statement     |
-| AGAIN          | ( - n )            | Jump (unconditionally) to previous BEGIN                                          |
+| AGAIN          | ( - )              | Jump (unconditionally) to previous BEGIN                                          |
 | DO             | ( n1 n2 - )        | Initialize do loop, n1 is the limit value, n2 is the initial value of counter     |
 | LOOP           | ( - )              | Increment loop counter by 1, jump to previous DO if counter has not reached limit |
 | +LOOP          | ( n - )            | Add n to counter, jump to previous DO if counter has not reached limit            |
-| REPEAT         | ( - )              | Not currently supported!                                                          |
-| WHILE          | ( - )              | Not currently supported!                                                          |
-| EXIT           | ( - n )            | Exit immediately from current word (make sure return stack is balanced!)          |
+| REPEAT         | ( - )              | Not supported currently!                                                          |
+| WHILE          | ( - )              | Not supported currently!                                                          |
+| EXIT           | ( - )              | Exit immediately from current word (make sure return stack is balanced!)          |
 | I              | ( - n )            | Push the loop counter of innermost loop                                           |
 | I'             | ( - n )            | Push the limit value of innermost loop                                            |
 | J              | ( - n )            | Push the loop counter of second innermost loop                                    |
@@ -297,7 +297,7 @@ The following letters are used to denote values on the stack:
 | IN         | ( port - n )       | Read a 8-bit value from I/O port                                  |
 | OUT        | ( n port - )       | Write a 8-bit value to I/O port                                   |
 | AT         | ( y x - )          | Move the cursor to column x on row y                              |
-| TYPE       | ( addr count -- )  | Print a string stored in memory                                   |
+| TYPE       | ( addr n -- )      | Print a string stored in memory                                   |
 | PLOT       | ( x y n - )        | Plot a pixel at x, y with mode n (0=unplot, 1=plot, 2=move, 3=change) | 
 | INKEY      | ( - n )            | Read current pressed key (0 = not pressed)                        | 
 | CLS        | ( - )              | Clear the screen                                                  | 
