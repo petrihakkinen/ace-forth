@@ -183,11 +183,12 @@ rom_words = {
 local library_words = [[
 : 2dup over over ;
 : 2drop drop drop ;
-: 2over ( x y n n -- x y n n x y ) 4 pick 4 pick ;
+: 2over 4 pick 4 pick ;
 : nip swap drop ;
 : 2* dup + ;
 : 2/ 2 / ;
 : hex 16 base c! ;
+: .s 15419 @ here 12 + over over - if do i @ . 2 +loop else drop drop then ;
 ]]
 
 -- starting addresses of user defined words
@@ -1105,6 +1106,11 @@ interpret_dict = {
 	end,
 	i = function()
 		push(r_peek(-1))
+	end,
+	['.s'] = function()
+		for i = 1, #stack do
+			io.write(format_number(stack[i]), " ")
+		end
 	end,
 }
 
