@@ -11,3 +11,14 @@
 - BUG: 2DUP test fails if chk2 is defined with :m
 
 - BUG: [if], [else], [then], [defined] don't work inside :m definitions
+
+- document remaining words in README
+
+- specialize *, C* and / for pow2 literals
+
+- extract long & rarely used mcode words to subroutines:
+	2DUP 2OVER ROLL LOOP SPACES > < 0> MIN MAX ABS
+
+- fast loops: -LOOP
+
+- mcode version of +LOOP

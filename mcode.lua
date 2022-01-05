@@ -1348,6 +1348,7 @@ local dict = {
 	loop = function()
 		comp_assert(cf_pop() == 'do', "LOOP without matching DO")
 		local target = cf_pop()
+		-- TODO: subroutine
 		_exx(); list_comment("loop")
 		_pop(DE) -- pop counter
 		_pop(BC) -- pop limit
@@ -1359,6 +1360,7 @@ local dict = {
 		_push(BC) -- push limit
 		_push(DE) -- push counter
 		_exx()
+		-- end of subroutine
 		jump_nc(target)
 		_pop(BC) -- end of loop -> pop limit & counter from stack
 		_pop(BC)
