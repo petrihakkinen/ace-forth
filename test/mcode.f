@@ -198,6 +198,12 @@ code ei 251 c, 253 c, 233 c,
 	30000 0 do
 	loop ;
 
+: benchmark-arith
+	5
+	10000 0 do
+		dup + dup + dup + dup + dup - dup - dup - dup -
+	loop drop ;
+
 :m benchmark-1+
 	0
 	10000 0 do
@@ -242,6 +248,7 @@ code ei 251 c, 253 c, 233 c,
 	." STACK " begin-profile benchmark-stack end-profile 	( 17829 -> 5792, 3.1 times faster )
 	." OVER  " begin-profile benchmark-over end-profile		( 222 -> 23, 9.7 times faster )
 	." LOOP  " begin-profile benchmark-loop end-profile		( 3454 -> 943, 3.7 times faster )
+	." ARITH " begin-profile benchmark-arith end-profile	( 24795 -> 5312, 4.7 times faster )
 	." 1+    " begin-profile benchmark-1+ end-profile		( 12266 -> 537, 23 times faster )
 	." *     " begin-profile benchmark-* end-profile		( 3430 -> 1996, 1.7 times faster )
 	." C*    " begin-profile benchmark-c* end-profile		( 3430 -> 659,> 5.2 times faster )
