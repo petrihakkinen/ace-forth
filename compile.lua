@@ -71,6 +71,8 @@ do
 				opts.small_literals = true
 			elseif arg == "--verbose" then
 				opts.verbose = true
+			elseif arg == "--ignore-case" then
+				opts.ignore_case = true
 			elseif arg == "--main" then
 				i = i + 1
 				opts.main_word = args[i]
@@ -103,6 +105,7 @@ if #input_files == 0 then
 	print("\nOptions:")
 	print("  -o <filename>             Sets output filename")
 	print("  -l <filename>             Write listing to file")
+	print("  --ignore-case             Treat all word names as case insensitive")
 	print("  --minimal-word-names      Rename all words as '@', except main word")
 	print("  --inline                  Inline words that are only used once")
 	print("  --eliminate-unused-words  Eliminate unused words when possible")
@@ -301,6 +304,7 @@ end
 function next_word(allow_eof)
 	local word = next_symbol()
 	if word == nil and not allow_eof then comp_error("unexpected end of file") end
+	if opts.ignore_case and word then word = string.upper(word) end
 	return word
 end
 
@@ -327,6 +331,15 @@ function skip_until(end_marker)
 		elseif sym == "(" then
 			next_symbol(")")
 		end
+	end
+end
+
+-- Checks whether two word names are the same, taking case sensitivity option into account.
+function match_word(name1, name2)
+	if opts.ignore_case then
+		return string.upper(name1) == string.upper(name2)
+	else
+		return name1 == name2
 	end
 end
 
@@ -971,11 +984,11 @@ interpret_dict = {
 			local depth = 0
 			while true do
 				local sym = next_word()
-				if sym == '[if]' then
+				if match_word(sym, '[if]') then
 					depth = depth + 1
-				elseif sym == '[else]' and depth == 0 then
+				elseif match_word(sym, '[else]') and depth == 0 then
 					break
-				elseif sym == '[then]' then
+				elseif match_word(sym, '[then]') then
 					if depth == 0 then break end
 					depth = depth - 1
 				end
@@ -987,9 +1000,9 @@ interpret_dict = {
 		local depth = 0
 		while true do
 			local sym = next_word()
-			if sym == '[if]' then
+			if match_word(sym, '[if]') then
 				depth = depth + 1
-			elseif sym == '[then]' then
+			elseif match_word(sym, '[then]') then
 				if depth == 0 then break end
 				depth = depth - 1
 			end
@@ -1179,6 +1192,21 @@ for name, addr in pairs(rom_words) do
 	end
 
 	compilation_addr_to_name[addr] = name
+end
+
+-- convert all words to uppercase if we're in case insensitive mode
+if opts.ignore_case then
+	local function to_upper_case(dict)
+		local t = {}
+		for name, func in pairs(dict) do
+			t[string.upper(name)] = func
+		end
+		return t
+	end
+
+	interpret_dict = to_upper_case(interpret_dict)
+	compile_dict = to_upper_case(compile_dict)
+	mcode_dict = to_upper_case(mcode_dict)
 end
 
 -- compile all files

@@ -30,6 +30,8 @@ https://github.com/petrihakkinen/sublime-forth
 
 	Options:
 	  -o <filename>             Sets output filename
+	  -l <filename>             Write listing to file
+	  --ignore-case             Treat all word names as case insensitive
 	  --minimal-word-names      Rename all words as '@', except main word
 	  --inline                  Inline words that are only used once
 	  --eliminate-unused-words  Eliminate unused words when possible
@@ -45,7 +47,7 @@ On Windows which does not support shebangs you need to prefix the command line w
 
 ## Differences with Jupiter Ace Forth interpreter
 
-- Word names are case sensitive. In contrast to standard Forth, words need to be written in lower case.
+- Word names are case sensitive by default. However, you can turn off case sensitivity using the `--ignore-case` option. When in case sensitive mode, standard word names should be written in lower case (e.g. `dup` instead of `DUP`).
 
 - Floating point literals are not currently supported.
 

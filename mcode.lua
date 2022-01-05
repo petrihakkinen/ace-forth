@@ -1118,7 +1118,7 @@ local dict = {
 		_ld_const(D, 0)
 	end,
 	ascii = function()
-		compile_dict.ascii()
+		(compile_dict.ascii or compile_dict.ASCII)()
 	end,
 	emit = function()
 		_ld(A, E); list_comment("emit")
@@ -1333,7 +1333,7 @@ local dict = {
 		compile_dict['[']()
 	end,
 	lit = function()
-		compile_dict.lit()
+		(compile_dict.lit or compile_dict.LIT)()
 	end,
 	['."'] = function()
 		local str = next_symbol("\"")
