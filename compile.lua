@@ -178,6 +178,18 @@ rom_words = {
 	CURRENT = 0x0480, CONTEXT = 0x0473, HERE = 0x0460, ABORT = 0x00ab, QUIT = 0x0099
 }
 
+-- Library words are words are not natively available on Jupiter Ace's ROM.
+-- These are added at the beginning of every program, but they may be dead code eliminated.
+local library_words = [[
+: 2dup over over ;
+: 2drop drop drop ;
+: 2over ( x y n n -- x y n n x y ) 4 pick 4 pick ;
+: nip swap drop ;
+: 2* dup + ;
+: 2/ 2 / ;
+: hex 16 base c! ;
+]]
+
 -- starting addresses of user defined words
 local word_start_addresses = {}
 
@@ -664,6 +676,50 @@ function execute(pc)
 	end
 end
 
+function execute_string(src, filename)
+	-- initialize parser state
+	input = src
+	input_file = filename
+	cur_pos = 1
+	cur_line = 1
+
+	-- execute input
+	while true do
+		local sym = next_word(true)
+		if sym == nil then break end
+		--printf("symbol [%s]", sym)
+
+		if compile_mode then
+			-- compile mode
+			local func
+			if compile_mode == "mcode" then
+				func = mcode_dict[sym]
+			else
+				func = compile_dict[sym]
+			end
+			if func == nil then
+				-- is it a number?
+				local n = parse_number(sym)
+				if n == nil then comp_error("undefined word '%s'", sym) end
+				emit_literal(n)
+			else
+				func()
+			end
+		else
+			-- interpret mode
+			local func = interpret_dict[sym]
+			if func == nil then
+				-- is it a number?
+				local n = parse_number(sym)
+				if n == nil then comp_error("undefined word '%s'", sym) end
+				push(n)
+			else
+				func()
+			end
+		end
+	end
+end
+
 -- Writes string to listing file.
 function write_listing(...)
 	if opts.listing_file then
@@ -939,8 +995,10 @@ interpret_dict = {
 	dup = function() push(peek(-1)) end,
 	over = function() push(peek(-2)) end,
 	drop = function() pop() end,
+	nip = function() local a = pop(); pop(); push(a) end,
 	['2dup'] = function() push(peek(-2)); push(peek(-2)) end,
 	['2drop'] = function() pop2() end,
+	['2over'] = function() push(peek(-4)); push(peek(-4)) end,
 	rot = function() push(peek(-3)); remove(-4) end,
 	swap = function() local a, b = pop2(); push(b); push(a) end,
 	pick = function() push(peek(-pop())) end,
@@ -1235,6 +1293,9 @@ for name, addr in pairs(rom_words) do
 	compilation_addr_to_name[addr] = name
 end
 
+-- compile library words
+execute_string(library_words, "<library>")
+
 -- convert all words to uppercase if we're in case insensitive mode
 if opts.ignore_case then
 	local function to_upper_case(dict)
@@ -1255,48 +1316,11 @@ for _, filename in ipairs(input_files) do
 	-- load input file
 	local file, err = io.open(filename, "r")
 	if file == nil then fatal_error(err) end
-	input = file:read("a")
+	local src = file:read("a")
 	file:close()
 
-	input_file = filename
-	cur_pos = 1
-	cur_line = 1
-
-	-- execute input
-	while true do
-		local sym = next_word(true)
-		if sym == nil then break end
-		--printf("symbol [%s]", sym)
-
-		if compile_mode then
-			-- compile mode
-			local func
-			if compile_mode == "mcode" then
-				func = mcode_dict[sym]
-			else
-				func = compile_dict[sym]
-			end
-			if func == nil then
-				-- is it a number?
-				local n = parse_number(sym)
-				if n == nil then comp_error("undefined word '%s'", sym) end
-				emit_literal(n)
-			else
-				func()
-			end
-		else
-			-- interpret mode
-			local func = interpret_dict[sym]
-			if func == nil then
-				-- is it a number?
-				local n = parse_number(sym)
-				if n == nil then comp_error("undefined word '%s'", sym) end
-				push(n)
-			else
-				func()
-			end
-		end
-	end
+	-- execute it!
+	execute_string(src, filename)
 end
 
 update_word_length()

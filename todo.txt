@@ -1,6 +1,9 @@
-- add to compile_dict and mcode_dict: 2DUP 2DROP 2OVER NIP 2* 2/ HEX
+- add mcode words: 2dup 2drop 2over nip 2* 2/ hex
 
 - would byte size arithmetic make sense? C+ C- C* C< C= C> CXOR CAND COR
 
 - mcode:
 	- optimize <literal> + and <literal> - as special cases (maybe others too)
+
+- test/mcode.f does not compile with --optimize
+	test/mcode.f:27: undefined word 'chk2'
