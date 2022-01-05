@@ -60,36 +60,26 @@ On Windows which does not support shebangs you need to prefix the command line w
 
 ## News Words and Features
 
-The compiler supports many extras not found on Jupiter Ace's Forth implementation. Some of the features are unique to this compiler.
+The compiler supports many extras not found on Jupiter Ace's Forth implementation. Some of the features are unique to this compiler. The new features are too numerous to list here, refer to the index at the end of this document. Some highlights:
 
 - New control flow words `GOTO` and `LABEL`.
 
 - Infinite loops using `BEGIN` and `AGAIN` words are supported (you can jump out of them using `EXIT` or `GOTO`).
 
-- New word `NOINLINE` which prevents inlining of the previously added word. It can also be used to silence "Word 'foo' has side exits and cannot be inlined" warning.
-
 - New interpreter words: `[IF]`, `[ELSE]`, `[THEN]`, and `[DEFINED]` for conditionally compiling code (e.g. for stripping debug code).
-
-- New interpreter mode utility words: `NIP`, `2*`, `2/`, `2DUP`, and `2DROP`.
 
 - Line comments using `\` word are supported.
 
 - New variable defining word `BYTE`, which works like `VARIABLE` but defines byte sized variables (remember to use `C@` and `C!` to access them).
 
-- New defining word `CODE` for embedding machine code as data.
-
 - New defining word `:m` which compiles the word into native machine code.
 
-- New word `C*` which is like `*` but computes the unsigned 8-bit multiplication. `C*` is a lot faster than `*` when the both operands are in range 0 - 255. Result is undefined if one or both operands are outside the valid range.
-
-- New word `BYTES` for embedding byte data without having to use `C,` or `,` words between every element. The end of byte data is marked with `;`.
-
-- New words `CREATE{` and `}` which work like `CREATE`, but `}` is used to mark the end of the word. This allows the compiler to eliminate unused words defined using `CREATE{`.
+- New words: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `C*` `.S` `HEX` `CODE` `POSTPONE` ...
 
 
 ## Machine Code Compilation
 
-The word `:m` allows compiling words into native machine code. Such words can be several times, sometimes even an order of magnitude, faster. Machine code words can be called from normal Forth words and vice versa. 
+The word `:m` allows compiling words into native machine code. Such words can be several times sometimes even an order of magnitude, faster. Machine code words can be called from normal Forth words and vice versa. 
 
 A simple example of a machine code word:
 
