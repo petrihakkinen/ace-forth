@@ -106,6 +106,13 @@ code ei 251 c, 253 c, 233 c,
 		loop
 	loop ;
 
+:m test-leave
+	0
+	100 0 do
+		1+
+		i 10 = if leave then
+	loop ;
+
 :m test-goto
 	123 >r
 	3
@@ -122,7 +129,9 @@ code ei 251 c, 253 c, 233 c,
 	." UNTIL  " 6 1 0 0 begin 5 >r until  r> r> r> 5 5 5 chk3 space 6 chk cr
 	." AGAIN  " test-again                1024 chk cr
 	." LOOP   " 0 1000 0 do i + loop      -24788 chk space
-	            test-loop                 25 chk cr
+	            test-loop                 25 chk space
+	            test-leave                11 chk cr
+	." I'     " 0 10 0 do i' + loop       100 chk cr
 	." GOTO   " 5 goto skip 6 label skip  5 chk space ( Forward goto )
 	            test-goto                 120 chk cr ( Backward goto )
 	;
