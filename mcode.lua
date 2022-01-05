@@ -852,7 +852,8 @@ local dict = {
 		_ret()
 
 		interpreter_state()
-
+		check_control_flow_stack()
+		
 		-- patch gotos
 		for patch_loc, label in pairs(gotos) do
 			local target_addr = labels[label]
@@ -1190,20 +1191,20 @@ local dict = {
 		_ld(A, D); list_comment("if")
 		_or(E)
 		stk_pop_de()
-		push(here())
-		push(list_pos())
-		push('if')
+		cf_push(here())
+		cf_push(list_pos())
+		cf_push('if')
 		-- TODO: this could be optimized to _jr_z()
 		_jp_z(0)	-- placeholder jump addr
 	end,
 	['else'] = function()
-		comp_assert(pop() == 'if', "ELSE without matching IF")
-		local listing_pos = pop()
-		local where = pop()
+		comp_assert(cf_pop() == 'if', "ELSE without matching IF")
+		local listing_pos = cf_pop()
+		local where = cf_pop()
 		-- emit jump to THEN
-		push(here())
-		push(list_pos())
-		push('if')
+		cf_push(here())
+		cf_push(list_pos())
+		cf_push('if')
 		-- TODO: this could be optimized to _jr()
 		_jp(0); list_comment("else") -- placeholder jump addr
 		-- patch jump target at previous IF
@@ -1211,9 +1212,9 @@ local dict = {
 		patch_jump_listing(listing_pos, where)
 	end,
 	['then'] = function()
-		comp_assert(pop() == 'if', "THEN without matching IF")
-		local listing_pos = pop()
-		local where = pop()
+		comp_assert(cf_pop() == 'if', "THEN without matching IF")
+		local listing_pos = cf_pop()
+		local where = cf_pop()
 		-- patch jump target at previous IF or ELSE
 		write_short(where + 1, here())
 		patch_jump_listing(listing_pos, where)
@@ -1239,17 +1240,17 @@ local dict = {
 		end
 	end,
 	begin = function()
-		push(here())
-		push('begin')
+		cf_push(here())
+		cf_push('begin')
 	end,
 	again = function()
-		comp_assert(pop() == 'begin', "AGAIN without matching BEGIN")
-		local target = pop()
+		comp_assert(cf_pop() == 'begin', "AGAIN without matching BEGIN")
+		local target = cf_pop()
 		jump(target); list_comment("again")
 	end,
 	['until'] = function()
-		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
-		local target = pop()
+		comp_assert(cf_pop() == 'begin', "UNTIL without matching BEGIN")
+		local target = cf_pop()
 		_ld(A, D); list_comment("until")
 		_or(E)
 		_ex_af_af()	-- store Z flag
@@ -1263,12 +1264,12 @@ local dict = {
 		_push(BC) -- push limit to return stack
 		_push(DE) -- push counter to return stack
 		stk_pop_de()
-		push(here())
-		push('do')
+		cf_push(here())
+		cf_push('do')
 	end,
 	loop = function()
-		comp_assert(pop() == 'do', "LOOP without matching DO")
-		local target = pop()
+		comp_assert(cf_pop() == 'do', "LOOP without matching DO")
+		local target = cf_pop()
 		_exx(); list_comment("loop")
 		_pop(DE) -- pop counter
 		_pop(BC) -- pop limit

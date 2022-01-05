@@ -207,6 +207,36 @@ function r_peek(idx)
 	return v
 end
 
+-- Separate stack for control flow constructs
+local control_flow_stack = {}
+
+function cf_push(x)
+	control_flow_stack[#control_flow_stack + 1] = x
+end
+
+function cf_pop(x)
+	local x = control_flow_stack[#control_flow_stack]
+	comp_assert(x, "control flow stack underflow")
+	control_flow_stack[#control_flow_stack] = nil
+	return x
+end
+
+-- Checks that the control flow stack is empty at the end of word definition,
+-- and if not, raises an appropriate error.
+function check_control_flow_stack()
+	local v = control_flow_stack[#control_flow_stack]
+	
+	if v == "if" then
+		comp_error("IF without matching THEN")
+	elseif v == "begin" then
+		comp_error("BEGIN without matching UNTIL or AGAIN")
+	elseif v == "do" then
+		comp_error("DO without matching LOOP")
+	elseif v then
+		comp_error("unbalanced control flow constructs")
+	end
+end
+
 function printf(...)
 	print(string.format(...))
 end
@@ -1027,6 +1057,8 @@ compile_dict = {
 		list_instr("forth-end")
 		compile_mode = false
 
+		check_control_flow_stack()
+
 		-- patch gotos
 		for patch_loc, label in pairs(gotos) do
 			local target_addr = labels[label]
@@ -1067,19 +1099,19 @@ compile_dict = {
 		-- emit conditional branch
 		list_here()
 		emit_short(CBRANCH)
-		push(here())
-		push('if')
+		cf_push(here())
+		cf_push('if')
 		emit_short(0)	-- placeholder branch offset
 		list_instr("?branch ?")
 	end,
 	['else'] = function()
-		comp_assert(pop() == 'if', "ELSE without matching IF")
-		local where = pop()
+		comp_assert(cf_pop() == 'if', "ELSE without matching IF")
+		local where = cf_pop()
 		-- emit jump to THEN
 		list_here()
 		emit_short(BRANCH)
-		push(here())
-		push('if')
+		cf_push(here())
+		cf_push('if')
 		emit_short(0)	-- placeholder branch offset
 		-- patch branch offset for ?branch at IF
 		write_short(where, here() - where - 1)
@@ -1087,25 +1119,25 @@ compile_dict = {
 	end,
 	['then']= function()
 		-- patch branch offset for ?branch at IF
-		comp_assert(pop() == 'if', "THEN without matching IF")
-		local where = pop()
+		comp_assert(cf_pop() == 'if', "THEN without matching IF")
+		local where = cf_pop()
 		write_short(where, here() - where - 1)
 	end,
 	begin = function()
-		push(here())
-		push('begin')
+		cf_push(here())
+		cf_push('begin')
 	end,
 	['until'] = function()
-		comp_assert(pop() == 'begin', "UNTIL without matching BEGIN")
-		local target = pop()
+		comp_assert(cf_pop() == 'begin', "UNTIL without matching BEGIN")
+		local target = cf_pop()
 		list_here()
 		emit_short(CBRANCH)
 		emit_short(target - here() - 1)
 		list_instr("?branch %04x", target)
 	end,
 	again = function()
-		comp_assert(pop() == 'begin', "AGAIN without matching BEGIN")
-		local target = pop()
+		comp_assert(cf_pop() == 'begin', "AGAIN without matching BEGIN")
+		local target = cf_pop()
 		list_here()
 		emit_short(BRANCH)
 		emit_short(target - here() - 1)
@@ -1115,20 +1147,20 @@ compile_dict = {
 		list_here()
 		emit_short(DO)
 		list_instr("do")
-		push(here())
-		push('do')
+		cf_push(here())
+		cf_push('do')
 	end,
 	loop = function()
-		comp_assert(pop() == 'do', "LOOP without matching DO")
-		local target = pop()
+		comp_assert(cf_pop() == 'do', "LOOP without matching DO")
+		local target = cf_pop()
 		list_here()
 		emit_short(LOOP)
 		emit_short(target - here() - 1)		
 		list_instr("loop %04x", target)
 	end,
 	['+loop'] = function()
-		comp_assert(pop() == 'do', "+LOOP without matching DO")
-		local target = pop()
+		comp_assert(cf_pop() == 'do', "+LOOP without matching DO")
+		local target = cf_pop()
 		list_here()
 		emit_short(PLUS_LOOP)
 		emit_short(target - here() - 1)		
@@ -1142,14 +1174,14 @@ compile_dict = {
 		emit_short(BRANCH)
 		local addr = here()
 		emit_short(0)	-- place holder branch offset
-		list_instr("branch <%s>", label)
+		list_instr("branch %s", label)
 		gotos[addr] = label
 	end,
 	label = function()
 		local label = next_symbol()
 		labels[label] = here()
 		list_here()
-		list_instr("label <%s>", label)
+		list_instr("label %s", label)
 	end,
 	exit = function()
 		list_here()
