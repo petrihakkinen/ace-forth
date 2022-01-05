@@ -21,6 +21,8 @@ http://luabinaries.sourceforge.net/
 
 A precompiled executable for macOS comes with the compiler in the 'tools' directory.
 
+If you are a Sublime Text user, you might also want to install the following Forth syntax plugin with ace-forth support:
+https://github.com/petrihakkinen/sublime-forth
 
 ## Usage
 
@@ -35,7 +37,7 @@ A precompiled executable for macOS comes with the compiler in the 'tools' direct
 	  --no-headers              (unsafe) Eliminate word headers, except for main word
 	  --optimize                Enable all safe optimizations
 	  --verbose                 Print information while compiling
-	  --main <name>             Sets name of main executable word (default 'MAIN')
+	  --main <name>             Sets name of main executable word (default 'main')
 	  --filename <name>         Sets the filename for tap header (default 'dict')
 
 On Windows which does not support shebangs you need to prefix the command line with path to the Lua interpreter.
