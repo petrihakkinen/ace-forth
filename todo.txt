@@ -21,4 +21,14 @@
 
 - fast loops: -LOOP
 
-- mcode version of +LOOP
+- implement mcode version of +LOOP
+
+- any mcode word that uses stk_pop_bc can be made faster by extracting the code to subroutine and inlining stk_pop_bc there
+
+- mcode: optimize ."
+	- jump over string data can be avoided if strings are placed after the word
+	- we need to store strings and where to patch their addresses until ;
+
+- mcode: optimize AND OR XOR 
+	- if lo/hi byte is zero (or $ff), half of the code may be eliminated
+	- at least zero upper byte is common case
