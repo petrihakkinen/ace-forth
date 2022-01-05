@@ -1091,15 +1091,33 @@ local dict = {
 		elseif lit == 4 then
 			_sla(E); list_comment("4 c*")
 			_sla(E)
-		elseif lit == 8 then
-			_sla(E); list_comment("8 c*")
-			_sla(E)
-			_sla(E)
 		elseif lit then
 			emit_literal(lit)
 			_call(mult8_addr); list_comment("c*")
 		else
 			_call(mult8_addr); list_comment("c*")
+		end
+	end,
+	['/'] = function()
+		local lit = erase_literal()
+		if lit == 1 then
+			-- nothing to do
+		elseif lit == 2 then
+			_sra(D); list_comment("2 /")
+			_rr(E)
+		elseif lit == 4 then
+			_sra(D); list_comment("4 /")
+			_rr(E)
+			_sra(D)
+			_rr(E)
+		elseif lit == 256 then
+			_ld(E, D); list_comment("256 /")
+			_ld_const(D, 0)
+		elseif lit then
+			emit_literal(lit)
+			call_forth("/")
+		else
+			call_forth("/")
 		end
 	end,
 	['1+'] = function()
@@ -1527,7 +1545,7 @@ local dict = {
 -- The following words do not have fast machine code implementation
 local interpreted_words = {
 	"ufloat", "int", "fnegate", "f/", "f*", "f+", "f-", "f.",
-	"d+", "dnegate", "u/mod", "*/", "mod", "/", "*/mod", "/mod", "u*", "d<", "u<",
+	"d+", "dnegate", "u/mod", "*/", "mod", "*/mod", "/mod", "u*", "d<", "u<",
 	"#", "#s", "u.", ".", "#>", "<#", "sign", "hold",
 	"cls", "slow", "fast", "invis", "vis", "abort", "quit",
 	"line", "word", "number", "convert", "retype", "query",

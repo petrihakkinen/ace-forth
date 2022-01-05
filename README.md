@@ -45,7 +45,7 @@ https://github.com/petrihakkinen/sublime-forth
 On Windows which does not support shebangs you need to prefix the command line with path to the Lua interpreter.
 
 
-## Differences with Jupiter Ace Forth interpreter
+## Differences with Jupiter Ace Forth Interpreter
 
 - Word names are case sensitive by default. However, you can turn off case sensitivity using the `--ignore-case` option. When in case sensitive mode, standard word names should be written in lower case (e.g. `dup` instead of `DUP`).
 
@@ -58,7 +58,7 @@ On Windows which does not support shebangs you need to prefix the command line w
 - Some commonly used words have been shortened: `CONSTANT` -> `CONST`, `LITERAL` -> `LIT`.
 
 
-## News words and features
+## News Words and Features
 
 The compiler supports many extras not found on Jupiter Ace's Forth implementation. Some of the features are unique to this compiler.
 
@@ -87,7 +87,7 @@ The compiler supports many extras not found on Jupiter Ace's Forth implementatio
 - New words `CREATE{` and `}` which work like `CREATE`, but `}` is used to mark the end of the word. This allows the compiler to eliminate unused words defined using `CREATE{`.
 
 
-## Machine code compilation
+## Machine Code Compilation
 
 The word `:m` allows compiling words into native machine code. Such words can be several times, sometimes even an order of magnitude, faster. Machine code words can be called from normal Forth words and vice versa. 
 
@@ -101,18 +101,20 @@ Machine code words, however, have some disadvantages:
 
 - Machine code words are not relocatable. Therefore, when you load a program containing machine code words, there should be no other user defined words defined previously.
 
+### Performance Considerations
+
 Some words contained inside `:m` definitions cannot be compiled into machine code currently. Therefore, there is a performance penalty when the following words are used inside :m definitions:
 
-	UFLOAT INT FNEGATE F/ F* F+ F- F.
-	D+ DNEGATE U/MOD */ MOD / */MOD /MOD U* D< U<
-	# #S U. . #> <# SIGN HOLD
-	CLS SLOW FAST INVIS VIS ABORT QUIT
-	LINE WORD NUMBER CONVERT RETYPE QUERY
+	FNEGATE F+ F- F* F/ F. UFLOAT INT D+ D< DNEGATE U/MOD */ MOD */MOD /MOD U. U* U<
+	. # #S #> <# SIGN HOLD
+	CLS SLOW FAST INVIS VIS ABORT QUIT LINE WORD NUMBER CONVERT RETYPE QUERY
 	ROT PLOT BEEP EXECUTE CALL
 
 It's strongly recommended to not use any of these words inside `:m` definitions!
 
-Additionally it's recommended to use the new word `C*` instead of `*` when multiplying two values if those values and the result fits into 8 bits. The word `C*` is currently only supported inside `:m` definitions.
+The words `*` and `/`, when compiled to machine code, have specializations for values 1, 2, 4 and 256. Multiplying or dividing by any of these values is very fast. Division by any other value falls so the Forth interpreter code which is very slow.
+
+For 8-bit multiplication where both operands and the result fits into 8 bits, it is recommended to use the new word `C*` (it is more than twice as fast as `*`). The word `C*` is currently only supported inside `:m` definitions.
 
 The following table contains some benchmark results comparing the speed of machine code compiled Forth vs. interpreted Forth running on the Jupiter Ace. "Speed up" is how many times faster the machine code version runs.
 

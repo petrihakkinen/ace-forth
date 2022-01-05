@@ -9,8 +9,6 @@
 
 - document remaining words in README
 
-- specialize / for pow2 literals
-
 - extract long & rarely used mcode words to subroutines:
 	2DUP 2OVER ROLL LOOP SPACES > < 0> MIN MAX ABS
 

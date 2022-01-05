@@ -54,16 +54,21 @@ code ei 251 c, 253 c, 233 c,
 	            -123 5 *         -615 chk space
 	            -123 0 *         0 chk space      ( 0 specialization )
 	            -123 1 *         -123 chk space   ( 1 specialization )
-	            -123 2 *         -246 chk space   ( pow2 specialization )
-	            -123 4 *         -492 chk space   ( pow2 specialization )
+	            -123 2 *         -246 chk space   ( 2 specialization )
+	            -123 4 *         -492 chk space   ( 4 specialization )
 	            -123 256 *       -31488 chk space ( 256 specialization )
 	            100 v @ *        10000 chk cr     ( n * n )
 	." C*     " 5 50 c*          250 chk space    ( n * literal )
 	            2 v @ c*         200 chk space    ( n * value )
-	            3 2 c*           6 chk space      ( pow2 specialization )
-	            3 4 c*           12 chk space     ( pow2 specialization )
-	            3 8 c*           24 chk space     ( pow2 specialization )
+	            3 1 c*           3 chk space      ( 1 specialization )
+	            3 2 c*           6 chk space      ( 2 specialization )
+	            3 4 c*           12 chk space     ( 4 specialization )
 	            3 256 c*         0 chk cr         ( out of range specialization )
+	." /      " 1000 3 /         333 chk space    ( Generic algorithm )
+                1000 1 /         1000 chk space   ( 1 specialization )
+                1000 2 /         500 chk space    ( 2 specialization )
+                1000 4 /         250 chk space    ( 4 specialization )
+                1000 256 /       3 chk cr         ( 256 specialization )
 	." 1+     " 5 1+             6 chk cr
 	." 1-     " 5 1-             4 chk cr
 	." 2+     " 1000 2+          1002 chk cr
