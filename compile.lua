@@ -268,20 +268,12 @@ function next_char()
 	return char
 end
 
--- Returns the next symbol from input. Returns nil at end of input.
-function next_symbol(delimiters)
-	delimiters = delimiters or " \n\t"
-
-	-- this is shit
-	comp_assert(#delimiters <= 3)
-	local delimiter1 = delimiters:sub(1, 1)
-	local delimiter2 = delimiters:sub(2, 2)
-	local delimiter3 = delimiters:sub(3, 3)
-
-	-- skip leading delimiters
+-- Returns the next whitespace delimited symbol from input. Returns nil at end of input.
+function next_symbol()
+	-- skip leading whitespaces
 	while true do
 		local char = peek_char()
-		if char == delimiter1 or char == delimiter2 or char == delimiter3 then
+		if char == ' ' or char == '\n' or char == '\t' then
 			next_char()
 		else
 			break
@@ -291,12 +283,26 @@ function next_symbol(delimiters)
 	-- end of file reached?
 	if peek_char() == nil then return nil end
 
-	-- scan for next delimiter character
+	-- scan for next whitespace character
 	local start = cur_pos
 	while true do
 		local char = next_char()
-		if char == delimiter1 or char == delimiter2 or char == delimiter3 or char == nil then
+		if char == ' ' or char == '\n' or char == '\t' or char == nil then
 			return input:sub(start, cur_pos - 2)
+		end
+	end
+end
+
+-- Returns the next symbol up until next occurrence of given delimiter.
+-- Returns nil at the end of input.
+function next_symbol_with_delimiter(delimiter)
+	local start = cur_pos
+	while true do
+		local char = next_char()
+		if char == delimiter then
+			return input:sub(start, cur_pos - 2)
+		elseif char == nil then
+			return nil
 		end
 	end
 end
@@ -317,19 +323,16 @@ function next_number()
 end
 
 -- Reads symbols until end marker has been reached, processing comments.
--- That is, end markers inside comments are handled correctly.
+-- That is, end markers inside comments are ignored.
 function skip_until(end_marker)
 	while true do
 		local sym = next_word()
 		if sym == end_marker then
 			break
 		elseif sym == "\\" then
-			while true do
-				local ch = next_char()
-				if ch == nil or ch == '\n' then break end
-			end
+			next_symbol_with_delimiter('\n')
 		elseif sym == "(" then
-			next_symbol(")")
+			next_symbol_with_delimiter(')')
 		end
 	end
 end
@@ -881,21 +884,18 @@ interpret_dict = {
 		emit_byte(pop() & 0xff)
 	end,
 	['"'] = function()
-		local str = next_symbol('"')
+		local str = next_symbol_with_delimiter('"')
 		for i = 1, #str do
 			emit_byte(str:byte(i))
 		end
 	end,
 	['('] = function()
 		-- skip block comment
-		next_symbol(")")
+		comp_assert(next_symbol_with_delimiter(')'), "unfinished comment")
 	end,
 	['\\'] = function()
 		-- skip line comment
-		while true do
-			local ch = next_char()
-			if ch == nil or ch == '\n' then break end
-		end
+		next_symbol_with_delimiter('\n')
 	end,
 	[']'] = function()
 		comp_assert(previous_compile_mode ~= nil, "] without matching [")
@@ -903,7 +903,7 @@ interpret_dict = {
 		previous_compile_mode = nil
 	end,
 	['."'] = function()
-		local str = next_symbol("\"")
+		local str = next_symbol_with_delimiter("\"")
 		io.write(str)
 	end,
 	dup = function() push(peek(-1)) end,
@@ -1056,7 +1056,7 @@ compile_dict = {
 		compile_mode = false
 	end,
 	['."'] = function()
-		local str = next_symbol("\"")
+		local str = next_symbol_with_delimiter('"')
 		list_here()
 		emit_short(PRINT)
 		emit_short(#str)

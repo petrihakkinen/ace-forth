@@ -1,14 +1,3 @@
-- BUG: empty comments are not parsed correctly! Compiling the following code causes an error:
-: foo ( ) ;
-: bar ( 0 ) ;
-: main bar ;
-
-- mcode optimizations:
-	- eliminate rst 16 (push word) & rst 24 (pop word) pairs (there's bound to be a lot of them!)
-	- similarly dup and ?dup can be much simplified if they are following rst 16 (push word)
-	- alternatively we could always hold top of stack in de
-		- we only need to push de to stack when we call another word, or when we return/exit from mcode word
-
 - add to compile_dict and mcode_dict: 2DUP 2DROP 2OVER NIP 2* 2/ HEX R@
 	- R@ is just an alias for I'
 

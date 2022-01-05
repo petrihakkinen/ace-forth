@@ -1336,7 +1336,7 @@ local dict = {
 		(compile_dict.lit or compile_dict.LIT)()
 	end,
 	['."'] = function()
-		local str = next_symbol("\"")
+		local str = next_symbol_with_delimiter('"')
 		local offset = #str + 2 -- branch offset for jumping over string data
 
 		_exx(); list_comment('."')	-- preserve DE
