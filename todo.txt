@@ -18,5 +18,4 @@
 	- check that the stack is empty at the end of word definition
 
 - mcode:
-	- LOOP generates a lot of code, can it be optimized?
 	- optimize <literal> + and <literal> - as special cases (maybe others too)

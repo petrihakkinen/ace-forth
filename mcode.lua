@@ -741,7 +741,17 @@ local function jump_z(addr)
 	if offset then
 		_jr_z(offset)
 	else
-		_jp_z(offset)
+		_jp_z(addr)
+	end
+end
+
+-- Emits conditional jump which causes a jump to <target> if C flag is clear.
+local function jump_nc(addr)
+	local offset = branch_offset(addr)
+	if offset then
+		_jr_nc(offset)
+	else
+		_jp_nc(addr)
 	end
 end
 
@@ -1267,18 +1277,12 @@ local dict = {
 		_ld(L, C)
 		_scf() -- set carry
 		_sbc(HL, DE)
-		local pos = here()
-		local lpos = list_pos()
-		_jr_c(0)	--> done (placeholder branch offset)
-		_push(BC) -- push limit to return stack
-		_push(DE) -- push counter to return stack
+		_push(BC) -- push limit
+		_push(DE) -- push counter
 		_exx()
-		jump(target)
-		-- patch jump offset
-		write_byte(pos + 1, here() - pos - 2)
-		patch_jump_listing(lpos, pos)
-		-- done:
-		_exx()
+		jump_nc(target)
+		_pop(BC) -- end of loop -> pop limit & counter from stack
+		_pop(BC)
 	end,
 	['+loop'] = function()
 		comp_error("mcode word +LOOP not yet implemented")

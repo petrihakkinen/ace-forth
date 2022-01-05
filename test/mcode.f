@@ -186,7 +186,7 @@ code ei 251 c, 253 c, 233 c,
 	loop ;
 
 :m benchmark-over
-	10 0 do
+	100 0 do
 		over over over over over over over over over over
 		over over over over over over over over over over
 		over over over over over over over over over over
@@ -198,7 +198,7 @@ code ei 251 c, 253 c, 233 c,
 	30000 0 do
 	loop ;
 
-: benchmark-rstack
+:m benchmark-rstack
 	5000 0 do
 		>r r> >r r> >r r> >r r> >r r> >r r> >r r> >r r> 
 		>r r> >r r> >r r> >r r> >r r> >r r> >r r> >r r> 
@@ -236,7 +236,10 @@ code ei 251 c, 253 c, 233 c,
 
 : begin-profile ( -- start-time ) time ;
 
-: end-profile ( start-time -- ) time swap - . cr ;
+: end-profile ( start-time -- )
+	time swap - .
+	1- ( subtract time taken by profiling code )
+	cr ;
 
 : main
 	fast di cls invis
@@ -251,14 +254,14 @@ code ei 251 c, 253 c, 233 c,
 	cr ." All tests passed!" cr cr
 
 	." Running benchmarks..." cr
-	." STACK " begin-profile benchmark-stack end-profile 	( 17829 -> 5792, 3.1 times faster )
-	." OVER  " begin-profile benchmark-over end-profile		( 222 -> 23, 9.7 times faster )
-	." LOOP  " begin-profile benchmark-loop end-profile		( 3454 -> 943, 3.7 times faster )
-	." >R R> " begin-profile benchmark-rstack end-profile 	( 11088 -> 5057, 2.2 times faster )
-	." ARITH " begin-profile benchmark-arith end-profile	( 24795 -> 5312, 4.7 times faster )
-	." 1+    " begin-profile benchmark-1+ end-profile		( 12266 -> 537, 23 times faster )
-	." *     " begin-profile benchmark-* end-profile		( 3430 -> 1996, 1.7 times faster )
-	." C*    " begin-profile benchmark-c* end-profile		( 3430 -> 659, 5.2 times faster )
+	." STACK " begin-profile benchmark-stack end-profile 	( 17829 -> 5771, 3.1 times faster )
+	." OVER  " begin-profile benchmark-over end-profile		( 2204 -> 224, 9.8 times faster )
+	." LOOP  " begin-profile benchmark-loop end-profile		( 3454 -> 878, 3.9 times faster )
+	." >R R> " begin-profile benchmark-rstack end-profile 	( 11088 -> 5046, 2.2 times faster )
+	." ARITH " begin-profile benchmark-arith end-profile	( 24795 -> 5291, 4.7 times faster )
+	." 1+    " begin-profile benchmark-1+ end-profile		( 12266 -> 515, 24 times faster )
+	." *     " begin-profile benchmark-* end-profile		( 3430 -> 1995, 1.7 times faster )
+	." C*    " begin-profile benchmark-c* end-profile		( 3430 -> 657, 5.2 times faster )
 
 	cr ." All done!"
 	;
