@@ -1,10 +1,5 @@
 - would byte size arithmetic make sense? C+ C- C* C< C= C> CXOR CAND COR
 
-- mcode:
-	- optimize <literal> + and <literal> - as special cases (maybe others too)
-
-- mcode: find smaller versions of OVER and 2DUP
-
 - BUG: test/mcode.f does not compile with --optimize
 	test/mcode.f:27: undefined word 'chk2'
 

@@ -447,6 +447,14 @@ function emit_literal(n)
 	end
 end
 
+-- Erases last N emitted bytes from output dictionary.
+function erase(n)
+	for i = here() - n, here() - 1 do
+		mem[i] = 0
+	end
+	output_pos = output_pos - n
+end
+
 -- Returns the address of the next free byte in dictionary in Ace's RAM.
 function here()
 	return output_pos
@@ -713,33 +721,31 @@ end
 function write_listing(...)
 	if opts.listing_file then
 		local str = string.format(...)
+		assert(string.find(str, "\n") == nil, "string may not contain newlines")
 		listing[#listing + 1] = str
-
-		-- find last newline char
-		local npos = string.find(str, "\n[^\n]*$")
-
-		-- update listing line length
-		if npos then
-			listing_line_len = #str - npos
-		else
-			listing_line_len = listing_line_len + #str
-		end
+		listing_line_len = listing_line_len + #str
 	end
+end
+
+function list_newline()
+	listing[#listing + 1] = "\n"
+	listing_line_len = 0
 end
 
 function list_header(name)
 	if opts.listing_file then
-		if #listing == 0 then
-			write_listing("%s:", name)
-		else
-			write_listing("\n\n%s:", name)
+		if #listing > 0 then
+			list_newline()
+			list_newline()
 		end
+		write_listing("%s:", name)
 	end
 end
 
 function list_here()
 	if opts.listing_file then
-		write_listing("\n%04x", here())
+		list_newline()
+		write_listing("%04x", here())
 	end
 end
 
@@ -775,6 +781,16 @@ end
 -- For patching jump instructions after the jump target has been resolved.
 function list_patch(pos, str)
 	listing[pos] = str
+end
+
+-- Erases the last n lines, including the current line, from the listing.
+function list_erase_lines(n)
+	while n > 0 do
+		if listing[#listing] == "\n" then
+			n = n - 1
+		end
+		listing[#listing] = nil
+	end
 end
 
 interpret_dict = {

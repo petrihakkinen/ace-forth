@@ -4,6 +4,9 @@ local labels = {}	-- label -> address for current word
 local gotos = {}	-- address to be patched -> label for current word
 local strings = {}	-- strings to be enclosed into dictionary after current word (str, patch-addr, str, patch-addr, ...)
 
+local literal_value	-- the value of the previously emitted literal
+local literal_pos	-- the dictionary position just after the previously emitted literal
+
 -- Z80 registers
 local A = 7
 local B = 0
@@ -856,11 +859,24 @@ end
 
 local function emit_literal(n, comment)
 	stk_push_de()
-	_ld_const(DE, n)
 	if comment then
 		list_comment(comment)
 	else
 		list_comment("lit %d", n)
+	end
+	_ld_const(DE, n)
+
+	literal_value = n
+	literal_pos = here()
+end
+
+-- Returns the literal that was just emitted, erasing the code that emitted it.
+local function erase_literal()
+	if literal_pos == here() then
+		erase(4)
+		list_erase_lines(2)
+		literal_pos = nil
+		return literal_value
 	end
 end
 
@@ -888,7 +904,7 @@ local dict = {
 			emit_string(str)
 			list_comment('"%s"', str)
 		end
-		
+
 		labels = {}
 		gotos = {}
 		strings = {}
@@ -993,21 +1009,52 @@ local dict = {
 		_push(DE)
 	end,
     ['+'] = function()
-		-- TODO: optimize <literal> + as a special case
-		stk_pop_bc(); list_comment("+")
-		_ex_de_hl()
-		_add(HL, BC)
-		_ex_de_hl()
+		local lit = erase_literal()
+		if lit == 0 then
+			-- nothing to do
+		elseif lit and lit > 0 and lit <= 4 then
+			-- lit*6 cycles, lit*1 bytes
+			_inc(DE); list_comment("%d + ", lit)
+			for i = 2, lit do
+				_inc(DE)
+			end
+		elseif lit then
+			-- 28 cycles, 7 bytes
+			_ex_de_hl(); list_comment("%d + ", lit)
+			_ld_const(DE, lit)
+			_add(HL, DE)
+			_ex_de_hl()
+		else
+			stk_pop_bc(); list_comment("+")
+			_ex_de_hl()
+			_add(HL, BC)
+			_ex_de_hl()
+		end
 	end,
 	['-'] = function()
-		-- TODO: optimize <literal> - as a special case
-		_ld(B, D); list_comment("-")
-		_ld(C, E)
-		stk_pop_de()
-		_ex_de_hl()
-		_or(A) -- clear carry
-		_sbc(HL, BC)
-		_ex_de_hl()
+		local lit = erase_literal()
+		if lit == 0 then
+			-- nothing to do
+		elseif lit and lit > 0 and lit <= 4 then
+			-- lit*6 cycles, lit*1 bytes
+			_dec(DE); list_comment("%d - ", lit)
+			for i = 2, lit do
+				_dec(DE)
+			end
+		elseif lit then
+			_ex_de_hl(); list_comment("%d - ", lit)
+			_ld_const(DE, -lit)
+			_add(HL, DE)
+			_ex_de_hl()
+		else
+			_ld(B, D); list_comment("-")
+			_ld(C, E)
+			stk_pop_de()
+			_ex_de_hl()
+			_or(A) -- clear carry
+			_sbc(HL, BC)
+			_ex_de_hl()
+		end
 	end,
 	['*'] = function()
 		assert(mult16_addr, "mcode subroutines not found")
