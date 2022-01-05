@@ -114,6 +114,20 @@ It's strongly recommended to not use any of these words inside `:m` definitions!
 
 Additionally it's recommended to use the new word `C*` instead of `*` when multiplying two values if those values and the result fits into 8 bits. The word `C*` is currently only supported inside `:m` definitions.
 
+The following table contains some benchmark results comparing the speed of machine code compiled Forth vs. interpreted Forth running on the Jupiter Ace. "Speed up" is how many times faster the machine code version runs.
+
+| Benchmark        | Speed up  | Notes                      |
+| ---------------- | --------- | -------------------------- |
+| Stack ops        | 3.1       | DUP DROP                   |
+| OVER             | 9.8       |                            |
+| Arithmetic       | 4.7       | + -                        |
+| DO LOOP          | 3.9       |                            |
+| 1+               | 24        |                            |
+| 2*               | 22        |                            |
+| 2/               | 282       |                            |
+| *                | 1.7       | 16-bit multiply            |
+| C*               | 5.2       | 8-bit multiply             |
+
 ## Word Index
 
 The following letters are used to denote values on the stack:
