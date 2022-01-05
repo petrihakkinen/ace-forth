@@ -1057,12 +1057,50 @@ local dict = {
 		end
 	end,
 	['*'] = function()
-		assert(mult16_addr, "mcode subroutines not found")
-		_call(mult16_addr); list_comment("*")
+		local lit = erase_literal()
+		if lit == 0 then
+			_ld_const(DE, 0); list_comment("0 *")
+		elseif lit == 1 then
+			-- nothing to do
+		elseif lit == 2 then
+			_sla(E); list_comment("2 *")
+			_rl(D)
+		elseif lit == 4 then
+			_sla(E); list_comment("4 *")
+			_rl(D)
+			_sla(E)
+			_rl(D)
+		elseif lit == 256 then
+			_ld(D, E); list_comment("256 *")
+			_ld_const(E, 0)
+		elseif lit then
+			emit_literal(lit)
+			_call(mult16_addr); list_comment("*")
+		else
+			_call(mult16_addr); list_comment("*")
+		end
 	end,
 	['c*'] = function()
-		assert(mult8_addr, "mcode subroutines not found")
-		_call(mult8_addr); list_comment("c*")
+		local lit = erase_literal()
+		if lit and (lit == 0 or lit >= 256) then
+			_ld_const(DE, 0); list_comment("%d c*", lit)
+		elseif lit == 1 then
+			-- nothing to do
+		elseif lit == 2 then
+			_sla(E); list_comment("2 c*")
+		elseif lit == 4 then
+			_sla(E); list_comment("4 c*")
+			_sla(E)
+		elseif lit == 8 then
+			_sla(E); list_comment("8 c*")
+			_sla(E)
+			_sla(E)
+		elseif lit then
+			emit_literal(lit)
+			_call(mult8_addr); list_comment("c*")
+		else
+			_call(mult8_addr); list_comment("c*")
+		end
 	end,
 	['1+'] = function()
 		_inc(DE); list_comment("1+")
@@ -1445,7 +1483,6 @@ local dict = {
 		_pop(DE)
 		_push(DE)
 		_push(BC)
-		
 	end,
 	j = function()
 		stk_push_de(); list_comment("j")

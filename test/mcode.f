@@ -49,10 +49,21 @@ code ei 251 c, 253 c, 233 c,
 	            500 v @ +        600 chk cr	      ( n + n )
 	." -      " 3 4 -            -1 chk space     ( n - literal )
 	            -1000 -2000 -    1000 chk space
-	            500 v @ -        400 chk cr       ( n - value )    
-	." *      " 1000 5 *         5000 chk space
-	            -123 5 *         -615 chk cr
-	." C*     " 5 50 c*          250 chk cr
+	            500 v @ -        400 chk cr       ( n - n )    
+	." *      " 1000 5 *         5000 chk space   ( n * literal )
+	            -123 5 *         -615 chk space
+	            -123 0 *         0 chk space      ( 0 specialization )
+	            -123 1 *         -123 chk space   ( 1 specialization )
+	            -123 2 *         -246 chk space   ( pow2 specialization )
+	            -123 4 *         -492 chk space   ( pow2 specialization )
+	            -123 256 *       -31488 chk space ( 256 specialization )
+	            100 v @ *        10000 chk cr     ( n * n )
+	." C*     " 5 50 c*          250 chk space    ( n * literal )
+	            2 v @ c*         200 chk space    ( n * value )
+	            3 2 c*           6 chk space      ( pow2 specialization )
+	            3 4 c*           12 chk space     ( pow2 specialization )
+	            3 8 c*           24 chk space     ( pow2 specialization )
+	            3 256 c*         0 chk cr         ( out of range specialization )
 	." 1+     " 5 1+             6 chk cr
 	." 1-     " 5 1-             4 chk cr
 	." 2+     " 1000 2+          1002 chk cr
@@ -261,7 +272,7 @@ code ei 251 c, 253 c, 233 c,
 :m benchmark-c*
 	2
 	1000 0 do
-		2 c* 5 c* 8 c* 10 c* 7 c*
+		2 c* 5 c* 9 c* 10 c* 7 c*
 	loop drop ;
 
 : time ( -- time )
@@ -288,17 +299,17 @@ code ei 251 c, 253 c, 233 c,
 	misc
 
 	cr ." Running benchmarks..." cr
-	\ ." STACK  " begin-profile benchmark-stack end-profile 	( 17829 -> 5771, 3.1 times faster )
-	\ ." OVER   " begin-profile benchmark-over end-profile		( 2204 -> 224, 9.8 times faster )
-	\ ." LOOP   " begin-profile benchmark-loop end-profile		( 3454 -> 878, 3.9 times faster )
-	\ ." >R R>  " begin-profile benchmark-rstack end-profile 	( 11088 -> 5046, 2.2 times faster )
-	\ ." ARITH  " begin-profile benchmark-arith end-profile	( 24795 -> 5291, 4.7 times faster )
+	." STACK  " begin-profile benchmark-stack end-profile 	( 17829 -> 5771, 3.1 times faster )
+	." OVER   " begin-profile benchmark-over end-profile		( 2204 -> 224, 9.8 times faster )
+	." LOOP   " begin-profile benchmark-loop end-profile		( 3454 -> 878, 3.9 times faster )
+	." >R R>  " begin-profile benchmark-rstack end-profile 	( 11088 -> 5046, 2.2 times faster )
+	." ARITH  " begin-profile benchmark-arith end-profile	( 24795 -> 5291, 4.7 times faster )
 	." ARITH2 " begin-profile benchmark-arith2 end-profile	( 27137 -> 841, 32 times faster )
 	." 1+     " begin-profile benchmark-1+ end-profile		( 12266 -> 515, 24 times faster )
 	." 2*     " begin-profile benchmark-2* end-profile		( 14248 -> 659, 22 times faster )
 	." 2/     " begin-profile benchmark-2/ end-profile		( 19151 -> 68, 282 times faster )
-	." *      " begin-profile benchmark-* end-profile		( 3430 -> 1995, 1.7 times faster )
-	." C*     " begin-profile benchmark-c* end-profile		( 3430 -> 657, 5.2 times faster )
+	." *      " begin-profile benchmark-* end-profile		( 3430 -> 1242, 2.8 times faster )
+	." C*     " begin-profile benchmark-c* end-profile		( 3430 -> 534, 6.4 times faster )
 
 	cr i/o
 

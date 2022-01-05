@@ -125,8 +125,8 @@ The following table contains some benchmark results comparing the speed of machi
 | 1+               | 24        |                            |
 | 2*               | 22        |                            |
 | 2/               | 282       |                            |
-| *                | 1.7       | 16-bit multiply            |
-| C*               | 5.2       | 8-bit multiply             |
+| *                | 2.8       | 16-bit multiply            |
+| C*               | 6.4       | 8-bit multiply             |
 
 ## Word Index
 
