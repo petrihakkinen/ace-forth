@@ -60,7 +60,7 @@ On Windows which does not support shebangs you need to prefix the command line w
 
 ## News words and features
 
-The compiler supports many extras not found on Jupiter Ace's Forth implementation. Some of the features are unique to this compiler. The documentation is still a bit lacking, please contact me for more info.
+The compiler supports many extras not found on Jupiter Ace's Forth implementation. Some of the features are unique to this compiler.
 
 - New control flow words `GOTO` and `LABEL`.
 
@@ -113,3 +113,205 @@ Some words contained inside `:m` definitions cannot be compiled into machine cod
 It's strongly recommended to not use any of these words inside `:m` definitions!
 
 Additionally it's recommended to use the new word `C*` instead of `*` when multiplying two values if those values and the result fits into 8 bits. The word `C*` is currently only supported inside `:m` definitions.
+
+## Word Index
+
+The following letters are used to denote values on the stack:
+
+- `x` any value
+- `n` float or integer number
+- `flag` a boolean flag with possible values 1 (representing true) and 0 (representing false)
+- `addr` numeric address in the memory (where compiled words and variables go)
+
+### Stack Manipulation
+
+| Word       | Stack                           | Description                                                         |
+| ---------- | ------------------------------- | ------------------------------------------------------------------- |
+| DUP        | ( x - x x )                     | Duplicate topmost stack element                                     |
+| ?DUP       | ( x - x x )                     | Duplicate topmost stack element unless it is zero                   |
+| DROP       | ( x - )                         | Remove topmost stack element                                        |
+| NIP        | ( x1 x2 - x2 )                  | Remove the second topmost stack element                             |
+| OVER       | ( x1 x2 - x1 x2 x1 )            | Duplicate the second topmost stack element                          |
+| SWAP       | ( x1 x2 - x2 x1 )               | Swap two elements                                                   |
+| ROT        | ( x1 x2 n3 - x2 x3 x1 )         | Rotate three topmost stack elements                                 |
+| PICK       | ( n - x )                       | Duplicate the Nth topmost stack element                             |
+| ROLL       | ( n - )                         | Extract the Nth element from stack, moving it to the top            |
+| 2DUP       | ( x1 x2 - x1 x2 x1 x2 )         | Duplicate two topmost stack elements                                |
+| 2DROP      | ( x x - )                       | Remove two topmost stack elements                                   |
+| 2OVER      | ( x1 x2 n n - x1 x2 n n x1 x2 ) | Duplicates two elements on the stack                                |
+| >R         | S: ( x - ) R: ( - x )           | Move value from data stack to return stack                          |
+| R>         | S: ( - x ) R: ( x - )           | Move value from return stack to data stack                          |
+| R@         | S: ( - x ) R: ( x - x )         | Copy value from return stack to data stack (without removing it)    |
+
+### Arithmetic
+
+| Word       | Stack              | Description                                                         |
+| ---------- | ------------------ | ------------------------------------------------------------------- |
+| +          | ( n n - n )        | Add two values                                                      |
+| -          | ( n n - n )        | Subtract two values                                                 |
+| *          | ( n n - n )        | Multiply two values                                                 |
+| C*         | ( n n - n )        | Multiply two 8-bit values (only available inside :m definitions!)   |
+| /          | ( n1 n2 - n )      | Divide n1 by n2                                                     |
+| 1+         | ( n - n )          | Increment value by 1                                                |
+| 1-         | ( n - n )          | Decrement value by 1                                                |
+| 2+         | ( n - n )          | Increment value by 2                                                |
+| 2-         | ( n - n )          | Decrement value by 2                                                |
+| 2*         | ( n - n )          | Multiply value by 2                                                 |
+| 2/         | ( n - n )          | Divide value by 2                                                   |
+| NEGATE     | ( n - n )          | Negate value                                                        |
+| ABS        | ( n - n )          | Compute the absolute value                                          |
+| MIN        | ( n1 n2 - n )      | Compute the minimum of two values                                   |
+| MAX        | ( n1 n2 - n )      | Compute the maximum of two values                                   |
+| AND        | ( n n - n )        | Compute the bitwise and of two values                               |
+| OR         | ( n n - n )        | Compute the bitwise or of two values                                |
+| XOR        | ( n n - n )        | Compute the bitwise exlusive or of two values                       |
+| F+         |                    |                                                                     |
+| F-         |                    |                                                                     |
+| F*         |                    |                                                                     |
+| F/         |                    |                                                                     |
+| F.         |                    |                                                                     |
+| FNEGATE    |                    |                                                                     |
+| D+         |                    |                                                                     |
+| DNEGATE    |                    |                                                                     |
+| U/MOD      |                    |                                                                     |
+| */         |                    |                                                                     |
+| MOD        |                    |                                                                     |
+| */MOD      |                    |                                                                     |
+| /MOD       |                    |                                                                     |
+| U*         |                    |                                                                     |
+| D<         |                    |                                                                     |
+| U<         |                    |                                                                     |
+| UFLOAT     |                    |                                                                     |
+| INT        |                    |                                                                     |
+
+
+### Memory
+
+| Word       | Stack              | Description                                                       |
+| ---------- | ------------------ | ----------------------------------------------------------------- |
+| @          | ( addr - n )       | Fetch 16-bit value from address                                   |
+| !          | ( n addr - )       | Store 16-bit value at address                                     |
+| C@         | ( addr - n )       | Fetch 8-bit value from address                                    |
+| C!         | ( n addr - )       | Store 8-bit value at address                                      |
+
+
+### Compilation and Execution
+
+| Word              | Stack              | Description                                                             |
+| ----------------- | ------------------ | ----------------------------------------------------------------------  |
+| : \<name\>        | ( - )              | Define new word with name \<name\> ("colon definition")                 |
+| :M \<name\>       | ( - )              | Define new machine code word with name \<name\>                         |
+| ;                 | ( - )              | Mark the end of colon definition, go back to interpreted state          |
+| ,                 | ( n - )            | Enclose 16-bit value to next free location in dictionary                |
+| C,                | ( n - )            | Enclose 8-bit value to next free location in dictionary                 |
+| (                 | ( - )              | Block comment; skip characters until next )                             |
+| \                 | ( - )              | Line comment; skip characters until end of line                         |
+| [                 | ( - )              | Change from compile to interpreter state                                |
+| ]                 | ( - )              | Change from interpreter to compile state                                |
+| "                 | ( - )              | Enclose the following characters up until " into the dictionary         |
+| CREATE \<name\>   | ( - )              | Add new (empty) word to dictionary with name \<name\>                   |
+| CREATE{ \<name\>  | ( - )              | Same as CREATE but the word but be terminated with }                    |
+| }                 | ( - )              | Marks the end of word created with CREATE{ (for dead code elimination)  |
+| CODE \<name\>     | ( - )              | Defines a new word with machine code defined as following bytes of data |
+| CONST \<name\>    | ( n - )            | Capture value to a new word with name \<name\>                          |
+| VARIABLE \<name\> | ( n - )            | Create new 16-bit variable with name \<name\> and with initial value n  |
+| BYTE \<name\>     | ( n - )            | Create new 8-bit variable with name \<name\> and with initial value n   |
+| BYTES             | ( n - )            | Marks the start of bytes to be enclosed in dictionary (; marks the end) |
+| ALLOT             | ( n - )            | Allocates space for n elements from output dictionary                   |
+| ASCII \<char\>    | ( - (n) )          | Emit literal containing the ASCII code of the following symbol          |
+| HERE              | ( - n )            | Push the address of the next free location in output dictionary         |
+| LIT               | ( n - )            | Emit value from data stack to output dictionary                         |
+| IMMEDIATE         | ( - )              | Mark the previous word to be executed immediately when compiling        |
+| POSTPONE \<name\> | ( - )              | Write the compilation address of word \<name\> into the dictionary      |
+| NOINLINE          | ( - )              | Prevent inlining of previously added word                               |
+| FAST              | ( - )              | Turn off stack underflow check                                          |
+| SLOW              | ( - )              | Turn on stack underflow check                                           |
+| CALL              | ( addr - )         | Call a machine code routine. The routine must end with JP (IY)          |
+| EXECUTE           | ( addr - )         | Execute a word given its compilation address                            |
+| INVIS             | ( - )              | Turn off printing of executed words                                     |
+| VIS               | ( - )              | Turn on printing of executed words                                      |
+| ABORT             | ( - )              |                                                                         |
+| QUIT              | ( - )              |                                                                         |
+
+
+### Constants and Variables
+
+| Word            | Stack              | Description                                                         |
+| --------------- | ------------------ | ------------------------------------------------------------------- |
+| TRUE            | ( - 1 )            | Push one                                                            |
+| FALSE           | ( - 0 )            | Push zero                                                           |
+| BL              | ( - n )            | Push 32, the ASCII code of space character                          |
+| BASE            | ( - addr )         | Push the address of built-in numeric base variable                  |
+| DECIMAL         | ( - )              | Switch numeric base to decimal (shortcut for 10 BASE C!)            |
+| HEX             | ( - )              | Switch numeric base to hexadecimal (shortcut for 16 BASE C!)        |
+
+
+### Logical Operations
+
+| Word       | Stack              | Description                                                         |
+| ---------- | ------------------ | ------------------------------------------------------------------- |
+| =          | ( n1 n2 - flag )   | Compare n1 = n2 and set flag accordingly                            |
+| <          | ( n1 n2 - flag )   | Compare n1 < n2 and set flag accordingly                            |
+| >          | ( n1 n2 - flag )   | Compare n1 > n2 and set flag accordingly                            |
+| 0=         | ( n - flag )       | Compare n = 0 and set flag accordingly                              |
+| 0<         | ( n - flag )       | Compare n < 0 and set flag accordingly                              |
+| 0>         | ( n - flag )       | Compare n > 0 and set flag accordingly                              |
+| NOT        | ( n - flag )       | Same as 0=, used to denote inversion of a flag                      |
+
+
+### Control Flow
+
+| Word           | Stack              | Description                                                                       |
+| -------------- | ------------------ | --------------------------------------------------------------------------------- |
+| IF             | ( flag - )         | If flag is zero, skip to next ELSE or THEN, otherwise continue to next statement  |
+| ELSE           | ( - )              | See IF                                                                            |
+| THEN           | ( - n )            | See IF                                                                            |
+| BEGIN          | ( - )              | Mark the beginning of indefinite or until loop                                    |
+| UNTIL          | ( flag - )         | If flag is zero, jump to previous BEGIN, otherwise continue to next statement     |
+| AGAIN          | ( - n )            | Jump (unconditionally) to previous BEGIN                                          |
+| DO             | ( n1 n2 - )        | Initialize do loop, n1 is the limit value, n2 is the initial value of counter     |
+| LOOP           | ( - )              | Increment loop counter by 1, jump to previous DO if counter has not reached limit |
+| +LOOP          | ( n - )            | Add n to counter, jump to previous DO if counter has not reached limit            |
+| REPEAT         | ( - )              | Not currently supported!                                                          |
+| WHILE          | ( - )              | Not currently supported!                                                          |
+| EXIT           | ( - n )            | Exit immediately from current word (make sure return stack is balanced!)          |
+| I              | ( - n )            | Push the loop counter of innermost loop                                           |
+| I'             | ( - n )            | Push the limit value of innermost loop                                            |
+| J              | ( - n )            | Push the loop counter of second innermost loop                                    |
+| LEAVE          | ( - )              | Set the loop counter to limit for innermost loop                                  |
+| LABEL \<name\> | ( - )              | Mark the current position in dictionary with a label                              |
+| GOTO \<name\>  | ( - )              | Jump to a label defined in the current word definition                            |
+
+
+### Input and Output
+
+| Word       | Stack              | Description                                                       |
+| ---------- | ------------------ | ----------------------------------------------------------------- |
+| .          | ( n - )            | Print value using current numeric base followed by space          |
+| ."         | ( - )              | Print the following characters until terminating "                |
+| .S         | ( - )              | Print the contents of the data stack                              |
+| CR         | ( - )              | Print newline character                                           |
+| SPACE      | ( - )              | Print space character                                             |
+| SPACES     | ( n - )            | Print n space characters                                          |
+| EMIT       | ( n - )            | Print character, where n is the ASCII code                        |
+| IN         | ( port - n )       | Read a 8-bit value from I/O port                                  |
+| OUT        | ( n port - )       | Write a 8-bit value to I/O port                                   |
+| AT         | ( y x - )          | Move the cursor to column x on row y                              |
+| TYPE       | ( addr count -- )  | Print a string stored in memory                                   |
+| PLOT       | ( x y n - )        | Plot a pixel at x, y with mode n (0=unplot, 1=plot, 2=move, 3=change) | 
+| INKEY      | ( - n )            | Read current pressed key (0 = not pressed)                        | 
+| CLS        | ( - )              | Clear the screen                                                  | 
+| BEEP       | ( m n - )          | Play sounds (8*m = period in us, n = time in ms)                  | 
+| #          |                    |                                                                   |
+| #S         |                    |                                                                   |
+| U.         |                    |                                                                   |
+| #>         |                    |                                                                   |
+| <#         |                    |                                                                   |
+| SIGN       |                    |                                                                   |
+| HOLD       |                    |                                                                   |
+| LINE       |                    |                                                                   |
+| WORD       |                    |                                                                   |
+| NUMBER     |                    |                                                                   |
+| RETYPE     |                    |                                                                   |
+| QUERY      |                    |                                                                   |
+| CONVERT    |                    |                                                                   |
