@@ -644,6 +644,14 @@ local function _jp_m(addr)
 	list_instr("$%04x", addr)
 end
 
+local function _jp_p(addr)
+	list_here()
+	emit_byte(0xf2)
+	emit_short(addr)
+	list_instr("jp p,")
+	list_instr("$%04x", addr)
+end
+
 local function _jp_indirect_iy()
 	list_here()
 	emit_byte(0xfd)	-- jp (iy)
@@ -791,6 +799,16 @@ local function jump_z(addr)
 		_jr_z(offset)
 	else
 		_jp_z(addr)
+	end
+end
+
+-- Emits conditional jump which causes a jump to <target> if C flag is set.
+local function jump_c(addr)
+	local offset = branch_offset(addr)
+	if offset then
+		_jr_c(offset)
+	else
+		_jp_c(addr)
 	end
 end
 
@@ -1559,7 +1577,6 @@ local dict = {
 	loop = function()
 		comp_assert(cf_pop() == 'do', "LOOP without matching DO")
 		local target = cf_pop()
-		-- TODO: try to optimize this further by taking into account that DO always starts with push BC & push DE
 		_pop(BC); list_comment("loop") -- pop counter
 		_pop(HL) -- pop limit
 		_push(HL) -- push limit
@@ -1574,31 +1591,64 @@ local dict = {
 	['+loop'] = function()
 		comp_assert(cf_pop() == 'do', "+LOOP without matching DO")
 		local target = cf_pop()
-		-- TODO: the step is almost always literal -> this can be specialized for counting up & down!
-		_pop(HL); list_comment("+loop") -- pop counter
-		_add(HL, DE) -- increment loop counter
-		_ld(B, D) -- B contains sign of step
-		_ex_de_hl() -- DE = new counter value
-		_pop(HL) -- pop limit
-		_push(HL) -- push limit
-		_push(DE) -- push counter
-		-- counting up or down?
-		_bit(7, B)
-		_jr_nz(9) --> jump to 'down' if step is negative
-		-- counting up
-		_scf()
-		_sbc(HL, DE) -- HL = limit - counter
-		stk_pop_de() -- does not trash flags or BC
-		_jp_nc(target)	-- when counting up
-		_jr(6) --> continue
-		-- counting down
-		_or(A)	-- clear carry
-		_sbc(HL, DE) -- HL = limit - counter
-		stk_pop_de() -- does not trash flags or BC
-		_jp_m(target) -- when counting down (there is no jr m,<addr> instruction on Z80)
-		-- continue:
-		_pop(BC) -- end of loop -> pop limit & counter from stack
-		_pop(BC)
+
+		local step = erase_literal()
+
+		if step and step >= 0 and step < 32768 then
+			-- specialization for counting up
+			_pop(HL); list_comment("%d +loop (count up)", step) -- pop counter
+			_ld_const(BC, step)
+			_add(HL, BC) -- HL = counter + step
+			_pop(BC) -- pop limit
+			_push(BC) -- push limit
+			_push(HL) -- push counter
+			_or(A)
+			_sbc(HL, BC) -- HL = counter - limit
+			jump_c(target)	-- loop back
+			_pop(BC) -- end of loop -> pop limit & counter from stack
+			_pop(BC)
+		elseif step and step >= 32768 then
+			-- specialization for counting down
+			step = step - 65536
+			_pop(HL); list_comment("%d +loop (count down)", step) -- pop counter
+			_ld_const(BC, step)
+			_add(HL, BC) -- HL = counter + step
+			_pop(BC) -- pop limit
+			_push(BC) -- push limit
+			_push(HL) -- push counter
+			_scf()
+			_sbc(HL, BC) -- HL = counter - limit
+			_jp_p(target) -- there is no jr m,<addr> instruction on Z80!
+			_pop(BC) -- end of loop -> pop limit & counter from stack
+			_pop(BC)
+		else
+			-- counting direction unknown!
+			-- lots of code but this should be very rare
+			_pop(HL); list_comment("+loop") -- pop counter
+			_add(HL, DE) -- increment loop counter
+			_ld(B, D) -- B contains sign of step
+			_ex_de_hl() -- DE = new counter value
+			_pop(HL) -- pop limit
+			_push(HL) -- push limit
+			_push(DE) -- push counter
+			-- counting up or down?
+			_bit(7, B)
+			_jr_nz(9) --> jump to 'down' if step is negative
+			-- counting up
+			_scf()
+			_sbc(HL, DE) -- HL = limit - counter
+			stk_pop_de() -- does not trash flags or BC
+			_jp_nc(target)
+			_jr(6) --> continue
+			-- counting down
+			_or(A)	-- clear carry
+			_sbc(HL, DE) -- HL = limit - counter
+			stk_pop_de() -- does not trash flags or BC
+			_jp_m(target) -- there is no jr m,<addr> instruction on Z80!
+			-- continue:
+			_pop(BC) -- end of loop -> pop limit & counter from stack
+			_pop(BC)
+		end
 	end,
 	['repeat'] = function()
 		comp_error("mcode word REPEAT not yet implemented")

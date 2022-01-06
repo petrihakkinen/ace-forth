@@ -5,6 +5,7 @@ hex
 decimal
 
 100 variable v
+1 variable one
 
 code di 243 c, 253 c, 233 c, 
 code ei 251 c, 253 c, 233 c, 
@@ -172,13 +173,21 @@ code ei 251 c, 253 c, 233 c,
 	." UNTIL  " 6 1 0 0 begin 5 >r until  r> r> r> 5 5 5 chk3 space 6 chk cr
 	." AGAIN  " test-again                1024 chk cr
 	." LOOP   " 0 1000 0 do i + loop      -24788 chk space
+				\ 0 0 -50 do i + loop       -1275 chk space ( Negative counter - TEST FAILS! )
 	            test-loop                 25 chk space
 	            test-leave                11 chk cr
-	." +LOOP  " 0 1000 0 do i + 2 +loop   -12644 chk space ( Count up )
-	            0 0 1000 do i + -2 +loop   -11644 chk cr ( Count down )
-	." I'     " 0 10 0 do i' + loop       100 chk cr
-	." GOTO   " 5 goto skip 6 label skip  5 chk space ( Forward goto )
-	            test-goto                 120 chk cr ( Backward goto )
+
+	( Check negative counter & limit values for both LOOP and +LOOP )
+
+	." +LOOP  " 0 1001 0 do i + 2 +loop      -11644 chk space ( Count up )
+	            0 0 1001 do i + -2 +loop     -11143 chk space ( Count down )
+	            0 500 0 do i + one @ +loop   -6322 chk cr ( Generic )
+\	            0 50 -30 do i + 1 +loop      760 chk space ( Negative counter, count up - TEST FAILS! )
+\	            0 -30 50 do i + -1 +loop     840 chk cr ( Negative counter, count down - TEST FAILS! )
+\	            0 50 -30 do i + one @ +loop  760 chk cr ( Negative counter, Generic - TEST FAILS! )
+	." I'     " 0 10 0 do i' + loop          100 chk cr
+	." GOTO   " 5 goto skip 6 label skip     5 chk space ( Forward goto )
+	            test-goto                    120 chk cr ( Backward goto )
 	;
 
 : push1 1 ;

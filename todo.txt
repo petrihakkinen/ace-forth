@@ -12,7 +12,7 @@
 
 - fast loops: -LOOP
 
-- implement mcode version of +LOOP
+- mcode versions of LOOP and +LOOP fail with count includes negative numbers!
 
 - any mcode word that uses stk_pop_bc can be made faster by extracting the code to subroutine and inlining stk_pop_bc there
 
@@ -20,5 +20,26 @@
 	- probably because it does not clear data stack
 
 - LOOP and +LOOP could be specialized for literal limit, but this is tricky to implement...
+
+		-- specialized version of LOOP with known 8-bit limit
+		_pop(BC); list_comment("loop") -- pop counter
+		_inc(BC)
+		_push(BC) -- push counter
+		_ld(A, C)
+		_cp_const(limit)
+		jump_nc(target)
+		_pop(BC) -- end of loop -> pop limit & counter from stack
+		_pop(BC)
+
+		-- specialized version of LOOP with known 16-bit limit
+		_pop(HL); list_comment("loop") -- pop counter
+		_inc(HL)
+		_push(HL) -- push counter
+		_ld_const(BC, limit)
+		_scf() -- TODO: set or clear carry?
+		_sbc(HL, BC)
+		jump_c(target
+		_pop(BC) -- end of loop -> pop limit & counter from stack
+		_pop(BC)
 
 - can we make machine code version of . or at least call it without call_forth?
