@@ -1,4 +1,4 @@
-- would byte size arithmetic make sense? C+ C- C* C< C= C> CXOR CAND COR
+- would byte size arithmetic make sense? C+ C- C< C= C>
 
 - BUG: test/mcode.f does not compile with --optimize
 	test/mcode.f:27: undefined word 'chk2'
@@ -17,3 +17,5 @@
 - any mcode word that uses stk_pop_bc can be made faster by extracting the code to subroutine and inlining stk_pop_bc there
 
 - stack benchmark crashes
+
+- LOOP and +LOOP could be specialized for literal limit, but this is tricky to implement...

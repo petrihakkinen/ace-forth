@@ -636,6 +636,14 @@ local function _jp_nc(addr)
 	list_instr("$%04x", addr)
 end
 
+local function _jp_m(addr)
+	list_here()
+	emit_byte(0xfa)
+	emit_short(addr)
+	list_instr("jp m,")
+	list_instr("$%04x", addr)
+end
+
 local function _jp_indirect_iy()
 	list_here()
 	emit_byte(0xfd)	-- jp (iy)
@@ -1569,7 +1577,25 @@ local dict = {
 		_pop(BC)
 	end,
 	['+loop'] = function()
-		comp_error("mcode word +LOOP not yet implemented")
+		comp_assert(cf_pop() == 'do', "+LOOP without matching DO")
+		local target = cf_pop()
+		-- TODO: subroutine
+		_pop(HL); list_comment("loop") -- pop counter
+		_pop(BC) -- pop limit
+		_add(HL, DE) -- increment loop counter
+		_ex_de_hl() -- de = new counter value
+		_ld(H, B)
+		_ld(L, C)
+		_scf() -- set carry
+		_sbc(HL, DE) -- HL = limit - counter
+		_push(BC) -- push limit
+		_push(DE) -- push counter
+		stk_pop_de() -- does not trash C flag
+		-- end of subroutine
+		jump_nc(target)	-- when counting up
+		--_jp_m(target) -- when counting down (there is no jr m,<addr> instruction on Z80)
+		_pop(BC) -- end of loop -> pop limit & counter from stack
+		_pop(BC)
 	end,
 	['repeat'] = function()
 		comp_error("mcode word REPEAT not yet implemented")
