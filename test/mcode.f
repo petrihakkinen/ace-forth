@@ -5,7 +5,14 @@ hex
 decimal
 
 100 variable v
+
 1 variable one
+2 variable two
+3 variable three
+
+-1 variable minus-one
+-2 variable minus-two
+-3 variable minus-three
 
 code di 243 c, 253 c, 233 c, 
 code ei 251 c, 253 c, 233 c, 
@@ -191,13 +198,14 @@ code ei 251 c, 253 c, 233 c,
 
 	." AGAIN  " test-again                     1024 chk cr
 
-	." LOOP   " 0 1000 -100 do i + loop        -29838 chk space ( TEST FAILS! )
+	." LOOP   " 0 1000 -100 do i + loop        -29838 chk space
 	            test-loop                      25 chk space
 	            test-leave                     11 chk cr
 
-	." +LOOP  " 0 500 -300 do i + 2 +loop      -25936 chk space ( Count up - TEST FAILS! )
-	            0 -300 500 do i + -3 +loop     26967 chk cr ( Count down - TEST FAILS! )
-	            0 500 -300 do i + one @ +loop  14064 chk cr ( Generic - TEST FAILS! )
+	." +LOOP  " 0 500 -300 do i + 2 +loop      -25936 chk space ( Count up )
+	            0 -300 500 do i + -3 +loop     26967 chk space ( Count down )
+	            0 500 -300 do i + two @ +loop  -25936 chk space ( Generic, count up )
+	            0 -300 500 do i + minus-three @ +loop     26967 chk cr ( Generic, count down )
 
 	." I'     " 0 10 0 do i' + loop            100 chk cr
 

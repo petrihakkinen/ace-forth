@@ -1584,7 +1584,7 @@ local dict = {
 		_push(BC) -- push counter
 		_scf() -- set carry
 		_sbc(HL, BC) -- HL = limit - counter
-		jump_nc(target)
+		_jp_p(target)
 		_pop(BC) -- end of loop -> pop limit & counter from stack
 		_pop(BC)
 	end,
@@ -1604,7 +1604,7 @@ local dict = {
 			_push(HL) -- push counter
 			_or(A)
 			_sbc(HL, BC) -- HL = counter - limit
-			jump_c(target)	-- loop back
+			_jp_m(target)	-- loop back
 			_pop(BC) -- end of loop -> pop limit & counter from stack
 			_pop(BC)
 		elseif step and step >= 32768 then
@@ -1638,7 +1638,7 @@ local dict = {
 			_scf()
 			_sbc(HL, DE) -- HL = limit - counter
 			stk_pop_de() -- does not trash flags or BC
-			_jp_nc(target)
+			_jp_p(target)
 			_jr(6) --> continue
 			-- counting down
 			_or(A)	-- clear carry
