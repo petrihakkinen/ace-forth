@@ -104,7 +104,7 @@ It's strongly recommended to not use any of these words inside `:m` definitions!
 
 The words `*` and `/`, when compiled to machine code, have specializations for values 1, 2, 4 and 256. Multiplying or dividing by any of these values is very fast. Division by any other value falls so the Forth interpreter code which is very slow.
 
-For 8-bit multiplication where both operands and the result fits into 8 bits, it is recommended to use the new word `C*` (it is more than twice as fast as `*`). `C*` is currently only supported inside `:m` definitions.
+For 8-bit multiplication where both operands and the result fits into 8 bits, it is recommended to use the new word `C*` (it is more than twice as fast as `*` when compiled to machine code).
 
 The following table contains some benchmark results comparing the speed of machine code compiled Forth vs. interpreted Forth running on the Jupiter Ace. "Speed up" is how many times faster the machine code version runs.
 
@@ -155,7 +155,7 @@ The following letters are used to denote values on the stack:
 | +          | ( n n - n )        | Add two values                                                      |
 | -          | ( n n - n )        | Subtract two values                                                 |
 | *          | ( n n - n )        | Multiply two values                                                 |
-| C*         | ( n n - n )        | Multiply two 8-bit values (only available inside :m definitions!)   |
+| C*         | ( n n - n )        | Multiply two 8-bit values                                           |
 | /          | ( n1 n2 - n )      | Divide n1 by n2                                                     |
 | 1+         | ( n - n )          | Increment value by 1                                                |
 | 1-         | ( n - n )          | Decrement value by 1                                                |

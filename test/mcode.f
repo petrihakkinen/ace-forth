@@ -287,7 +287,6 @@ code ei 251 c, 253 c, 233 c,
 		2 * 7 * 123 * 256 * 789 *
 	loop drop ;
 
-( This benchmark cannot be run without it being compiled to machine code! )
 :m benchmark-c*
 	2
 	1000 0 do

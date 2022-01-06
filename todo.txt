@@ -1,7 +1,5 @@
 - would byte size arithmetic make sense? C+ C- C* C< C= C> CXOR CAND COR
 
-- implement C* for interpreted Forth
-
 - BUG: test/mcode.f does not compile with --optimize
 	test/mcode.f:27: undefined word 'chk2'
 
