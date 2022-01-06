@@ -1559,6 +1559,7 @@ local dict = {
 	loop = function()
 		comp_assert(cf_pop() == 'do', "LOOP without matching DO")
 		local target = cf_pop()
+		-- TODO: try to optimize this further by taking into account that DO always starts with push BC & push DE
 		_pop(BC); list_comment("loop") -- pop counter
 		_pop(HL) -- pop limit
 		_push(HL) -- push limit
@@ -1573,21 +1574,29 @@ local dict = {
 	['+loop'] = function()
 		comp_assert(cf_pop() == 'do', "+LOOP without matching DO")
 		local target = cf_pop()
-		-- TODO: subroutine
-		_pop(HL); list_comment("loop") -- pop counter
-		_pop(BC) -- pop limit
+		-- TODO: the step is almost always literal -> this can be specialized for counting up & down!
+		_pop(HL); list_comment("+loop") -- pop counter
 		_add(HL, DE) -- increment loop counter
-		_ex_de_hl() -- de = new counter value
-		_ld(H, B)
-		_ld(L, C)
-		_scf() -- set carry
-		_sbc(HL, DE) -- HL = limit - counter
-		_push(BC) -- push limit
+		_ld(B, D) -- B contains sign of step
+		_ex_de_hl() -- DE = new counter value
+		_pop(HL) -- pop limit
+		_push(HL) -- push limit
 		_push(DE) -- push counter
-		stk_pop_de() -- does not trash C flag
-		-- end of subroutine
-		jump_nc(target)	-- when counting up
-		--_jp_m(target) -- when counting down (there is no jr m,<addr> instruction on Z80)
+		-- counting up or down?
+		_bit(7, B)
+		_jr_nz(9) --> jump to 'down' if step is negative
+		-- counting up
+		_scf()
+		_sbc(HL, DE) -- HL = limit - counter
+		stk_pop_de() -- does not trash flags or BC
+		_jp_nc(target)	-- when counting up
+		_jr(6) --> continue
+		-- counting down
+		_or(A)	-- clear carry
+		_sbc(HL, DE) -- HL = limit - counter
+		stk_pop_de() -- does not trash flags or BC
+		_jp_m(target) -- when counting down (there is no jr m,<addr> instruction on Z80)
+		-- continue:
 		_pop(BC) -- end of loop -> pop limit & counter from stack
 		_pop(BC)
 	end,

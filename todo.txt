@@ -20,3 +20,5 @@
 	- probably because it does not clear data stack
 
 - LOOP and +LOOP could be specialized for literal limit, but this is tricky to implement...
+
+- can we make machine code version of . or at least call it without call_forth?

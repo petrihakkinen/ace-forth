@@ -174,8 +174,8 @@ code ei 251 c, 253 c, 233 c,
 	." LOOP   " 0 1000 0 do i + loop      -24788 chk space
 	            test-loop                 25 chk space
 	            test-leave                11 chk cr
-	\ ." +LOOP  " 0 1000 0 do i + 2 +loop   -12644 chk space ( Count up )
-	\             0 0 1000 do i + -2 +loop   -11644 chk cr ( Count down )
+	." +LOOP  " 0 1000 0 do i + 2 +loop   -12644 chk space ( Count up )
+	            0 0 1000 do i + -2 +loop   -11644 chk cr ( Count down )
 	." I'     " 0 10 0 do i' + loop       100 chk cr
 	." GOTO   " 5 goto skip 6 label skip  5 chk space ( Forward goto )
 	            test-goto                 120 chk cr ( Backward goto )
