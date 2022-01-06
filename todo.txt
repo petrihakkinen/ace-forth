@@ -5,8 +5,6 @@
 
 - BUG: 2DUP test fails if chk2 is defined with :m
 
-- BUG: [if], [else], [then], [defined] don't work inside :m definitions
-
 - document remaining words in README
 
 - extract long & rarely used mcode words to subroutines:

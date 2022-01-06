@@ -1606,12 +1606,6 @@ local dict = {
 	exit = function()
 		_ret(); list_comment("exit")
 	end,
-	['('] = function()
-		compile_dict['(']()
-	end,
-	['\\'] = function()
-		compile_dict['\\']()
-	end,
 	['['] = function()
 		compile_dict['[']()
 	end,

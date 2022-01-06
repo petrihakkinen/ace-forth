@@ -1296,10 +1296,11 @@ compile_dict = {
 
 mcode_dict = mcode.get_dict()
 
--- TODO: this does not work with mcode dictionary properly!
-local immediate_words = { "(", "\\", "[if]", "[else]", "[then]", "[defined]" }
-for _, name in ipairs(immediate_words) do
-	compile_dict[name] = assert(interpret_dict[name])
+-- the following words have identical interpreter, compile and mcode behaviors
+for _, name in ipairs{ "(", "\\", "[if]", "[else]", "[then]", "[defined]" } do
+	local func = assert(interpret_dict[name])
+	compile_dict[name] = func
+	mcode_dict[name] = func
 end
 
 -- insert built-in ROM words into compilation dict
