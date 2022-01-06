@@ -48,9 +48,11 @@ code ei 251 c, 253 c, 233 c,
 	." +      " 3 4 +            7 chk space      ( n + literal )
 	            -1000 -2000 +    -3000 chk space
 	            500 v @ +        600 chk cr	      ( n + n )
+
 	." -      " 3 4 -            -1 chk space     ( n - literal )
 	            -1000 -2000 -    1000 chk space
 	            500 v @ -        400 chk cr       ( n - n )    
+
 	." *      " 1000 5 *         5000 chk space   ( n * literal )
 	            -123 5 *         -615 chk space
 	            -123 0 *         0 chk space      ( 0 specialization )
@@ -59,45 +61,60 @@ code ei 251 c, 253 c, 233 c,
 	            -123 4 *         -492 chk space   ( 4 specialization )
 	            -123 256 *       -31488 chk space ( 256 specialization )
 	            100 v @ *        10000 chk cr     ( n * n )
+
 	." C*     " 5 50 c*          250 chk space    ( n * literal )
 	            2 v @ c*         200 chk space    ( n * value )
 	            3 1 c*           3 chk space      ( 1 specialization )
 	            3 2 c*           6 chk space      ( 2 specialization )
 	            3 4 c*           12 chk space     ( 4 specialization )
 	            3 256 c*         0 chk cr         ( out of range specialization )
+
 	." /      " 1000 3 /         333 chk space    ( Generic algorithm )
                 1000 1 /         1000 chk space   ( 1 specialization )
                 1000 2 /         500 chk space    ( 2 specialization )
                 1000 4 /         250 chk space    ( 4 specialization )
                 1000 256 /       3 chk cr         ( 256 specialization )
+
 	." 1+     " 5 1+             6 chk cr
+
 	." 1-     " 5 1-             4 chk cr
+
 	." 2+     " 1000 2+          1002 chk cr
+
 	." 2-     " 1000 2-          998 chk cr
+
 	." 2*     " 1000 2*          2000 chk space
 	            -1000 2*         -2000 chk cr
+
 	." 2/     " 1000 2/          500 chk space
 	            -1000 2/         -500 chk cr
+
 	." NEGATE " 1234 negate      -1234 chk space
 	            -1234 negate     1234 chk cr
+
 	." ABS    " 4892 abs         4892 chk space
 	            -4892 abs        4892 chk cr
+
 	." MIN    " 7000 123 min     123 chk space
 	            -7000 123 min    -7000 chk cr
+
 	." MAX    " 7000 123 max     7000 chk space
 	           -7000 123 max     123 chk cr
+
 	[ hex ]
  	." XOR    " 1234 1111 xor    0325 chk space   ( n xor literal )
  				1fff v @ xor	 1f9b chk space   ( n xor n )
  				1234 0 xor       1234 chk space   ( 0 specialization )
  				1234 11 xor	     1225 chk space   ( lo byte only )
  				1234 1100 xor	 0334 chk cr      ( hi byte only )
+
  	." AND    " 7777 1f1f and    1717 chk space   ( n and literal )
  	            0ff0 v @ and     60 chk space     ( n and n )
  	            ffff 11 and      11 chk space     ( lo byte only )
  	            ffff fa00 and    fa00 chk space   ( hi byte only )
  	            1234 ff and      34 chk space     ( select lo byte )
  	            1234 ff00 and    1200 chk cr      ( select hi byte )
+
  	." OR     " 1234 f0f0 or     f2f4 chk space   ( n or literal )
  	            f0 v @ or        f4 chk space     ( n or n )
  	            1234 ff or       12ff chk space   ( set lo byte )
@@ -167,27 +184,25 @@ code ei 251 c, 253 c, 233 c,
 	r> ;
 
 :m control-flow
-	." IF     " 1 2 if 3 then             1 3 chk2 space
-	            1 0 if 2 else 3 then      1 3 chk2 cr
+	." IF     " 1 2 if 3 then                  1 3 chk2 space
+	            1 0 if 2 else 3 then           1 3 chk2 cr
 
-	." UNTIL  " 6 1 0 0 begin 5 >r until  r> r> r> 5 5 5 chk3 space 6 chk cr
-	." AGAIN  " test-again                1024 chk cr
-	." LOOP   " 0 1000 0 do i + loop      -24788 chk space
-				\ 0 0 -50 do i + loop       -1275 chk space ( Negative counter - TEST FAILS! )
-	            test-loop                 25 chk space
-	            test-leave                11 chk cr
+	." UNTIL  " 6 1 0 0 begin 5 >r until       r> r> r> 5 5 5 chk3 space 6 chk cr
 
-	( Check negative counter & limit values for both LOOP and +LOOP )
+	." AGAIN  " test-again                     1024 chk cr
 
-	." +LOOP  " 0 1001 0 do i + 2 +loop      -11644 chk space ( Count up )
-	            0 0 1001 do i + -2 +loop     -11143 chk space ( Count down )
-	            0 500 0 do i + one @ +loop   -6322 chk cr ( Generic )
-\	            0 50 -30 do i + 1 +loop      760 chk space ( Negative counter, count up - TEST FAILS! )
-\	            0 -30 50 do i + -1 +loop     840 chk cr ( Negative counter, count down - TEST FAILS! )
-\	            0 50 -30 do i + one @ +loop  760 chk cr ( Negative counter, Generic - TEST FAILS! )
-	." I'     " 0 10 0 do i' + loop          100 chk cr
-	." GOTO   " 5 goto skip 6 label skip     5 chk space ( Forward goto )
-	            test-goto                    120 chk cr ( Backward goto )
+	." LOOP   " 0 1000 -100 do i + loop        -29838 chk space ( TEST FAILS! )
+	            test-loop                      25 chk space
+	            test-leave                     11 chk cr
+
+	." +LOOP  " 0 500 -300 do i + 2 +loop      -25936 chk space ( Count up - TEST FAILS! )
+	            0 -300 500 do i + -3 +loop     26967 chk cr ( Count down - TEST FAILS! )
+	            0 500 -300 do i + one @ +loop  14064 chk cr ( Generic - TEST FAILS! )
+
+	." I'     " 0 10 0 do i' + loop            100 chk cr
+
+	." GOTO   " 5 goto skip 6 label skip       5 chk space ( Forward goto )
+	            test-goto                      120 chk cr ( Backward goto )
 	;
 
 : push1 1 ;
