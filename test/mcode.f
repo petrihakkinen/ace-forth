@@ -85,9 +85,23 @@ code ei 251 c, 253 c, 233 c,
 	            -7000 123 min    -7000 chk cr
 	." MAX    " 7000 123 max     7000 chk space
 	           -7000 123 max     123 chk cr
- 	." XOR    " 10123 2063 xor   12164 chk cr
- 	." AND    " 11131 1241 and   89 chk cr
- 	." OR     " 7072 32120 or    32760 chk cr
+	[ hex ]
+ 	." XOR    " 1234 1111 xor    0325 chk space   ( n xor literal )
+ 				1fff v @ xor	 1f9b chk space   ( n xor n )
+ 				1234 0 xor       1234 chk space   ( 0 specialization )
+ 				1234 11 xor	     1225 chk space   ( lo byte only )
+ 				1234 1100 xor	 0334 chk cr      ( hi byte only )
+ 	." AND    " 7777 1f1f and    1717 chk space   ( n and literal )
+ 	            0ff0 v @ and     60 chk space     ( n and n )
+ 	            ffff 11 and      11 chk space     ( lo byte only )
+ 	            ffff fa00 and    fa00 chk space   ( hi byte only )
+ 	            1234 ff and      34 chk space     ( select lo byte )
+ 	            1234 ff00 and    1200 chk cr      ( select hi byte )
+ 	." OR     " 1234 f0f0 or     f2f4 chk space   ( n or literal )
+ 	            f0 v @ or        f4 chk space     ( n or n )
+ 	            1234 ff or       12ff chk space   ( set lo byte )
+ 	            1234 ff00 or     ff34 chk space   ( set hi byte )
+ 	[ decimal ]
 	;
 
 :m rel-ops

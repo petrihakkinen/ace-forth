@@ -316,6 +316,13 @@ local function _xor(r)
 	list_instr("xor %s", reg_name[r])
 end
 
+local function _xor_const(n)
+	list_here()
+	emit_byte(0xee)
+	emit_byte(n)
+	list_instr("xor %d", n)
+end
+
 local function _and(r)
 	assert(r >= 0 and r <= 7, "_and: unknown register")
 	list_here()
@@ -323,11 +330,25 @@ local function _and(r)
 	list_instr("and %s", reg_name[r])
 end
 
+local function _and_const(n)
+	list_here()
+	emit_byte(0xe6)
+	emit_byte(n)
+	list_instr("and %d", n)
+end
+
 local function _or(r)
 	assert(r >= 0 and r <= 7, "_or: unknown register")
 	list_here()
 	emit_byte(0xb0 + r)
 	list_instr("or %s", reg_name[r])
+end
+
+local function _or_const(n)
+	list_here()
+	emit_byte(0xf6)
+	emit_byte(n)
+	list_instr("or %d", n)
 end
 
 local function _ccf()
@@ -1186,31 +1207,97 @@ local dict = {
 		-- skip:
 	end,
 	xor = function()
-		stk_pop_bc(); list_comment("xor")
-		_ld(A, E)
-		_xor(C)
-		_ld(E, A)
-		_ld(A, D)
-		_xor(B)
-		_ld(D, A)
+		local lit = erase_literal()
+		if lit then
+			if (lit & 0xff) ~= 0 then
+				_ld(A, E); list_comment("%d xor", lit)
+				_xor_const(lit & 0xff)
+				_ld(E, A)
+			end
+
+			if (lit & 0xff00) ~= 0 then
+				_ld(A, D)
+				if (lit & 0xff) == 0 then list_comment("%d xor", lit) end
+				_xor_const((lit & 0xff00) >> 8)
+				_ld(D, A)
+			end
+		else
+			stk_pop_bc(); list_comment("xor")
+			_ld(A, E)
+			_xor(C)
+			_ld(E, A)
+			_ld(A, D)
+			_xor(B)
+			_ld(D, A)
+		end
 	end,
 	['and'] = function()
-		stk_pop_bc(); list_comment("and")
-		_ld(A, E)
-		_and(C)
-		_ld(E, A)
-		_ld(A, D)
-		_and(B)
-		_ld(D, A)
+		local lit = erase_literal()
+		if lit then
+			local lo = lit & 0xff
+			local hi = (lit & 0xff00) >> 8
+			local comment = true
+
+			if lo == 0 then
+				_ld_const(E, 0); list_comment("%d and", lit)
+				comment = false
+			elseif lo ~= 0xff then
+				_ld(A, E); list_comment("%d and", lit)
+				_and_const(lo)
+				_ld(E, A)
+				comment = false
+			end
+
+			if hi == 0 then
+				_ld_const(D, 0); if comment then list_comment("%d and", lit) end
+			elseif hi ~= 0xff then
+				_ld(A, D); if comment then list_comment("%d and", lit) end
+				_and_const(hi)
+				_ld(D, A)
+			end
+		else
+			stk_pop_bc(); list_comment("and")
+			_ld(A, E)
+			_and(C)
+			_ld(E, A)
+			_ld(A, D)
+			_and(B)
+			_ld(D, A)
+		end
 	end,
 	['or'] = function()
-		stk_pop_bc(); list_comment("or")
-		_ld(A, E)
-		_or(C)
-		_ld(E, A)
-		_ld(A, D)
-		_or(B)
-		_ld(D, A)
+		local lit = erase_literal()
+		if lit then
+			local lo = lit & 0xff
+			local hi = (lit & 0xff00) >> 8
+			local comment = true
+
+			if lo == 0xff then
+				_ld_const(E, 0xff); list_comment("%d or", lit)
+				comment = false
+			elseif lo ~= 0 then
+				_ld(A, E); list_comment("%d or", lit)
+				_or_const(lo)
+				_ld(E, A)
+				comment = false
+			end
+
+			if hi == 0xff then
+				_ld_const(D, 0xff); if comment then list_comment("%d or", lit) end
+			elseif hi ~= 0 then
+				_ld(A, D); if comment then list_comment("%d or", lit) end
+				_or_const(hi)
+				_ld(D, A)
+			end
+		else
+			stk_pop_bc(); list_comment("or")
+			_ld(A, E)
+			_or(C)
+			_ld(E, A)
+			_ld(A, D)
+			_or(B)
+			_ld(D, A)
+		end
 	end,
 	['not'] = function()
 		_ld(A, D); list_comment("not")
