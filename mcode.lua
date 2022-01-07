@@ -4,8 +4,8 @@ local labels = {}	-- label -> address for current word
 local gotos = {}	-- address to be patched -> label for current word
 local strings = {}	-- strings to be enclosed into dictionary after current word (str, patch-addr, str, patch-addr, ...)
 
-local literal_value	-- the value of the previously emitted literal
-local literal_pos	-- the dictionary position just after the previously emitted literal
+local literal_pos	-- the dictionary position just after the newest emitted literal
+local literal_pos2	-- the dictionary position of the second newest literal
 
 -- Z80 registers
 local A = 7
@@ -468,6 +468,13 @@ local function _sbc(dest, src)
 	list_instr("sbc %s,%s", reg_name[dest], reg_name[src])
 end
 
+local function _cp_const(n)
+	list_here()
+	emit_byte(0xfe)
+	emit_byte(n)
+	list_instr("cp %d", n)
+end
+
 local function _bit(i, r)
 	assert(r >= 0 and r <= 7, "_bit: unknown register")
 	list_here()
@@ -913,17 +920,19 @@ local function emit_literal(n, comment)
 	end
 	_ld_const(DE, n)
 
-	literal_value = n
+	literal_pos2 = literal_pos
 	literal_pos = here()
 end
 
 -- Returns the literal that was just emitted, erasing the code that emitted it.
 local function erase_literal()
 	if literal_pos == here() then
+		local value = read_short(literal_pos - 2)
 		erase(4)
 		list_erase_lines(2)
 		literal_pos = nil
-		return literal_value
+		literal_pos2 = nil
+		return value
 	end
 end
 
@@ -1567,30 +1576,70 @@ local dict = {
 	end,
 	['do'] = function()
 		-- ( limit counter -- )
+
+		-- record limit and counter if they are literals
+		local limit = false
+		local counter = false
+		if literal_pos == here() and literal_pos2 == here() - 4 then
+			limit = read_short(literal_pos2 - 2)
+			counter = read_short(literal_pos - 2)
+		end
+
 		stk_pop_bc(); list_comment("do") -- pop limit
 		_push(BC) -- push limit to return stack
 		_push(DE) -- push counter to return stack
 		stk_pop_de()
+		cf_push(counter)
+		cf_push(limit)
 		cf_push(here())
 		cf_push('do')
 	end,
 	loop = function()
 		comp_assert(cf_pop() == 'do', "LOOP without matching DO")
 		local target = cf_pop()
-		_pop(BC); list_comment("loop") -- pop counter
-		_pop(HL) -- pop limit
-		_push(HL) -- push limit
-		_inc(BC)
-		_push(BC) -- push counter
-		_scf() -- set carry
-		_sbc(HL, BC) -- HL = limit - counter
-		_jp_p(target)
-		_pop(BC) -- end of loop -> pop limit & counter from stack
-		_pop(BC)
+		local limit = cf_pop()
+		local counter = cf_pop()
+
+		if limit and counter and limit >= 0 and limit <= 255 and counter >= 0 and counter <= 255 then
+			-- specialization for unsigned 8-bit loop with known limit
+			_pop(BC); list_comment("loop (8-bit)") -- pop counter
+			_inc(C)
+			_push(BC) -- push counter
+			_ld(A, C)
+			_cp_const(limit)
+			jump_c(target)
+			_pop(BC) -- end of loop -> pop limit & counter from stack
+			_pop(BC)
+		elseif limit then
+			-- specialization for 16-bit loop with known limit
+			_pop(BC); list_comment("loop (16-bit)") -- pop counter
+			_inc(BC)
+			_push(BC) -- push counter
+			_scf() -- set carry
+			_ld_const(HL, limit)
+			_sbc(HL, BC) -- HL = limit - counter
+			_jp_p(target)
+			_pop(BC) -- end of loop -> pop limit & counter from stack
+			_pop(BC)
+		else
+			-- limit unknown
+			_pop(BC); list_comment("loop (generic)") -- pop counter
+			_pop(HL) -- pop limit
+			_push(HL) -- push limit
+			_inc(BC)
+			_push(BC) -- push counter
+			_scf() -- set carry
+			_sbc(HL, BC) -- HL = limit - counter
+			_jp_p(target)
+			_pop(BC) -- end of loop -> pop limit & counter from stack
+			_pop(BC)
+		end
 	end,
 	['+loop'] = function()
 		comp_assert(cf_pop() == 'do', "+LOOP without matching DO")
 		local target = cf_pop()
+		local limit = cf_pop()
+		local counter = cf_pop()
 
 		local step = erase_literal()
 
@@ -1639,7 +1688,7 @@ local dict = {
 			_sbc(HL, DE) -- HL = limit - counter
 			stk_pop_de() -- does not trash flags or BC
 			_jp_p(target)
-			_jr(6) --> continue
+			_jr(7) --> continue
 			-- counting down
 			_or(A)	-- clear carry
 			_sbc(HL, DE) -- HL = limit - counter

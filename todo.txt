@@ -10,34 +10,22 @@
 - extract long & rarely used mcode words to subroutines:
 	2DUP 2OVER ROLL SPACES > < 0> MIN MAX ABS
 
-- fast loops: -LOOP
-
 - any mcode word that uses stk_pop_bc can be made faster by extracting the code to subroutine and inlining stk_pop_bc there
 
-- OVER benchmark crashes
+- BUG: OVER benchmark crashes
 	- probably because it does not clear data stack
 
-- LOOP and +LOOP could be specialized for literal limit, but this is tricky to implement...
-
-		-- specialized version of LOOP with known 8-bit limit
-		_pop(BC); list_comment("loop") -- pop counter
-		_inc(BC)
-		_push(BC) -- push counter
-		_ld(A, C)
-		_cp_const(limit)
-		jump_nc(target)
-		_pop(BC) -- end of loop -> pop limit & counter from stack
-		_pop(BC)
-
-		-- specialized version of LOOP with known 16-bit limit
-		_pop(HL); list_comment("loop") -- pop counter
-		_inc(HL)
-		_push(HL) -- push counter
-		_ld_const(BC, limit)
-		_scf() -- TODO: set or clear carry?
-		_sbc(HL, BC)
-		jump_c(target
-		_pop(BC) -- end of loop -> pop limit & counter from stack
-		_pop(BC)
+- BUG: one of the +LOOP tests fail
+	*** this does not happen if current edits are stashed ***
 
 - can we make machine code version of . or at least call it without call_forth?
+
+- [HEX] STK! STK?
+
+- warning: "+LOOP with non-literal step produces inefficient code!"
+
+- --no-warn option
+
+- document warnings in README
+
+- add xx00 specialization (e.g when adding SCREEN address)

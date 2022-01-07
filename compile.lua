@@ -217,7 +217,7 @@ end
 
 function cf_pop(x)
 	local x = control_flow_stack[#control_flow_stack]
-	comp_assert(x, "control flow stack underflow")
+	comp_assert(x ~= nil, "control flow stack underflow")
 	control_flow_stack[#control_flow_stack] = nil
 	return x
 end
