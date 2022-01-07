@@ -38,6 +38,7 @@ https://github.com/petrihakkinen/sublime-forth
 	  --small-literals          Optimize byte-sized literals
 	  --no-headers              (unsafe) Eliminate word headers, except for main word
 	  --optimize                Enable all safe optimizations
+	  --no-warn                 Disable all warnings
 	  --verbose                 Print information while compiling
 	  --main <name>             Sets name of main executable word (default 'main')
 	  --filename <name>         Sets the filename for tap header (default 'dict')

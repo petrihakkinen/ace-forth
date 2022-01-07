@@ -73,6 +73,8 @@ do
 				opts.verbose = true
 			elseif arg == "--ignore-case" then
 				opts.ignore_case = true
+			elseif arg == "--no-warn" then
+				opts.no_warn = true
 			elseif arg == "--main" then
 				i = i + 1
 				opts.main_word = args[i]
@@ -112,6 +114,7 @@ if #input_files == 0 then
 	print("  --small-literals          Optimize byte-sized literals")
 	print("  --no-headers              (unsafe) Eliminate word headers, except for main word")
 	print("  --optimize                Enable all safe optimizations")
+	print("  --no-warn                 Disable all warnings")
 	print("  --verbose                 Print information while compiling")
 	print("  --main <name>             Sets name of main executable word (default 'main')")
 	print("  --filename <name>         Sets the filename for tap header (default 'dict')")
@@ -254,7 +257,9 @@ function comp_assert(expr, message)
 end
 
 function warn(...)
-	printf("%s:%d: Warning! %s", input_file, cur_line, string.format(...))
+	if not opts.no_warn then
+		printf("%s:%d: Warning! %s", input_file, cur_line, string.format(...))
+	end
 end
 
 function push(v)
@@ -732,8 +737,10 @@ function write_listing(...)
 end
 
 function list_newline()
-	listing[#listing + 1] = "\n"
-	listing_line_len = 0
+	if opts.listing_file then
+		listing[#listing + 1] = "\n"
+		listing_line_len = 0
+	end
 end
 
 function list_header(name)
@@ -784,16 +791,20 @@ end
 -- Patches an entry in the listing file.
 -- For patching jump instructions after the jump target has been resolved.
 function list_patch(pos, str)
-	listing[pos] = str
+	if opts.listing_file then
+		listing[pos] = str
+	end
 end
 
 -- Erases the last n lines, including the current line, from the listing.
 function list_erase_lines(n)
-	while n > 0 do
-		if listing[#listing] == "\n" then
-			n = n - 1
+	if opts.listing_file then
+		while n > 0 do
+			if listing[#listing] == "\n" then
+				n = n - 1
+			end
+			listing[#listing] = nil
 		end
-		listing[#listing] = nil
 	end
 end
 
