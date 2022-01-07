@@ -135,7 +135,6 @@ local cur_pos							-- current position in input
 local cur_line							-- current line in input
 local compile_mode = false				-- interpret or compile mode?
 local prev_compile_mode					-- previous value of compile_mode (before [ was invoked)
-local compile_bytes = false				-- are we between BYTES and ; ?
 local stack = {}						-- the compiler stack
 local mem = { [0] = 10 }				-- compiler memory
 local output_pos = start_address		-- current output position in the dictionary
@@ -935,10 +934,8 @@ interpret_dict = {
 	end,
 	bytes = function()	-- emit bytes, terminated by ; symbol
 		push('bytes')
-		compile_bytes = true
 	end,
-	[';'] = function()
-		comp_assert(compile_bytes, "invalid use of ;")
+	[';bytes'] = function()
 		-- find start of bytes block
 		local start
 		for i = #stack, 1, -1 do
@@ -947,6 +944,7 @@ interpret_dict = {
 				break
 			end
 		end
+		comp_assert(start, "invalid use of ;BYTES")
 		for i = start + 1, #stack do
 			emit_byte(stack[i])
 			stack[i] = nil

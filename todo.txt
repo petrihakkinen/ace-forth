@@ -13,10 +13,6 @@
 
 - [HEX] STK! STK?
 
-- BYTES should be terminated with ;BYTES
-
-- [IF] [ELSE] [THEN] [DEFINED] missing from readme
-
 - document warnings in README
 
 - add xx00 specialization (e.g when adding SCREEN address)

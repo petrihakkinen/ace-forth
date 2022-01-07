@@ -112,20 +112,23 @@ The following table contains some benchmark results comparing the speed of machi
 | Benchmark        | Speed up  | Notes                      |
 | ---------------- | --------- | -------------------------- |
 | Stack ops        | 3.1       | DUP DROP                   |
-| OVER             | 9.8       |                            |
+| OVER             | 9.5       |                            |
 | Arithmetic       | 4.7       | + -                        |
-| DO LOOP          | 3.9       |                            |
-| 1+               | 24        |                            |
+| DO LOOP          | 7.5       |                            |
+| 1+               | 26        |                            |
 | 2*               | 22        |                            |
-| 2/               | 282       |                            |
+| 2/               | 294       |                            |
 | *                | 2.8       | 16-bit multiply            |
-| C*               | 6.4       | 8-bit multiply             |
+| C*               | 6.5       | 8-bit multiply             |
+
 
 ## Word Index
 
 The following letters are used to denote values on the stack:
 
 - `n` number (16-bit signed integer)
+- `d` double length number (32-bit signed integer) occupying two stack slots
+- `f` floating point number occupying two stack slots
 - `flag` a boolean flag with possible values 1 (representing true) and 0 (representing false)
 - `addr` numeric address in the memory (where compiled words and variables go)
 
@@ -153,10 +156,10 @@ The following letters are used to denote values on the stack:
 
 | Word       | Stack              | Description                                                         |
 | ---------- | ------------------ | ------------------------------------------------------------------- |
-| +          | ( n n - n )        | Add two values                                                      |
-| -          | ( n n - n )        | Subtract two values                                                 |
-| *          | ( n n - n )        | Multiply two values                                                 |
-| C*         | ( n n - n )        | Multiply two 8-bit values                                           |
+| +          | ( n n - n )        | Add two integers                                                    |
+| -          | ( n n - n )        | Subtract two integers                                               |
+| *          | ( n n - n )        | Multiply two integers                                               |
+| C*         | ( n n - n )        | Multiply two 8-bit integers                                         |
 | /          | ( n1 n2 - n )      | Divide n1 by n2                                                     |
 | 1+         | ( n - n )          | Increment value by 1                                                |
 | 1-         | ( n - n )          | Decrement value by 1                                                |
@@ -166,29 +169,42 @@ The following letters are used to denote values on the stack:
 | 2/         | ( n - n )          | Divide value by 2                                                   |
 | NEGATE     | ( n - n )          | Negate value                                                        |
 | ABS        | ( n - n )          | Compute the absolute value                                          |
-| MIN        | ( n1 n2 - n )      | Compute the minimum of two values                                   |
-| MAX        | ( n1 n2 - n )      | Compute the maximum of two values                                   |
-| AND        | ( n n - n )        | Compute the bitwise and of two values                               |
-| OR         | ( n n - n )        | Compute the bitwise or of two values                                |
-| XOR        | ( n n - n )        | Compute the bitwise exlusive or of two values                       |
-| F+         |                    |                                                                     |
-| F-         |                    |                                                                     |
-| F*         |                    |                                                                     |
-| F/         |                    |                                                                     |
-| F.         |                    |                                                                     |
-| FNEGATE    |                    |                                                                     |
-| D+         |                    |                                                                     |
-| DNEGATE    |                    |                                                                     |
+| MIN        | ( n1 n2 - n )      | Compute the minimum of two integers                                 |
+| MAX        | ( n1 n2 - n )      | Compute the maximum of two integers                                 |
+| AND        | ( n n - n )        | Compute the bitwise and of two integers                             |
+| OR         | ( n n - n )        | Compute the bitwise or of two integers                              |
+| XOR        | ( n n - n )        | Compute the bitwise exlusive or of two integers                     |
+| F+         | ( f f - f )        | Add two floating point numbers                                      |
+| F-         | ( f f - f )        | Subtract two floating point numbers                                 |
+| F*         | ( f f - f )        | Multiply two floating point numbers                                 |
+| F/         | ( f f - f )        | Divide two floating point numbers                                   |
+| F.         | ( f - )            | Print floating point number                                         |
+| FNEGATE    | ( f - f )          | Negate floating point number                                        |
+| D+         | ( d d -  d )       | Add two double length integers                                      |
+| DNEGATE    | ( d - d )          | Negate double length integer                                        |
 | U/MOD      |                    |                                                                     |
 | */         |                    |                                                                     |
 | MOD        |                    |                                                                     |
 | */MOD      |                    |                                                                     |
 | /MOD       |                    |                                                                     |
 | U*         |                    |                                                                     |
-| D<         |                    |                                                                     |
-| U<         |                    |                                                                     |
 | UFLOAT     |                    |                                                                     |
 | INT        |                    |                                                                     |
+
+
+### Comparison Operations
+
+| Word       | Stack              | Description                                                         |
+| ---------- | ------------------ | ------------------------------------------------------------------- |
+| =          | ( n1 n2 - flag )   | Compare n1 = n2 and set flag accordingly                            |
+| <          | ( n1 n2 - flag )   | Compare n1 < n2 and set flag accordingly                            |
+| >          | ( n1 n2 - flag )   | Compare n1 > n2 and set flag accordingly                            |
+| D<         | ( d1 d1 - flag )   | Compute less than of two double length integers                     |
+| U<         | ( n1 n2 - flag )   | Compute less than of two integers, interpreting them as unsigned numbers |
+| 0=         | ( n - flag )       | Compare n = 0 and set flag accordingly                              |
+| 0<         | ( n - flag )       | Compare n < 0 and set flag accordingly                              |
+| 0>         | ( n - flag )       | Compare n > 0 and set flag accordingly                              |
+| NOT        | ( n - flag )       | Same as 0=, used to denote inversion of a flag                      |
 
 
 ### Memory
@@ -210,11 +226,11 @@ The following letters are used to denote values on the stack:
 | ;                 | ( - )              | Mark the end of colon definition, go back to interpreted state          |
 | ,                 | ( n - )            | Enclose 16-bit value to next free location in dictionary                |
 | C,                | ( n - )            | Enclose 8-bit value to next free location in dictionary                 |
+| "                 | ( - )              | Enclose the following characters up until " into the dictionary         |
 | (                 | ( - )              | Block comment; skip characters until next )                             |
 | \                 | ( - )              | Line comment; skip characters until end of line                         |
 | [                 | ( - )              | Change from compile to interpreter state                                |
 | ]                 | ( - )              | Change from interpreter to compile state                                |
-| "                 | ( - )              | Enclose the following characters up until " into the dictionary         |
 | CREATE \<name\>   | ( - )              | Add new (empty) word to dictionary with name \<name\>                   |
 | CREATE{ \<name\>  | ( - )              | Same as CREATE, except the end of the word must be marked with }        |
 | }                 | ( - )              | Marks the end of word created with CREATE{ (for dead code elimination)  |
@@ -222,7 +238,8 @@ The following letters are used to denote values on the stack:
 | CONST \<name\>    | ( n - )            | Capture value to a new word with name \<name\>                          |
 | VARIABLE \<name\> | ( n - )            | Create new 16-bit variable with name \<name\> and with initial value n  |
 | BYTE \<name\>     | ( n - )            | Create new 8-bit variable with name \<name\> and with initial value n   |
-| BYTES             | ( n - )            | Marks the start of bytes to be enclosed in dictionary (; marks the end) |
+| BYTES             | ( n - )            | Enclose to the dictionary all bytes pushed on the stack between BYTES and ;BYTES |
+| ;BYTES            | ( - )              | Mark the end of BYTES.                                                  |
 | ALLOT             | ( n - )            | Allocates space for n elements from output dictionary                   |
 | ASCII \<char\>    | ( - (n) )          | Emit literal containing the ASCII code of the following symbol          |
 | HERE              | ( - n )            | Push the address of the next free location in output dictionary         |
@@ -230,6 +247,10 @@ The following letters are used to denote values on the stack:
 | IMMEDIATE         | ( - )              | Mark the previous word to be executed immediately when compiling        |
 | POSTPONE \<name\> | ( - )              | Write the compilation address of word \<name\> into the dictionary      |
 | NOINLINE          | ( - )              | Prevent inlining of previously added word                               |
+| [IF]              | ( flag - )         | Pop a value from compiler stack. If zero, skip until next [ELSE] or [THEN]. |
+| [ELSE]            | ( - )              | See [IF]                                                                |
+| [THEN]            | ( - )              | See [THEN]                                                              |
+| [DEFINED] \<name\> | ( - flag )        | If word named \<name\> is defined, push 1 to compiler stack. Otherwise push 0. |
 | FAST              | ( - )              | Turn off stack underflow check                                          |
 | SLOW              | ( - )              | Turn on stack underflow check                                           |
 | CALL              | ( addr - )         | Call a machine code routine. The routine must end with JP (IY)          |
@@ -253,18 +274,6 @@ The following letters are used to denote values on the stack:
 | HEX             | ( - )              | Switch numeric base to hexadecimal (shortcut for 16 BASE C!)        |
 
 Note: names of constants (i.e. TRUE, FALSE, BL and PAD) are always written in upper-case!
-
-### Logical Operations
-
-| Word       | Stack              | Description                                                         |
-| ---------- | ------------------ | ------------------------------------------------------------------- |
-| =          | ( n1 n2 - flag )   | Compare n1 = n2 and set flag accordingly                            |
-| <          | ( n1 n2 - flag )   | Compare n1 < n2 and set flag accordingly                            |
-| >          | ( n1 n2 - flag )   | Compare n1 > n2 and set flag accordingly                            |
-| 0=         | ( n - flag )       | Compare n = 0 and set flag accordingly                              |
-| 0<         | ( n - flag )       | Compare n < 0 and set flag accordingly                              |
-| 0>         | ( n - flag )       | Compare n > 0 and set flag accordingly                              |
-| NOT        | ( n - flag )       | Same as 0=, used to denote inversion of a flag                      |
 
 
 ### Control Flow
