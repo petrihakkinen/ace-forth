@@ -1,8 +1,5 @@
 - would byte size arithmetic make sense? C+ C- C< C= C>
 
-- BUG: test/mcode.f does not compile with --optimize
-	test/mcode.f:27: undefined word 'chk2'
-
 - BUG: 2DUP test fails if chk2 is defined with :m
 
 - document remaining words in README
@@ -18,6 +15,10 @@
 - can we make machine code version of . or at least call it without call_forth?
 
 - [HEX] STK! STK?
+
+- BYTES should be terminated with ;BYTES
+
+- [IF] [ELSE] [THEN] [DEFINED] missing from readme
 
 - document warnings in README
 

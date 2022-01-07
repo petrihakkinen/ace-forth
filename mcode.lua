@@ -861,7 +861,7 @@ local mult8_addr
 -- Emits invisible subroutine words to be used by mcode words.
 local function emit_subroutines()
 	-- signed 16-bit * 16-bit multiplication routine
-	create_word(0, "_mcode", true)
+	create_word(0, "_mcode", F_INVISIBLE | F_NO_ELIMINATE)
 	mult16_addr = here()
 	list_header("mult16")
 	stk_pop_bc()
@@ -1672,7 +1672,7 @@ local dict = {
 			_pop(BC)
 		else
 			-- counting direction unknown!
-			warn("+LOOP with non-literal step produces very bad code!")
+			warn("+LOOP with non-literal step produces bad code!")
 			-- lots of code but this should be very rare
 			_pop(HL); list_comment("+loop") -- pop counter
 			_add(HL, DE) -- increment loop counter

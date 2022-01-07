@@ -144,9 +144,7 @@ local labels = {}						-- label -> address for current word
 local gotos = {}						-- address to be patched -> label for current word
 local last_word							-- name of last user defined word
 local word_counts = {}					-- how many times each word is used in generated code?
-local words_with_side_exits = {}		-- words that have side exists and therefore can't be inlined
-local noinline_words = {}				-- words that have been explicitly marked as 'noinline'
-local no_eliminate_words = {}			-- words that cannot be eliminated even if they're unused
+local word_flags = {}					-- bitfield of F_* flags
 local mcode_subroutines_emitted = false	-- have subroutines for mcode words been emitted?
 local listing = {}						-- array of strings
 local listing_line_len = 0				-- length of current listing line
@@ -181,6 +179,12 @@ rom_words = {
 	RETYPE = 0x0578, QUERY = 0x058c, LINE = 0x0506, [";"] = 0x04a1, PAD = 0x0499, BASE = 0x048a,
 	CURRENT = 0x0480, CONTEXT = 0x0473, HERE = 0x0460, ABORT = 0x00ab, QUIT = 0x0099
 }
+
+-- word flags
+F_NO_INLINE	= 0x01 			-- words that should never we inlined (explicitly marked as 'noinline' or cannot be inlined)
+F_NO_ELIMINATE = 0x02		-- words that should not be eliminated even when they are not used
+F_HAS_SIDE_EXITS = 0x04		-- words that have side-exits and cannot there be inlined
+F_INVISIBLE = 0x08			-- word cannot be seen from user written code
 
 -- starting addresses of user defined words
 local word_start_addresses = {}
@@ -525,10 +529,12 @@ end
 -- Its word length is also zero. The word length field is updated to correct value when the next word is added.
 -- This means that the last word will have zero in the word length field. This is how the ROM code works too
 -- (and its documented in Jupiter Ace Forth Programming, page 121).
-function create_word(code_field, name, invisible)
-	if name == nil then name = next_word() end
+function create_word(code_field, name, flags)
+	flags = flags or 0
 
 	word_start_addresses[name] = here()
+	word_flags[name] = flags
+	word_counts[name] = word_counts[name] or 0
 
 	local skip_header = false
 	if opts.no_headers and name ~= opts.main_word then skip_header = true end
@@ -561,9 +567,9 @@ function create_word(code_field, name, invisible)
 	compilation_addresses[name] = compilation_addr
 
 	-- add word to compile dictionary so that other words can refer to it when compiling
-	if not invisible then
+	if (flags & F_INVISIBLE) == 0 then
 		compile_dict[name] = function()
-			word_counts[name] = (word_counts[name] or 0) + 1
+			word_counts[name] = word_counts[name] + 1
 			list_here()
 			emit_short(compilation_addr)
 			list_instr(name)
@@ -810,11 +816,9 @@ end
 
 interpret_dict = {
 	create = function()
-		local name = create_word(DO_PARAM)
-
 		-- this word cannot be dead-code eliminated, because we don't know where it ends
 		-- (this is not strictly true since every word has a length field!)
-		no_eliminate_words[name] = true
+		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE)
 
 		-- make it possible to refer to the word from :m definitions
 		local addr = here()
@@ -842,16 +846,21 @@ interpret_dict = {
 	[':'] = function() 
 		local name = next_word()
 		if not eliminate_words[name] then
-			local invisible = false
-			if compile_dict[name] and dont_allow_redefining then invisible = true end
+			local flags = 0
+			if compile_dict[name] and dont_allow_redefining then flags = F_INVISIBLE end
 
-			last_word = create_word(DO_COLON, name, invisible)
+			last_word = create_word(DO_COLON, name, flags)
 			compile_mode = true
 
 			-- make it possible to call user defined Forth words from :m definitions
 			if mcode_dict[name] == nil or not dont_allow_redefining then
 				mcode_dict[name] = function()
 					mcode.call_forth(name)
+
+					word_counts[name] = word_counts[name] + 1
+
+					-- Forth words can never be inlined into mcode words
+					word_flags[name] = word_flags[name] | F_NO_INLINE
 				end
 			end
 		else
@@ -873,6 +882,7 @@ interpret_dict = {
 			-- make it possible to call user defined mcode words from :m definitions
 			mcode_dict[name] = function()
 				mcode.call_mcode(name)
+				word_counts[name] = word_counts[name] + 1
 			end
 
 			compile_mode = "mcode"
@@ -905,15 +915,14 @@ interpret_dict = {
 	noinline = function()
 		-- forbid inlining previous word
 		comp_assert(last_word, "invalid use of NOINLINE")
-		noinline_words[last_word] = true
+		word_flags[last_word] = word_flags[last_word] | F_NO_INLINE
 	end,
 	code = function()
-		local name = create_word(0)
+		local name = create_word(0, next_word(), F_NO_ELIMINATE)
 		write_short(here() - 2, here())	-- patch codefield
-		no_eliminate_words[name] = true
 	end,
 	byte = function()	-- byte-sized variable
-		local name = create_word(DO_PARAM)
+		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE)
 		local value = pop()
 		comp_assert(value >= 0 and value < 256, "byte variable out of range")
 		local addr = here()
@@ -946,7 +955,7 @@ interpret_dict = {
 		compile_bytes = false
 	end,
 	variable = function()
-		local name = create_word(DO_PARAM)
+		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE)
 		local addr = here()
 		emit_short(pop())	-- write variable value to dictionary
 
@@ -1278,7 +1287,7 @@ compile_dict = {
 		list_here()
 		emit_short(rom_words.EXIT)
 		list_instr("exit")
-		words_with_side_exits[last_word] = true
+		word_flags[last_word] = word_flags[last_word] | F_HAS_SIDE_EXITS
 	end,
 	ascii = function()
 		local char = next_symbol()
@@ -1391,7 +1400,7 @@ local more_work = false
 if opts.eliminate_unused_words then
 	-- mark unused words for next pass
 	for name in pairs(compilation_addresses) do
-		if word_counts[name] == nil and name ~= opts.main_word and not no_eliminate_words[name] then
+		if word_counts[name] == 0 and name ~= opts.main_word and (word_flags[name] & F_NO_ELIMINATE) == 0 then
 			if opts.verbose then print("Eliminating unused word: " .. name) end
 			eliminate_words[name] = true
 			more_work = true
@@ -1402,11 +1411,11 @@ end
 -- inline words that are used only once and have no side exits
 if opts.inline_words then
 	for name, compilation_addr in pairs(compilation_addresses) do
-		if word_counts[name] == 1 and not noinline_words[name] then
+		if word_counts[name] == 1 and (word_flags[name] & F_NO_INLINE) == 0 then
 			-- check that it's a colon definition
 			if read_short(compilation_addr) == DO_COLON then
 				-- check for side exits
-				if not words_with_side_exits[name] then
+				if (word_flags[name] & F_HAS_SIDE_EXITS) == 0 then
 					if opts.verbose then print("Inlining word: " .. name) end
 					inline_words[name] = true
 					more_work = true
