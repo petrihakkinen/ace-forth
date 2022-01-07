@@ -15,17 +15,15 @@
 - BUG: OVER benchmark crashes
 	- probably because it does not clear data stack
 
-- BUG: one of the +LOOP tests fail
-	*** this does not happen if current edits are stashed ***
-
 - can we make machine code version of . or at least call it without call_forth?
 
 - [HEX] STK! STK?
-
-- warning: "+LOOP with non-literal step produces inefficient code!"
 
 - --no-warn option
 
 - document warnings in README
 
 - add xx00 specialization (e.g when adding SCREEN address)
+
+- BUG: errors and warnings have incorrect line number for words at the end of the line
+	- store last_word_line in next_symbol

@@ -280,7 +280,7 @@ code ei 251 c, 253 c, 233 c,
 		( TODO: Reset stack here )
 	loop ;
 
-: benchmark-loop
+:m benchmark-loop
 	200 0 do
 		200 0 do loop
 	loop ;

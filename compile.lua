@@ -253,6 +253,10 @@ function comp_assert(expr, message)
 	end
 end
 
+function warn(...)
+	printf("%s:%d: Warning! %s", input_file, cur_line, string.format(...))
+end
+
 function push(v)
 	stack[#stack + 1] = v
 end
@@ -1396,7 +1400,7 @@ if opts.inline_words then
 					inline_words[name] = true
 					more_work = true
 				else
-					printf("Warning! Word '%s' has side exits and cannot be inlined", name)
+					warn("Word '%s' has side exits and cannot be inlined", name)
 				end
 			end
 		end

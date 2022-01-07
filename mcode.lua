@@ -1672,6 +1672,7 @@ local dict = {
 			_pop(BC)
 		else
 			-- counting direction unknown!
+			warn("+LOOP with non-literal step produces very bad code!")
 			-- lots of code but this should be very rare
 			_pop(HL); list_comment("+loop") -- pop counter
 			_add(HL, DE) -- increment loop counter
