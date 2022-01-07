@@ -2,6 +2,8 @@
 
 hex
 2400 const SCREEN
+3C37 const STKBOT
+3C3B const SPARE
 decimal
 
 100 variable v
@@ -277,7 +279,7 @@ code ei 251 c, 253 c, 233 c,
 		over over over over over over over over over over
 		over over over over over over over over over over
 		over over over over over over over over over over
-		( TODO: Reset stack here )
+		STKBOT @ 14 + SPARE ! ( Reset stack, except profile start time )
 	loop ;
 
 :m benchmark-loop
@@ -357,7 +359,7 @@ code ei 251 c, 253 c, 233 c,
 
 	cr ." Running benchmarks..." cr
 	." STACK  " begin-profile benchmark-stack end-profile 	    ( 17829 -> 5721, 3.1 times faster )
-	\ ." OVER   " begin-profile benchmark-over end-profile		( 2204 -> 224, 9.8 times faster )
+	." OVER   " begin-profile benchmark-over end-profile		( 2257 -> 237, 9.5 times faster )
 	." LOOP   " begin-profile benchmark-loop end-profile		( 4676 -> 621, 7.5 times faster )
 	." >R R>  " begin-profile benchmark-rstack end-profile 	    ( 11088 -> 5022, 2.2 times faster )
 	." ARITH  " begin-profile benchmark-arith end-profile	    ( 24795 -> 5242, 4.7 times faster )
