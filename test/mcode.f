@@ -158,10 +158,17 @@ code ei 251 c, 253 c, 233 c,
 	            -3000 5000 >     0 chk space
 	            -1000 -2000 >    1 chk space
 	            -2000 -1000 >    0 chk space
+	            1000 1000 >      0 chk space
+	            -1000 -1000 >    0 chk space
 	            0 0 >            0 chk cr
 
 	." <      " 3000 5000 <      1 chk space
 	            5000 -3000 <     0 chk space
+	            -3000 5000 <     1 chk space
+	            -1000 -2000 <    0 chk space
+	            -2000 -1000 <    1 chk space
+	            1000 1000 <      0 chk space
+	            -1000 -1000 <    0 chk space
 	            0 0 <            0 chk cr
 	;
 
