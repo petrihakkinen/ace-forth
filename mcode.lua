@@ -771,17 +771,35 @@ end
 
 -- Pushes DE on Forth stack, trashes HL.
 local function stk_push_de()
-	_rst(16); list_comment("stk_push_de")
+	_rst(16)
 end
 
 -- Pops value from Forth stack and puts it in DE register, trashes HL.
 local function stk_pop_de()
-	_rst(24); list_comment("stk_pop_de")
+	_rst(24)
 end
 
 -- Pops value from Forth stack and puts it in BC register.
 local function stk_pop_bc()
-	_call(0x084e); list_comment("stk_pop_bc")
+	_call(0x084e)
+end
+
+local function stk_push_de_inline()
+	_ld_fetch(HL, SPARE)
+	_ld(HL_INDIRECT, E)
+	_inc(HL)
+	_ld(HL_INDIRECT, D)
+	_inc(HL)
+	_ld_store(SPARE, HL)
+end
+
+local function stk_pop_de_inline()
+	_ld_fetch(HL, SPARE)
+	_dec(HL)
+	_ld(D, HL_INDIRECT)
+	_dec(HL)
+	_ld(E, HL_INDIRECT)
+	_ld_store(SPARE, HL)
 end
 
 local function stk_pop_bc_inline()
@@ -890,13 +908,32 @@ local function emit_subroutines()
 	_ld(B, HL_INDIRECT)
 	_dec(HL)
 	_ld(C, HL_INDIRECT)
-	_ld(HL_INDIRECT, E)		-- push old top of stack
+	_ld(HL_INDIRECT, E)		-- push old top
 	_inc(HL)
 	_ld(HL_INDIRECT, D)
 	_inc(HL)
 	_ld_store(SPARE, HL)
 	_ld(D, B)				-- second element to DE
 	_ld(E, C)
+	_ret()
+
+	-- over
+	subroutines.over = here()
+	list_comment("subroutine: over")
+	_ld_fetch(HL, SPARE) -- push old top
+	_ld(B, H)
+	_ld(C, L)
+	_ld(HL_INDIRECT, E)
+	_inc(HL)
+	_ld(HL_INDIRECT, D)
+	_inc(HL)
+	_ld_store(SPARE, HL)
+	_dec(BC)  -- second element to DE
+	_ld(A, BC_INDIRECT)
+	_ld(D, A)
+	_dec(BC)
+	_ld(A, BC_INDIRECT)
+	_ld(E, A)
 	_ret()
 
 	-- signed 16-bit * 16-bit multiplication routine
@@ -1014,15 +1051,7 @@ local dict = {
 		-- skip:
 	end,
 	over = function()
-		--> subroutine
-		_ld_fetch(BC, SPARE); list_comment("over")
-		stk_push_de() -- push old top
-		_dec(BC)
-		_ld(A, BC_INDIRECT)
-		_ld(D, A)
-		_dec(BC)
-		_ld(A, BC_INDIRECT)
-		_ld(E, A)
+		_call(subroutines.over); list_comment("over")
 	end,
 	drop = function()
 		stk_pop_de(); list_comment("drop")

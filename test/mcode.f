@@ -371,7 +371,7 @@ code ei 251 c, 253 c, 233 c,
 
 	cr ." Running benchmarks..." cr
 	." STACK  " begin-profile benchmark-stack end-profile 	    ( 17829 -> 5721, 3.1 times faster )
-	." OVER   " begin-profile benchmark-over end-profile		( 2257 -> 237, 9.5 times faster )
+	." OVER   " begin-profile benchmark-over end-profile		( 2257 -> 212, 10.6 times faster )
 	." SWAP   " begin-profile benchmark-swap end-profile		( 15091 -> 3866, 3.9 times faster )
 	." LOOP   " begin-profile benchmark-loop end-profile		( 4676 -> 621, 7.5 times faster )
 	." >R R>  " begin-profile benchmark-rstack end-profile 	    ( 11088 -> 5022, 2.2 times faster )
