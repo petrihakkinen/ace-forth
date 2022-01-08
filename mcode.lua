@@ -7,6 +7,8 @@ local strings = {}	-- strings to be enclosed into dictionary after current word 
 local literal_pos	-- the dictionary position just after the newest emitted literal
 local literal_pos2	-- the dictionary position of the second newest literal
 
+local subroutines = {}	-- addresses of subroutines
+
 -- Z80 registers
 local A = 7
 local B = 0
@@ -782,6 +784,15 @@ local function stk_pop_bc()
 	_call(0x084e); list_comment("stk_pop_bc")
 end
 
+local function stk_pop_bc_inline()
+	_ld_fetch(HL, SPARE)
+	_dec(HL)
+	_ld(B, HL_INDIRECT)
+	_dec(HL)
+	_ld(C, HL_INDIRECT)
+	_ld_store(SPARE, HL)
+end
+
 local function branch_offset(addr)
 	local offset = addr - here() - 2
 	if offset < -128 or offset > 127 then return end	-- branch too long
@@ -867,15 +878,30 @@ local function call_mcode(name)
 	list_comment(name)
 end
 
-local mult16_addr
-local mult8_addr
-
 -- Emits invisible subroutine words to be used by mcode words.
 local function emit_subroutines()
-	-- signed 16-bit * 16-bit multiplication routine
 	create_word(0, "_mcode", F_INVISIBLE | F_NO_ELIMINATE)
-	mult16_addr = here()
-	list_header("mult16")
+
+	-- swap
+	subroutines.swap = here()
+	list_comment("subroutine: swap")
+	_ld_fetch(HL, SPARE)	-- load second element from top of stack to BC
+	_dec(HL)
+	_ld(B, HL_INDIRECT)
+	_dec(HL)
+	_ld(C, HL_INDIRECT)
+	_ld(HL_INDIRECT, E)		-- push old top of stack
+	_inc(HL)
+	_ld(HL_INDIRECT, D)
+	_inc(HL)
+	_ld_store(SPARE, HL)
+	_ld(D, B)				-- second element to DE
+	_ld(E, C)
+	_ret()
+
+	-- signed 16-bit * 16-bit multiplication routine
+	subroutines.mult16 = here()
+	list_header("subroutine: mult16")
 	stk_pop_bc()
 	_ld_const(HL, 0)
 	_ld_const(A, 16)
@@ -896,8 +922,8 @@ local function emit_subroutines()
 
 	-- unsigned 8-bit * 8-bit multiplication routine
 	-- source: http://map.grauw.nl/sources/external/z80bits.html#1.1
-	mult8_addr = here()
-	list_header("mult8")
+	subroutines.mult8 = here()
+	list_header("subroutine: mult8")
 	stk_pop_bc()
 	_ld(H, C)
 	_ld_const(L, 0)
@@ -988,6 +1014,7 @@ local dict = {
 		-- skip:
 	end,
 	over = function()
+		--> subroutine
 		_ld_fetch(BC, SPARE); list_comment("over")
 		stk_push_de() -- push old top
 		_dec(BC)
@@ -1005,10 +1032,7 @@ local dict = {
 		stk_pop_bc(); list_comment("nip")
 	end,
 	swap = function()
-		stk_pop_bc(); list_comment("swap")
-		stk_push_de()
-		_ld(D, B)
-		_ld(E, C)
+		_call(subroutines.swap); list_comment("swap")
 	end,
 	['2dup'] = function()
 		-- over over
@@ -1143,9 +1167,9 @@ local dict = {
 			_ld_const(E, 0)
 		elseif lit then
 			emit_literal(lit)
-			_call(mult16_addr); list_comment("*")
+			_call(subroutines.mult16); list_comment("*")
 		else
-			_call(mult16_addr); list_comment("*")
+			_call(subroutines.mult16); list_comment("*")
 		end
 	end,
 	['c*'] = function()
@@ -1161,9 +1185,9 @@ local dict = {
 			_sla(E)
 		elseif lit then
 			emit_literal(lit)
-			_call(mult8_addr); list_comment("c*")
+			_call(subroutines.mult8); list_comment("c*")
 		else
-			_call(mult8_addr); list_comment("c*")
+			_call(subroutines.mult8); list_comment("c*")
 		end
 	end,
 	['/'] = function()
