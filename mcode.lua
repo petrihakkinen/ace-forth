@@ -1497,32 +1497,59 @@ local dict = {
 	end,
 	['!'] = function()
 		-- ( n addr -- )
-		stk_pop_bc(); list_comment("!")
-		_ex_de_hl()
-		_ld(HL_INDIRECT, C)
-		_inc(HL)
-		_ld(HL_INDIRECT, B)
-		stk_pop_de()
+		local addr = erase_literal()
+		if addr then
+			_ld_store(addr, DE); list_comment("%04x !", addr)
+			stk_pop_de()
+		else
+			stk_pop_bc(); list_comment("!")
+			_ex_de_hl()
+			_ld(HL_INDIRECT, C)
+			_inc(HL)
+			_ld(HL_INDIRECT, B)
+			stk_pop_de()
+		end
 	end,
 	['@'] = function()
 		-- ( addr -- n )
-		_ex_de_hl(); list_comment("@")
-		_ld(E, HL_INDIRECT)
-		_inc(HL)
-		_ld(D, HL_INDIRECT)
+		local addr = erase_literal()
+		if addr then
+			stk_push_de(); list_comment("%04x @", addr)
+			_ld_fetch(DE, addr)
+		else
+			_ex_de_hl(); list_comment("@")
+			_ld(E, HL_INDIRECT)
+			_inc(HL)
+			_ld(D, HL_INDIRECT)
+		end
 	end,
 	['c!'] = function()
 		-- ( n addr -- )
-		stk_pop_bc(); list_comment("c!")
-		_ld(A, C)
-		_ld(DE_INDIRECT, A)
-		stk_pop_de()
+		local addr = erase_literal()
+		if addr then
+			_ld(A, E); list_comment("%04x c!", addr)
+			_ld_store(addr, A)
+			stk_pop_de()
+		else
+			stk_pop_bc(); list_comment("c!")
+			_ld(A, C)
+			_ld(DE_INDIRECT, A)
+			stk_pop_de()
+		end
 	end,
 	['c@'] = function()
 		-- ( addr - n )
-		_ld(A, DE_INDIRECT); list_comment("c@")
-		_ld(E, A)
-		_ld_const(D, 0)
+		local addr = erase_literal()
+		if addr then
+			stk_push_de(); list_comment("%04x c@", addr)
+			_ld_fetch(A, addr)
+			_ld(E, A)
+			_ld_const(D, 0)
+		else
+			_ld(A, DE_INDIRECT); list_comment("c@")
+			_ld(E, A)
+			_ld_const(D, 0)
+		end
 	end,
 	ascii = function()
 		(compile_dict.ascii or compile_dict.ASCII)()

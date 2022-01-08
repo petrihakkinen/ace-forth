@@ -173,8 +173,11 @@ code ei 251 c, 253 c, 233 c,
 	;
 
 :m mem
-	." ! @    " 12345 v ! v @    12345 chk cr
-	." C! C@  " 123 v c! v c@    123 chk cr
+	." ! @    " 12345 v ! v @       12345 chk space ( Literal address )
+	            v 12345 over ! @    12345 chk cr    ( Non-literal address )
+
+	." C! C@  " 123 v c! v c@       123 chk space   ( Literal address )
+	            v 123 over c! c@    123 chk cr      ( Non-literal address )
 	;
 
 :m test-again
