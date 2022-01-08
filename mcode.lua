@@ -676,14 +676,14 @@ local function patch_jump_listing(listing_pos, addr)
 	if opcode < 0x80 then
 		-- relative jump
 		local offset = read_byte(addr + 1)
-		list_patch(listing_pos + 2, string.format(" %02x", offset))
-		list_patch(listing_pos + 5, string.format("$%04x", addr + offset + 2))
+		list_patch(listing_pos + 3, string.format(" %02x", offset))
+		list_patch(listing_pos + 6, string.format("$%04x", addr + offset + 2))
 	else
 		-- absolute jump
 		local target_addr = read_short(addr + 1)
-		list_patch(listing_pos + 2, string.format(" %02x", target_addr & 0xff))
-		list_patch(listing_pos + 3, string.format(" %02x", target_addr >> 8))
-		list_patch(listing_pos + 6, string.format("$%04x", target_addr))
+		list_patch(listing_pos + 3, string.format(" %02x", target_addr & 0xff))
+		list_patch(listing_pos + 4, string.format(" %02x", target_addr >> 8))
+		list_patch(listing_pos + 7, string.format("$%04x", target_addr))
 	end
 end
 
@@ -769,17 +769,17 @@ end
 
 -- Pushes DE on Forth stack, trashes HL.
 local function stk_push_de()
-	_rst(16)
+	_rst(16); list_comment("stk_push_de")
 end
 
 -- Pops value from Forth stack and puts it in DE register, trashes HL.
 local function stk_pop_de()
-	_rst(24)
+	_rst(24); list_comment("stk_pop_de")
 end
 
 -- Pops value from Forth stack and puts it in BC register.
 local function stk_pop_bc()
-	_call(0x084e)
+	_call(0x084e); list_comment("stk_pop_bc")
 end
 
 local function branch_offset(addr)
