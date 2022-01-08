@@ -1070,7 +1070,7 @@ local function erase_literal()
 		local value = read_short(literal_pos - 2)
 		erase(4)
 		list_erase_lines(2)
-		literal_pos = nil
+		literal_pos = literal_pos2
 		literal_pos2 = nil
 		return value
 	end
@@ -1737,10 +1737,26 @@ local dict = {
 			counter = read_short(literal_pos - 2)
 		end
 
-		stk_pop_bc(); list_comment("do") -- pop limit
-		_push(BC) -- push limit to return stack
-		_push(DE) -- push counter to return stack
-		stk_pop_de()
+		if limit and counter then
+			assert(erase_literal() == counter)
+			assert(erase_literal() == limit)
+			_ld_const(BC, limit); list_comment("%d %d do", limit, counter)
+			_push(BC) -- push limit to return stack
+			_ld_const(BC, counter)
+			_push(BC) -- push counter to return stack
+		elseif counter then
+			assert(erase_literal() == counter)
+			_push(DE); list_comment("%d do", counter) -- push limit to return stack
+			_ld_const(DE, counter)
+			_push(DE) -- push counter to return stack
+			stk_pop_de()
+		else
+			stk_pop_bc(); list_comment("do") -- pop limit
+			_push(BC) -- push limit to return stack
+			_push(DE) -- push counter to return stack
+			stk_pop_de()
+		end
+
 		cf_push(counter)
 		cf_push(limit)
 		cf_push(here())

@@ -1,11 +1,13 @@
 - erase_literal for IN and OUT
 
+- short forward branches for IF, ELSE and GOTO
+
 - would byte size arithmetic make sense? C+ C- C< C>
 
 - document remaining words in README
 
 - extract long & rarely used mcode words to subroutines:
-	2DUP 2OVER ROLL SPACES > < 0> MIN MAX ABS
+	2OVER ROLL SPACES 0> MIN MAX ABS
 
 - any mcode word that uses stk_pop_bc can be made faster by extracting the code to subroutine and inlining stk_pop_bc there
 
