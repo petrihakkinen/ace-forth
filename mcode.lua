@@ -830,6 +830,7 @@ local function jump_nc(addr)
 end
 
 local function call_forth(name)
+	-- Calling Forth word from :m word
 	local addr = compilation_addresses[name] or rom_words[string.upper(name)]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
@@ -846,7 +847,18 @@ local function call_forth(name)
 	stk_pop_de()
 end
 
+local function call_code(name)
+	-- Calling word created using CODE from :m word
+	local addr = compilation_addresses[name]
+	if addr == nil then
+		comp_error("could not find compilation address of word %s", name)
+	end
+	_call(addr + 2) -- words created using CODE don't have wrappers
+	list_comment(name)
+end
+
 local function call_mcode(name)
+	-- Calling :m word from another :m word
 	local addr = compilation_addresses[name]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
@@ -1782,5 +1794,6 @@ return {
 	emit_mcode_wrapper = emit_mcode_wrapper,
 	emit_literal = emit_literal,
 	call_forth = call_forth,
+	call_code = call_code,
 	call_mcode = call_mcode,
 }

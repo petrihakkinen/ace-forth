@@ -19,3 +19,8 @@
 	- store last_word_line in next_symbol
 
 - formatting of negative literals in listing files is broken
+
+- add option to compile everything to machine code
+	- maybe it should even replace :m ?
+	- when compiled to machine code, mcode wrappers can be eliminated
+	- we could probably also eliminate all word headers and just compile everything into one word

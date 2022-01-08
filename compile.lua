@@ -919,6 +919,12 @@ interpret_dict = {
 	code = function()
 		local name = create_word(0, next_word(), F_NO_ELIMINATE)
 		write_short(here() - 2, here())	-- patch codefield
+
+		-- make it possible to call CODE words from :m definitions
+		mcode_dict[name] = function()
+			mcode.call_code(name)
+			word_counts[name] = word_counts[name] + 1
+		end
 	end,
 	byte = function()	-- byte-sized variable
 		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE)
