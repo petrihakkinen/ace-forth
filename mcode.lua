@@ -1744,11 +1744,11 @@ local dict = {
 	['."'] = function()
 		local str = next_symbol_with_delimiter('"')
 		strings[#strings + 1] = str	-- store string to be added later
-		_exx(); list_comment('."')	-- preserve DE
+		_push(DE); list_comment('."')	-- preserve DE (can't use EXX because rst 8 routine trashes shadow registers)
 		strings[#strings + 1] = here() + 1 -- store patch location for string addr
 		_ld_const(DE, 0) -- load placeholder string address to DE
 		_call(0x0979) -- call print embedded string routine
-		_exx()
+		_pop(DE)
 	end,
 }
 

@@ -1,7 +1,5 @@
 - would byte size arithmetic make sense? C+ C- C< C= C>
 
-- BUG: 2DUP test fails if chk2 is defined with :m
-
 - document remaining words in README
 
 - extract long & rarely used mcode words to subroutines:

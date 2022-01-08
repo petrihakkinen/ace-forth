@@ -21,15 +21,15 @@ code ei 251 c, 253 c, 233 c,
 
 : fail ." FAILED!" abort ;
 
-: chk ( result expected -- )
+:m chk ( result expected -- )
 	= if ." OK" else fail then ;
 
-: chk2 ( result1 result2 expected1 expected2 -- )
+:m chk2 ( result1 result2 expected1 expected2 -- )
 	rot = >r ( s: result1 expected1 ; r: eq2 )
 	= r> ( s: eq1 eq2 )
 	and if ." OK" else fail then ;
 
-: chk3 ( result1 result2 result3 expected1 expected2 expected3 -- )
+:m chk3 ( result1 result2 result3 expected1 expected2 expected3 -- )
 	4 roll = >r ( s: result1 result2 expected1 expected2 ; r: eq3 )
 	3 roll = >r ( s: result1 expected1 ; r: eq3 eq2 )
 	= r> r> ( s: eq1 eq2 eq3 )
