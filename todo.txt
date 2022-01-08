@@ -1,3 +1,5 @@
+- erase_literal for IN and OUT
+
 - would byte size arithmetic make sense? C+ C- C< C>
 
 - document remaining words in README

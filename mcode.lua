@@ -1484,23 +1484,46 @@ local dict = {
 		_ld(E, A)
 	end,
 	['='] = function()
-		stk_pop_bc(); list_comment("=")
-		_ex_de_hl()
-		_or(A) -- clear carry
-		_sbc(HL, BC)
-		_ld_const(DE, 0)
-		_jr_nz(1) --> skip
-		_inc(E)
-		-- skip:
+		local lit = erase_literal()
+		if lit then
+			_ex_de_hl(); list_comment("%d =", lit)
+			_ld_const(BC, -lit)
+			_or(A) -- clear carry
+			_adc(HL, BC)	-- ADD HL, BC can't be used here because it does not update Z flag!
+			_ld_const(DE, 0)
+			_jr_nz(1) --> skip
+			_inc(E)
+			-- skip:
+		else
+			stk_pop_bc(); list_comment("=")
+			_ex_de_hl()
+			_or(A) -- clear carry
+			_sbc(HL, BC)
+			_ld_const(DE, 0)
+			_jr_nz(1) --> skip
+			_inc(E)
+			-- skip:
+		end
 	end,
 	['c='] = function()
-		_ld(A, E); list_comment("c=")
-		stk_pop_de() -- preserves A
-		_sub(E)
-		_ld_const(DE, 0)
-		_jr_nz(1) --> skip
-		_inc(E)
-		-- skip:
+		local lit = erase_literal()
+		if lit then
+			comp_assert(lit >= 0 and lit <= 255, "Literal outside range for C=")
+			_ld(A, E); list_comment("%d c=", lit)
+			_cp_const(lit)
+			_ld_const(DE, 0)
+			_jr_nz(1) --> skip
+			_inc(E)
+			-- skip:
+		else
+			_ld(A, E); list_comment("c=")
+			stk_pop_de() -- preserves A
+			_sub(E)
+			_ld_const(DE, 0)
+			_jr_nz(1) --> skip
+			_inc(E)
+			-- skip:
+		end
 	end,
 	['>'] = function()
 		_call(subroutines['>']); list_comment(">")

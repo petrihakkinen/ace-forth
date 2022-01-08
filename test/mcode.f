@@ -146,12 +146,16 @@ code ei 251 c, 253 c, 233 c,
 
 	." =      " 3 5 =            0 chk space
 	            12345 12345 =    1 chk space
-	            -12345 12345 =   0 chk cr
+	            -12345 12345 =   0 chk space
+	            100 v @ =        1 chk space    ( Non-literal )
+	            101 v @ =        0 chk cr       ( Non-literal )
 
 	." C=     " 3 5 c=           0 chk space
 	            50 50 c=         1 chk space
-	            257 1025 c=      1 chk space	( Only hi bytes differ )
-	            -50 50 c=        0 chk cr
+	            1024 0 c=        1 chk space	( Only hi bytes differ )
+	            -50 50 c=        0 chk space
+	            100 v c@ c=      1 chk space    ( Non-literal )
+	            101 v c@ c=      0 chk cr       ( Non-literal )
 
 	." >      " 3000 5000 >      0 chk space
 	            5000 -3000 >     1 chk space
