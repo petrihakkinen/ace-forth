@@ -917,6 +917,11 @@ local function emit_subroutines()
 	_ld(E, C)
 	_ret()
 
+	-- 2dup (over over)
+	subroutines['2dup'] = here()
+	_call(here() + 3)
+	-- fall through to over:
+
 	-- over
 	subroutines.over = here()
 	list_comment("subroutine: over")
@@ -1064,23 +1069,7 @@ local dict = {
 		_call(subroutines.swap); list_comment("swap")
 	end,
 	['2dup'] = function()
-		-- over over
-		_ld_fetch(BC, SPARE); list_comment("2dup")
-		stk_push_de() -- push old top
-		_dec(BC)
-		_ld(A, BC_INDIRECT)
-		_ld(D, A)
-		_dec(BC)
-		_ld(A, BC_INDIRECT)
-		_ld(E, A)
-		_ld_fetch(BC, SPARE)
-		stk_push_de() -- push old top
-		_dec(BC)
-		_ld(A, BC_INDIRECT)
-		_ld(D, A)
-		_dec(BC)
-		_ld(A, BC_INDIRECT)
-		_ld(E, A)
+		_call(subroutines['2dup']); list_comment("2dup")
 	end,
 	['2drop'] = function()
 		stk_pop_de(); list_comment("2drop")
