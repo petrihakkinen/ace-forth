@@ -1363,8 +1363,8 @@ local dict = {
 		-- skip:
 	end,
 	['0<'] = function()
+		_xor(A); list_comment("0<")
 		_rl(D); list_comment("0<")
-		_ld_const(A, 0)
 		_ld(D, A)
 		_rla()
 		_ld(E, A)
