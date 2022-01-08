@@ -1028,6 +1028,19 @@ local function emit_subroutines()
 	_rla()
 	_ld(E, A)
 	_ret()
+
+	-- at
+	subroutines.at = here()
+	list_header("subroutine: at")
+	_ld_fetch(HL, SPARE)
+	_dec(HL)
+	_dec(HL)
+	_ld(A, HL_INDIRECT)
+	_ld_store(SPARE, HL)
+	_call(0x0b28)	-- at routine in ROM, in: A = y, E = x
+	_ld_store(SCRPOS, HL)
+	stk_pop_de()
+	_ret()
 end
 
 local function emit_mcode_wrapper()
@@ -1579,11 +1592,7 @@ local dict = {
 		stk_pop_de()
 	end,
 	at = function()
-		_call(0x084e); list_comment("at")
-		_ld(A, C)
-		_call(0x0b28)
-		_ld_store(SCRPOS, HL)
-		stk_pop_de()
+		_call(subroutines.at); list_comment("at")
 	end,
 	type = function()
 		-- ( addr count -- )

@@ -250,7 +250,7 @@ code ei 251 c, 253 c, 233 c,
 	." EMIT   " ascii * emit cr
 	." SPACE  " space ascii * emit cr
 	." SPACES "	2 spaces ascii * emit cr
-	( 10 10 at )
+	( 0 29 at ." AT" )
 	." TYPE   " 15424 5 type space ." RULES" cr
 	;
 
