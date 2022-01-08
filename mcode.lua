@@ -1392,8 +1392,8 @@ local dict = {
 		-- skip:
 	end,
 	['c='] = function()
-		stk_pop_bc(); list_comment("c=")
-		_ld(A, C)
+		_ld(A, E); list_comment("c=")
+		stk_pop_de() -- preserves A
 		_sub(E)
 		_ld_const(DE, 0)
 		_jr_nz(1) --> skip
