@@ -900,6 +900,16 @@ end
 local function emit_subroutines()
 	create_word(0, "_mcode", F_INVISIBLE | F_NO_ELIMINATE)
 
+	-- rot (r swap r> swap)
+	subroutines.rot = here()
+	list_comment("subroutine: rot")
+	_push(DE)
+	stk_pop_de()
+	_call(here() + 5) -- call swap
+	stk_push_de()
+	_pop(DE)
+	-- fall through to swap...
+
 	-- swap
 	subroutines.swap = here()
 	list_comment("subroutine: swap")
@@ -919,8 +929,8 @@ local function emit_subroutines()
 
 	-- 2dup (over over)
 	subroutines['2dup'] = here()
-	_call(here() + 3)
-	-- fall through to over:
+	_call(here() + 3) -- call swap
+	-- fall through to over...
 
 	-- over
 	subroutines.over = here()
@@ -1164,6 +1174,9 @@ local dict = {
 		_ldir()
 		_ld_store(SPARE, DE)
 		stk_pop_de()
+	end,
+	rot = function()
+		_call(subroutines.rot); list_comment("rot")
 	end,
 	['r>'] = function()
 		stk_push_de(); list_comment("r>")
@@ -1927,7 +1940,7 @@ local interpreted_words = {
 	"#", "#s", "u.", ".", "#>", "<#", "sign", "hold",
 	"cls", "slow", "fast", "invis", "vis", "abort", "quit",
 	"line", "word", "number", "convert", "retype", "query",
-	"rot", "plot", "beep", "execute", "call"
+	"plot", "beep", "execute", "call"
 }
 
 for _, name in ipairs(interpreted_words) do

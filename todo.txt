@@ -2,6 +2,8 @@
 
 - short forward branches for IF, ELSE and GOTO
 
+- eliminate mcode wrappers for :m definitions that are not called from Forth?
+
 - would byte size arithmetic make sense? C+ C- C< C>
 
 - document remaining words in README
@@ -26,5 +28,4 @@
 
 - add option to compile everything to machine code
 	- maybe it should even replace :m ?
-	- when compiled to machine code, mcode wrappers can be eliminated
 	- we could probably also eliminate all word headers and just compile everything into one word
