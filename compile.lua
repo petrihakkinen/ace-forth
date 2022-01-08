@@ -1358,6 +1358,7 @@ local library_words = [[
 : hex 16 base c! ;
 : .s 15419 @ here 12 + over over - if do i @ . 2 +loop else drop drop then ;
 : c* * ;
+: c= - 255 and 0= ;
 ]]
 
 -- Compile library words which are not natively available on Jupiter Ace's ROM.

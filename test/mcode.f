@@ -148,6 +148,11 @@ code ei 251 c, 253 c, 233 c,
 	            12345 12345 =    1 chk space
 	            -12345 12345 =   0 chk cr
 
+	." C=     " 3 5 c=           0 chk space
+	            50 50 c=         1 chk space
+	            257 1025 c=      1 chk space	( Only hi bytes differ )
+	            -50 50 c=        0 chk cr
+
 	." >      " 3000 5000 >      0 chk space
 	            5000 -3000 >     1 chk space
 	            0 0 >            0 chk cr

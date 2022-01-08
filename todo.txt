@@ -1,4 +1,4 @@
-- would byte size arithmetic make sense? C+ C- C< C= C>
+- would byte size arithmetic make sense? C+ C- C< C>
 
 - document remaining words in README
 

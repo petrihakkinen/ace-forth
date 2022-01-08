@@ -192,11 +192,12 @@ The following letters are used to denote values on the stack:
 | INT        |                    |                                                                     |
 
 
-### Comparison Operations
+### Comparison
 
 | Word       | Stack              | Description                                                         |
 | ---------- | ------------------ | ------------------------------------------------------------------- |
 | =          | ( n1 n2 - flag )   | Compare n1 = n2 and set flag accordingly                            |
+| C=         | ( n1 n2 - flag )   | Compare the low byte of n1 and n2 for equality. Faster than =       |
 | <          | ( n1 n2 - flag )   | Compare n1 < n2 and set flag accordingly                            |
 | >          | ( n1 n2 - flag )   | Compare n1 > n2 and set flag accordingly                            |
 | D<         | ( d1 d1 - flag )   | Compute less than of two double length integers                     |
