@@ -981,6 +981,29 @@ local function emit_subroutines()
 	end
 	_ex_de_hl()
 	_ret()
+
+	-- >
+	subroutines['>'] = here()
+	list_header("subroutine: >")
+	_ld_fetch(HL, SPARE)	-- load second value from top to BC
+	_dec(HL)
+	_ld(B, HL_INDIRECT)
+	_dec(HL)
+	_ld(C, HL_INDIRECT)
+	_ld_store(SPARE, HL)
+	_ex_de_hl() -- HL = top value
+	-- sign: HL = value1, BC = value2
+	_ld(A, H)
+	_xor(B)
+	_jp_m(here() + 5) --> skip
+	_sbc(HL, BC)
+	-- skip:
+	_rl(H)
+	_ld_const(A, 0)
+	_ld(D, A)
+	_rla()
+	_ld(E, A)
+	_ret()
 end
 
 local function emit_mcode_wrapper()
@@ -1443,16 +1466,7 @@ local dict = {
 		-- skip:
 	end,
 	['>'] = function()
-		-- TODO: subroutine? (inline routine at $0c99)
-		stk_pop_bc(); list_comment(">")
-		_ld(H, B)
-		_ld(L, C)
-		_ex_de_hl()
-		_call(0x0c99)	-- sign routine in ROM, in: HL = value1, DE = value2
-		_ld_const(A, 0)
-		_ld(D, A)
-		_rla()
-		_ld(E, A)
+		_call(subroutines['>']); list_comment(">")
 	end,
 	['<'] = function()
 		-- TODO: subroutine? (inline routine at $0c99)
