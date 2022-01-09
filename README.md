@@ -4,10 +4,11 @@ ace-forth is a Forth cross-compiler for Jupiter Ace. The main benefit of cross-c
 
 Features:
 
-- Supports most standard Forth words
-- Includes some non-standard extras, most notably `GOTO` and `LABEL` (see differences below)
+- Compiles to Jupiter Ace compatible interpreted Forth bytecode (compact size) or Z80 machine code (speed!)
+- Supports most standard Forth words + many non-standard extras
 - Inlining, dead code elimination, minimal word names and small literal optimizations
-- Supports compilation to machine code for maximum speed
+- Macros (immediate words executed at compile time)
+- Generates a TAP file which can be loaded into emulator or real Jupiter Ace
 - Easy to customize; written in Lua
 
 
@@ -31,6 +32,7 @@ https://github.com/petrihakkinen/sublime-forth
 	Options:
 	  -o <filename>             Sets output filename
 	  -l <filename>             Write listing to file
+	  --mcode                   Compile to machine code
 	  --ignore-case             Treat all word names as case insensitive
 	  --minimal-word-names      Rename all words as '@', except main word
 	  --inline                  Inline words that are only used once
@@ -45,6 +47,14 @@ https://github.com/petrihakkinen/sublime-forth
 
 On Windows which does not support shebangs you need to prefix the command line with path to the Lua interpreter.
 
+Examples:
+
+	# Compiles myprogram.f to optimized Forth bytecode
+	./compile.lua -o myprogram.tap --filename MYPROG --optimize myprogram.f
+
+	# Compiles aux.f and myprogram.f to optimized Z80 machine code
+	./compile.lua -o myprogram.tap --filename MYPROG --mcode --optimize aux.f myprogram.f
+
 
 ## Differences with Jupiter Ace Forth Interpreter
 
@@ -54,7 +64,7 @@ On Windows which does not support shebangs you need to prefix the command line w
 
 - Words `DEFINER`, `DOES>` and `RUNS>` are not supported. However, you can create macros (also known as "immediate words") using `:M`.
 
-- `WHILE` and `REPEAT` are not currently supported. They should be easy to add if needed though.
+- `WHILE` and `REPEAT` are not currently supported.
 
 - Some commonly used words have been shortened: `CONSTANT` -> `CONST`, `LITERAL` -> `LIT`.
 
@@ -73,23 +83,22 @@ The compiler supports many extras not found on Jupiter Ace's Forth implementatio
 
 - New variable defining word `BYTE`, which works like `VARIABLE` but defines byte sized variables (remember to use `C@` and `C!` to access them).
 
-- New defining word `:M` which defines a new macro. `:M name ;` is equivalent to `: name ; IMMEDIATE` in other Forth dialects. (ace-forth needs to know whether to compile to Forth bytecode or Z80 machine code at the beginning of a new word definition.) 
+- New defining word `:M` for creating macros (also known as immediate words). `:M name ;` is equivalent to `: name ; IMMEDIATE` in other Forth dialects. Before compiling a word, ace-forth needs to know whether the word should be compiled to Forth bytecode or Z80 machine code.
 
-- New words: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `C*` `.S` `HEX` `CODE` `POSTPONE` ...
+- Many new words have been added: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `C*` `.S` `HEX` `CODE` `POSTPONE` ...
 
 
 ## Machine Code Compilation
 
-Using the command line option `--mcode`, the program is compiled into Z80 machine code instead of interpreted Forth bytecode. Machine code is typically 3 to 4 times faster, sometimes even an order of magnitude or more faster than interpreted Forth (see benchmarks below). The downsides are that machine code programs take about 50% more space and are not relocatable. Therefore, when loading a machine code compiled program, there should be no other user defined words defined previously, so that the loading address is same where the code was originally compiled to.
+Using the command line option `--mcode`, the program is compiled into Z80 machine code instead of interpreted Forth bytecode. Machine code is typically 3 to 4 times faster, sometimes even an order of magnitude or more faster than interpreted Forth (see benchmarks below). The downsides are that machine code programs take about 40% to 50% more space and are not relocatable. Therefore, when loading a machine code compiled program, there should be no other user defined words defined previously, so that the loading address is the same where the code was originally compiled to.
 
-Some Forth words cannot be compiled into machine code and the execution will back to the Forth interpreter. Therefore, the following words should be avoided in performance critical parts:
+Some Forth words cannot be compiled into machine code and their execution will back to the Forth interpreter. Therefore, the following words should be avoided in performance critical parts:
 
 	FNEGATE F+ F- F* F/ F. UFLOAT INT D+ D< DNEGATE U/MOD */ MOD */MOD /MOD U. U* U<
-	. # #S #> <# SIGN HOLD
-	CLS SLOW FAST INVIS VIS ABORT QUIT LINE WORD NUMBER CONVERT RETYPE QUERY
-	PLOT BEEP EXECUTE CALL
+	. # #S #> <# SIGN HOLD CLS SLOW FAST INVIS VIS ABORT QUIT LINE WORD NUMBER CONVERT
+	RETYPE QUERY PLOT BEEP EXECUTE CALL
 
-The words `*` and `/`, when compiled to machine code, have specializations for values 1, 2, 4 and 256. Multiplying or dividing by any of these values is very fast. Division by any other value falls so the Forth interpreter code which is very slow.
+The words `*` and `/`, when compiled to machine code, have specializations for values 1, 2, 4 and 256. Multiplying or dividing by any of these values is very fast. Division by any other value falls so the Forth interpreter which is very slow.
 
 For 8-bit multiplication where both operands and the result fits into 8 bits, it is recommended to use the new word `C*` (it is more than twice as fast as `*` when compiled to machine code).
 
@@ -108,6 +117,23 @@ The following table contains some benchmark results comparing the speed of machi
 | 2/               | 309       |                            |
 | *                | 2.8       | 16-bit multiply            |
 | C*               | 7.1       | 8-bit multiply             |
+
+
+## Optimizations
+
+The compiler supports various optimizations which are controlled by the following command line options:
+
+`--minimal-word-names:` Renames all words as "@" in the resulting TAP file (except the main word). This can reduce the size of a larger program considerably.
+
+`--inline:` Automatically inline words that are used only once. This reduces the compiled program size and also makes the code run faster for every word that can be inlined. Note that word definitions containing EXIT words cannot be inlined. In the rare case where you want to disable inlining a word you can append `NOINLINE` just after its colon definition. This can also be used to silence the "word has side exits" warning generated by failing inlining. This option currently does nothing when compiling to machine code (machine code inlining is planned to be implemented later).
+
+`--eliminate-unused-words:` Automatically remove words that are not used anywhere in your program.
+
+`--small-literals:` Reduce the size of byte sized literals. Normally every literal takes 4 bytes in compiled code. With this option byte sized literals can be encoded in 3 bytes. This option does nothing when compiling to machine code.
+
+`--optimize:` Enables all of the above optimizations.
+
+`--no-headers:` This is an experimental unsafe optimization. Do not use!
 
 
 ## Word Index
@@ -206,44 +232,51 @@ The following letters are used to denote values on the stack:
 | C!         | ( n addr - )       | Store 8-bit value at address                                      |
 
 
-### Compilation and Execution
+### Compilation
 
 | Word              | Stack              | Description                                                             |
 | ----------------- | ------------------ | ----------------------------------------------------------------------  |
-| : \<name\>        | ( - )              | Define new word with name \<name\> ("colon definition")               |
-| :M \<name\>       | ( - )              | Define new macro \<name\> (same as colon definition followed by IMMEDIATE in other Forths) |
-| ;                 | ( - )              | Mark the end of colon definition, go back to interpreted state          |
+| : \<name\>        | ( - )              | Define new word with name \<name\> ("colon definition")                 |
+| :M \<name\>       | ( - )              | Define new macro \<name\>                                               |
+| ;                 | ( - )              | Mark the end of colon definition or macro and go back to interpreted state |
 | ,                 | ( n - )            | Enclose 16-bit value to next free location in dictionary                |
 | C,                | ( n - )            | Enclose 8-bit value to next free location in dictionary                 |
-| "                 | ( - )              | Enclose the following characters up until " into the dictionary         |
+| " \<string\> "    | ( - )              | Enclose \<string\> as bytes into the dictionary                         |
 | (                 | ( - )              | Block comment; skip characters until next )                             |
 | \                 | ( - )              | Line comment; skip characters until end of line                         |
 | [                 | ( - )              | Change from compile to interpreter state                                |
 | ]                 | ( - )              | Change from interpreter to compile state                                |
 | CREATE \<name\>   | ( - )              | Add new (empty) word to dictionary with name \<name\>                   |
 | CREATE{ \<name\>  | ( - )              | Same as CREATE, except the end of the word must be marked with }        |
-| }                 | ( - )              | Marks the end of word created with CREATE{ (for dead code elimination)  |
-| CODE \<name\>     | ( - )              | Defines a new word with machine code defined as following bytes of data |
+| }                 | ( - )              | Mark the end of word created with CREATE{ (for dead code elimination)   |
+| CODE \<name\>     | ( - )              | Define a new word with machine code defined as following bytes of data  |
 | CONST \<name\>    | ( n - )            | Capture value to a new word with name \<name\>                          |
 | VARIABLE \<name\> | ( n - )            | Create new 16-bit variable with name \<name\> and with initial value n  |
 | BYTE \<name\>     | ( n - )            | Create new 8-bit variable with name \<name\> and with initial value n   |
 | BYTES             | ( n - )            | Enclose to the dictionary all bytes pushed on the stack between BYTES and ;BYTES |
-| ;BYTES            | ( - )              | Mark the end of BYTES.                                                  |
-| ALLOT             | ( n - )            | Allocates space for n elements from output dictionary                   |
+| ;BYTES            | ( - )              | Mark the end of BYTES                                                   |
+| ALLOT             | ( n - )            | Allocates space for n elements from the dictionary                      |
 | ASCII \<char\>    | ( - (n) )          | Emit literal containing the ASCII code of the following symbol          |
-| HERE              | ( - n )            | Push the address of the next free location in output dictionary         |
-| LIT               | ( n - )            | Emit value from data stack to output dictionary                         |
-| POSTPONE \<name\> | ( - )              | Write the compilation address of word \<name\> into the dictionary      |
+| HERE              | ( - n )            | Push the address of the next free location in the dictionary            |
+| LIT               | ( n - )            | Emit value from data stack to the dictionary                            |
+| POSTPONE \<name\> | ( - )              | (Macros) Emit code for invoking a word \<name\> into the dictionary     |
 | NOINLINE          | ( - )              | Prevent inlining of previously added word                               |
 | [IF]              | ( flag - )         | Pop a value from compiler stack. If zero, skip until next [ELSE] or [THEN]. |
 | [ELSE]            | ( - )              | See [IF]                                                                |
 | [THEN]            | ( - )              | See [THEN]                                                              |
 | [DEFINED] \<name\> | ( - flag )        | If word named \<name\> is defined, push 1 to compiler stack. Otherwise push 0. |
-| FAST              | ( - )              | Turn off stack underflow check                                          |
-| SLOW              | ( - )              | Turn on stack underflow check                                           |
+| FIND              | ( - addr )         | Pushes the compilation address of a word to compiler stack              |
+
+
+### Runtime
+
+| Word              | Stack              | Description                                                             |
+| ----------------- | ------------------ | ----------------------------------------------------------------------  |
+| FAST              | ( - )              | Turn off stack underflow checks                                         |
+| SLOW              | ( - )              | Turn on stack underflow checks                                          |
 | DI                | ( - )              | Disable interrupts                                                      |
 | EI                | ( - )              | Enable interrupts                                                       |
-| CALL              | ( addr - )         | Call a machine code routine. The routine must end with JP (IY)          |
+| CALL              | ( addr - )         | Call a machine code routine. The routine must end with JP (IY) (compiling to Forth bytecode) or RET (compiling to machine code) |
 | EXECUTE           | ( addr - )         | Execute a word given its compilation address                            |
 | INVIS             | ( - )              | Turn off printing of executed words                                     |
 | VIS               | ( - )              | Turn on printing of executed words                                      |
