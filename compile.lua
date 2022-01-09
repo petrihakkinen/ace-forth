@@ -65,8 +65,6 @@ do
 				opts.eliminate_unused_words = true
 			elseif arg == "--small-literals" then
 				opts.small_literals = true
-			elseif arg == "--no-forth-mcode-calls" then
-				opts.no_forth_mcode_calls = true
 			elseif arg == "--optimize" then
 				opts.inline_words = true
 				opts.minimal_word_names = true
@@ -78,6 +76,8 @@ do
 				opts.ignore_case = true
 			elseif arg == "--no-warn" then
 				opts.no_warn = true
+			elseif arg == "--mcode" then
+				opts.mcode = true
 			elseif arg == "--main" then
 				i = i + 1
 				opts.main_word = args[i]
@@ -110,13 +110,13 @@ if #input_files == 0 then
 	print("\nOptions:")
 	print("  -o <filename>             Sets output filename")
 	print("  -l <filename>             Write listing to file")
+	print("  --mcode                   Compile to machine code")
 	print("  --ignore-case             Treat all word names as case insensitive")
 	print("  --minimal-word-names      Rename all words as '@', except main word")
 	print("  --inline                  Inline words that are only used once")
 	print("  --eliminate-unused-words  Eliminate unused words when possible")
 	print("  --small-literals          Optimize byte-sized literals")
 	print("  --no-headers              (unsafe) Eliminate word headers, except for main word")
-	print("  --no-forth-mcode-calls    Eliminate Forth to machine code supporting code")
 	print("  --optimize                Enable all safe optimizations")
 	print("  --no-warn                 Disable all warnings")
 	print("  --verbose                 Print information while compiling")
@@ -148,7 +148,6 @@ local gotos = {}						-- address to be patched -> label for current word
 local last_word							-- name of last user defined word
 local word_counts = {}					-- how many times each word is used in generated code?
 local word_flags = {}					-- bitfield of F_* flags
-local mcode_subroutines_emitted = false	-- have subroutines for mcode words been emitted?
 local listing = {}						-- array of strings
 local listing_line_len = 0				-- length of current listing line
 local dont_allow_redefining = false		-- if set, do not allow redefining word behaviors (hack for library words)
@@ -824,7 +823,7 @@ interpret_dict = {
 		-- (this is not strictly true since every word has a length field!)
 		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE)
 
-		-- make it possible to refer to the word from :m definitions
+		-- make it possible to refer to the word from machine code
 		local addr = here()
 		mcode_dict[name] = function()
 			mcode.emit_literal(addr, name)
@@ -835,7 +834,7 @@ interpret_dict = {
 		if not eliminate_words[name] then
 			create_word(DO_PARAM, name)
 
-			-- make it possible to refer to the word from :m definitions
+			-- make it possible to refer to the word from machine code
 			local addr = here()
 			mcode_dict[name] = function()
 				mcode.emit_literal(addr, name)
@@ -853,18 +852,22 @@ interpret_dict = {
 			local flags = 0
 			if compile_dict[name] and dont_allow_redefining then flags = F_INVISIBLE end
 
-			last_word = create_word(DO_COLON, name, flags)
-			compile_mode = true
+			-- we don't currently support inlining machine code
+			if opts.mcode then flags = flags | F_NO_INLINE end
 
-			-- make it possible to call user defined Forth words from :m definitions
+			last_word = create_word(DO_COLON, name, flags)
+
+ 			-- patch codefield for machine code words
+			if opts.mcode then
+				write_short(here() - 2, here())
+			end
+
+			compile_mode = opts.mcode and "mcode" or true
+
 			if mcode_dict[name] == nil or not dont_allow_redefining then
 				mcode_dict[name] = function()
-					mcode.call_forth(name)
-
+					mcode.call_mcode(name)
 					word_counts[name] = word_counts[name] + 1
-
-					-- Forth words can never be inlined into mcode words
-					word_flags[name] = word_flags[name] | F_NO_INLINE
 				end
 			end
 		else
@@ -872,35 +875,11 @@ interpret_dict = {
 		end
 	end,
 	[':m'] = function() 
-		local name = next_word()
-		if not eliminate_words[name] then
-			if not mcode_subroutines_emitted then
-				mcode.emit_subroutines()
-				mcode_subroutines_emitted = true
-			end
-
-			-- mcode words cant be called from Forth code if wrappers have been eliminated
-			local flags = 0
-			if opts.no_forth_mcode_calls then flags = F_INVISIBLE end
-
-			create_word(0, name, flags)
-			write_short(here() - 2, here())	-- patch codefield
-
-			if not opts.no_forth_mcode_calls then
-				mcode.emit_mcode_wrapper()
-			end
-
-			-- make it possible to call user defined mcode words from :m definitions
-			mcode_dict[name] = function()
-				mcode.call_mcode(name)
-				word_counts[name] = word_counts[name] + 1
-			end
-
-			compile_mode = "mcode"
-		else
-			skip_until(';')
-		end
+		-- TODO: compile macro
+		error("macros not implemented yet")
 	end,
+	--TODO: eliminate IMMEDIATE (also from README)
+	--[[
 	immediate = function()
 		local name = last_word
 		comp_assert(name, "invalid use of IMMEDIATE")
@@ -923,6 +902,7 @@ interpret_dict = {
 			execute(addr)
 		end
 	end,
+	--]]
 	noinline = function()
 		-- forbid inlining previous word
 		comp_assert(last_word, "invalid use of NOINLINE")
@@ -932,10 +912,12 @@ interpret_dict = {
 		local name = create_word(0, next_word(), F_NO_ELIMINATE)
 		write_short(here() - 2, here())	-- patch codefield
 
-		-- make it possible to call CODE words from :m definitions
-		mcode_dict[name] = function()
-			mcode.call_code(name)
-			word_counts[name] = word_counts[name] + 1
+		-- make it possible to call CODE words from machine code
+		if mcode_dict[name] == nil or not dont_allow_redefining then
+			mcode_dict[name] = function()
+				mcode.call_code(name)
+				word_counts[name] = word_counts[name] + 1
+			end
 		end
 	end,
 	byte = function()	-- byte-sized variable
@@ -945,7 +927,7 @@ interpret_dict = {
 		local addr = here()
 		emit_byte(value)
 
-		-- make it possible to refer to variable from :m definitions
+		-- make it possible to refer to variable from machine code
 		mcode_dict[name] = function()
 			mcode.emit_literal(addr, name)
 		end
@@ -975,7 +957,7 @@ interpret_dict = {
 		local addr = here()
 		emit_short(pop())	-- write variable value to dictionary
 
-		-- make it possible to refer to variable from :m definitions
+		-- make it possible to refer to variable from machine code
 		mcode_dict[name] = function()
 			mcode.emit_literal(addr, name)
 		end
@@ -1355,6 +1337,10 @@ for name, addr in pairs(rom_words) do
 	compilation_addr_to_name[addr] = name
 end
 
+if opts.mcode then
+	mcode.emit_subroutines()
+end
+
 local library_words = [[
 1 const TRUE
 0 const FALSE
@@ -1368,9 +1354,13 @@ local library_words = [[
 : 2* dup + ;
 : 2/ 2 / ;
 : hex 16 base c! ;
-: .s 15419 @ here 12 + over over - if do i @ . 2 +loop else drop drop then ;
+
+\ TODO: This causes "undefined word 'here'" error with --mcode option!
+\ : .s 15419 @ here 12 + over over - if do i @ . 2 +loop else drop drop then ;
+
 : c* * ;
 : c= - 255 and 0= ;
+
 code di 243 c, 253 c, 233 c, 
 code ei 251 c, 253 c, 233 c,
 ]]

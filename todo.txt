@@ -1,9 +1,14 @@
-- revamp :m
-	- mixing forth words and machine code words is a mess
-	- it's better to just compile all colon definitions into machine code when --mcode command line option is given
-	- in order to support macros, we replace IMMEDIATE with :m ("define macro")
-	- macros are always compiled to bytecode (interpreted Ace Forth)
-	- no need for mcode wrappers and --no-forth-mcode-calls option
+- OVER benchmark does not work
+
+- .S does not work:
+	- commented out from library in compile.lua
+	- HERE is missing from mcode dictionary, needed for compiling .S
+		- HERE returns the end of program basically
+		--> this can also be used to simplify CHECKSUM in demons!
+
+- implement :M ("define macro")
+
+- remove remains of IMMEDIATE
 	
 - can we support inlining for machine code words?
 	- yes, but we need to relocate the compiled code (patch all absolute jumps and string references)

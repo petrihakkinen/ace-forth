@@ -889,7 +889,7 @@ local function jump_nc(addr)
 end
 
 local function call_forth(name)
-	-- Calling Forth word from :m word
+	-- Calling Forth word from machine code
 	local addr = compilation_addresses[name] or rom_words[string.upper(name)]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
@@ -907,7 +907,7 @@ local function call_forth(name)
 end
 
 local function call_code(name)
-	-- Calling word created using CODE from :m word
+	-- Calling word created using CODE from machine code
 	local addr = compilation_addresses[name]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
@@ -917,16 +917,12 @@ local function call_code(name)
 end
 
 local function call_mcode(name)
-	-- Calling :m word from another :m word
+	-- Calling machine code word from another machine code word
 	local addr = compilation_addresses[name]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	if opts.no_forth_mcode_calls then
-		_call(addr + 2) -- call machine code
-	else
-		_call(addr + 9) -- call machine code, skipping the wrapper
-	end
+	_call(addr + 2)
 	list_comment(name)
 end
 
@@ -1085,14 +1081,6 @@ local function emit_subroutines()
 	_ld_store(SCRPOS, HL)
 	stk_pop_de()
 	_ret()
-end
-
-local function emit_mcode_wrapper()
-	-- calling mcode from Forth
-	stk_pop_de()		-- move top of stack to DE
-	_call(here() + 6)	-- call machine code
-	stk_push_de()		-- push top of stack back to Forth stack
-	_jp_indirect_iy()	-- return to Forth
 end
 
 local function emit_literal(n, comment)
@@ -2016,7 +2004,6 @@ end
 return {
 	get_dict = get_dict,
 	emit_subroutines = emit_subroutines,
-	emit_mcode_wrapper = emit_mcode_wrapper,
 	emit_literal = emit_literal,
 	call_forth = call_forth,
 	call_code = call_code,

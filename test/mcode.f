@@ -270,7 +270,7 @@ decimal
 	." BASE   " 8 base c! 255 . cr ( ff )
 	." HEX    " hex 255 . cr ( ff )
 	." DEC    " decimal 255 . cr ( 255 )
-	." .S     " 1 2 3 .s drop drop drop cr
+	\ ." .S     " 1 2 3 .s drop drop drop cr
 	;
 
 : i/o
