@@ -36,5 +36,3 @@
 	- no need for mcode wrappers and --no-forth-mcode-calls option
 	- makes things simpler to understand
 	- we could probably also eliminate all word headers and just compile everything into one word
-
-- print warnings only once at the end

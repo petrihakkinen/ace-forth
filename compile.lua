@@ -152,6 +152,7 @@ local mcode_subroutines_emitted = false	-- have subroutines for mcode words been
 local listing = {}						-- array of strings
 local listing_line_len = 0				-- length of current listing line
 local dont_allow_redefining = false		-- if set, do not allow redefining word behaviors (hack for library words)
+local warnings = {}						-- array of strings
 
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
@@ -265,7 +266,7 @@ end
 
 function warn(...)
 	if not opts.no_warn then
-		printf("%s:%d: Warning! %s", input_file, cur_line, string.format(...))
+		warnings[#warnings + 1] = string.format("%s:%d: Warning! %s", input_file, cur_line, string.format(...))
 	end
 end
 
@@ -1448,6 +1449,11 @@ if more_work then
 	pass = pass + 1
 	assert(pass < 10, "exceeded maximum number of compilation passes (compiler got stuck?)")
 	goto restart
+end
+
+-- print warnings
+for _, msg in ipairs(warnings) do
+	print(msg)
 end
 
 -- write output
