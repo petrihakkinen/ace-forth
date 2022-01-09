@@ -746,6 +746,15 @@ local function _in(r, port)
 	list_instr("in %s,(%s)", reg_name[r], reg_name[port])
 end
 
+local function _in_const(r, port_addr)
+	assert(r == A, "_in_const: invalid register")
+	assert(port_addr >= 0 and port_addr <= 255, "_in_const: invalid port")
+	list_here()
+	emit_byte(0xdb)
+	emit_byte(port_addr)
+	list_instr("in a,($%02x)", port_addr)
+end
+
 local function _out(port, r)
 	-- OUT (C),A	ED 79
 	-- OUT (C),B	ED 41
@@ -760,6 +769,15 @@ local function _out(port, r)
 	emit_byte(0xed)
 	emit_byte(0x41 + r * 8)
 	list_instr("out (%s),%s", reg_name[port], reg_name[r])
+end
+
+local function _out_const(port_addr, r)
+	assert(r == A, "_out_const: invalid register")
+	assert(port_addr >= 0 and port_addr <= 255, "_out_const: invalid port")
+	list_here()
+	emit_byte(0xd3)
+	emit_byte(port_addr)
+	list_instr("out ($%02x),a", port_addr)
 end
 
 local function _rst(i)
@@ -1654,16 +1672,32 @@ local dict = {
 	end,
 	out = function()
 		-- ( n port -- )
-		_ld(C, E); list_comment("out")	-- C = port
-		stk_pop_de()	-- E = value to output (stk_pop_de does not trash C)
-		_out(C, E)
-		stk_pop_de()
+		local port = erase_literal()
+		if port then
+			_ld(A, E); list_comment("$%04x out", port)
+			_out_const(port & 0xff, A)
+			stk_pop_de()
+		else
+			_ld(C, E); list_comment("out")	-- C = port
+			stk_pop_de()	-- E = value to output (stk_pop_de does not trash C)
+			_out(C, E)
+			stk_pop_de()
+		end
 	end,
 	['in'] = function()
 		-- ( port -- n )
-		_ld(C, E); list_comment("in")	-- C = port
-		_ld_const(D, 0)
-		_in(E, C)
+		local port = erase_literal()
+		if port then
+			stk_push_de(); list_comment("$%04x in", port)
+			--_ld_const(A, port >> 8) -- place hi byte to address bus when reading keyboard (untested)
+			_in_const(A, port & 0xff)
+			_ld(E, A)
+			_ld_const(D, 0)
+		else
+			_ld(C, E); list_comment("in")	-- C = port
+			_ld_const(D, 0)
+			_in(E, C)
+		end
 	end,
 	inkey = function()
 		-- ( -- n )

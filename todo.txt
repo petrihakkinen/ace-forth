@@ -4,11 +4,7 @@
 - can we support inlining for :m words?
 	- record Forth source of each colon definition and play them back when inlining
 
-- erase_literal for IN and OUT
-
 - short forward branches for IF, ELSE and GOTO
-
-- eliminate mcode wrappers for :m definitions that are not called from Forth?
 
 - would byte size arithmetic make sense? C+ C- C< C>
 
