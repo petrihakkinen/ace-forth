@@ -863,6 +863,14 @@ interpret_dict = {
 				-- patch codefield for machine code words
 				write_short(here() - 2, here())
 
+				-- load top of stack to DE if this is the machine code entry point from Forth
+				if name == opts.main_word then
+					list_here()
+					emit_byte(0xc7 + 24)
+					list_instr("rst 24")
+					list_comment("adjust stack for machine code")
+				end
+
 				compile_mode = "mcode"
 
 				if mcode_dict[name] == nil or not dont_allow_redefining then
