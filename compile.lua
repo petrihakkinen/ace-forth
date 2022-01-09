@@ -685,7 +685,18 @@ function execute(pc)
 			for i = 1, len do
 				name = name .. string.char(fetch_byte())
 			end
-			compile_dict[name]()
+
+			local func
+			if compile_mode == "mcode" then
+				func = mcode_dict[name]
+			else
+				func = compile_dict[name]
+			end
+
+			if func == nil then
+				comp_error("POSTPONE failed -- could not find compile behavior for word '%s'", name)
+			end
+			func()
 		else
 			comp_error("unknown compilation address $%04x encountered when executing compiled code", instr)
 		end
@@ -828,6 +839,7 @@ interpret_dict = {
 		local addr = here()
 		mcode_dict[name] = function()
 			mcode.emit_literal(addr, name)
+			word_counts[name] = word_counts[name] + 1
 		end
 	end,
 	['create{'] = function()	-- create{ is like create but it can be eliminated since } marks the end of the word
@@ -839,6 +851,7 @@ interpret_dict = {
 			local addr = here()
 			mcode_dict[name] = function()
 				mcode.emit_literal(addr, name)
+				word_counts[name] = word_counts[name] + 1
 			end
 		else
 			skip_until('}')

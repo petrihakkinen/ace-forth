@@ -265,16 +265,18 @@ decimal
 		inkey 32 =
 	until ;
 
-:m test-macro 1 100 + postpone lit ; ( Emits 101 as literal to where-ever this macro is invoked )
+: double 2* ;
+:m test-macro 1 100 + postpone lit   postpone double ;
 
 : misc
 	." LIT    " [ 5 3 * ] lit      15 chk cr
 	." CONST  " SCREEN             9216 chk cr
+	." MACRO  " test-macro         202 chk cr
+
 	." BASE   " 8 base c! 255 . cr ( ff )
 	." HEX    " hex 255 . cr ( ff )
 	." DEC    " decimal 255 . cr ( 255 )
 	." .S     " 1 2 3 .s drop drop drop cr
-	." MACRO  " test-macro . cr
 	;
 
 : i/o
