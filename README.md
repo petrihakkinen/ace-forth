@@ -99,7 +99,7 @@ Some words contained inside `:m` definitions cannot be compiled into machine cod
 	FNEGATE F+ F- F* F/ F. UFLOAT INT D+ D< DNEGATE U/MOD */ MOD */MOD /MOD U. U* U<
 	. # #S #> <# SIGN HOLD
 	CLS SLOW FAST INVIS VIS ABORT QUIT LINE WORD NUMBER CONVERT RETYPE QUERY
-	ROT PLOT BEEP EXECUTE CALL
+	PLOT BEEP EXECUTE CALL
 
 It's strongly recommended to not use any of these words inside `:m` definitions!
 

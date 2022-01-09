@@ -42,7 +42,8 @@ local args = {...}
 
 local input_files = {}
 local output_file
-local opts = { main_word = "main", tap_filename = "dict" }
+
+opts = { main_word = "main", tap_filename = "dict" }
 
 function fatal_error(msg)
 	io.stderr:write(msg, "\n")
@@ -64,6 +65,8 @@ do
 				opts.eliminate_unused_words = true
 			elseif arg == "--small-literals" then
 				opts.small_literals = true
+			elseif arg == "--no-forth-mcode-calls" then
+				opts.no_forth_mcode_calls = true
 			elseif arg == "--optimize" then
 				opts.inline_words = true
 				opts.minimal_word_names = true
@@ -113,6 +116,7 @@ if #input_files == 0 then
 	print("  --eliminate-unused-words  Eliminate unused words when possible")
 	print("  --small-literals          Optimize byte-sized literals")
 	print("  --no-headers              (unsafe) Eliminate word headers, except for main word")
+	print("  --no-forth-mcode-calls    Eliminate Forth to machine code supporting code")
 	print("  --optimize                Enable all safe optimizations")
 	print("  --no-warn                 Disable all warnings")
 	print("  --verbose                 Print information while compiling")
@@ -874,9 +878,16 @@ interpret_dict = {
 				mcode_subroutines_emitted = true
 			end
 
-			create_word(0, name)
+			-- mcode words cant be called from Forth code if wrappers have been eliminated
+			local flags = 0
+			if opts.no_forth_mcode_calls then flags = F_INVISIBLE end
+
+			create_word(0, name, flags)
 			write_short(here() - 2, here())	-- patch codefield
-			mcode.emit_mcode_wrapper()
+
+			if not opts.no_forth_mcode_calls then
+				mcode.emit_mcode_wrapper()
+			end
 
 			-- make it possible to call user defined mcode words from :m definitions
 			mcode_dict[name] = function()

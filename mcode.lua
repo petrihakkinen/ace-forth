@@ -892,7 +892,11 @@ local function call_mcode(name)
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	_call(addr + 9) -- call machine code, skipping the wrapper
+	if opts.no_forth_mcode_calls then
+		_call(addr + 2) -- call machine code
+	else
+		_call(addr + 9) -- call machine code, skipping the wrapper
+	end
 	list_comment(name)
 end
 

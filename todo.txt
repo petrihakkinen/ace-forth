@@ -1,3 +1,9 @@
+- words marked with IMMEDIATE cannot be called from :m words
+	- also POSTPONE probably does not work correctly
+	
+- can we support inlining for :m words?
+	- record Forth source of each colon definition and play them back when inlining
+
 - erase_literal for IN and OUT
 
 - short forward branches for IF, ELSE and GOTO
@@ -26,6 +32,9 @@
 
 - formatting of negative literals in listing files is broken
 
-- add option to compile everything to machine code
-	- maybe it should even replace :m ?
+- consider replacing :m with option that compiles all words to machine code
+	- no need for mcode wrappers and --no-forth-mcode-calls option
+	- makes things simpler to understand
 	- we could probably also eliminate all word headers and just compile everything into one word
+
+- print warnings only once at the end
