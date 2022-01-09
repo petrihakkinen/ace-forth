@@ -1,7 +1,3 @@
-- implement :M ("define macro")
-
-- remove remains of IMMEDIATE
-	
 - can we support inlining for machine code words?
 	- yes, but we need to relocate the compiled code (patch all absolute jumps and string references)
 

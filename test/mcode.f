@@ -1,4 +1,5 @@
 ( Test Machine Code Compilation )
+( This program should be compiled with --mcode and --optimize options. )
 
 hex
 2400 const SCREEN
@@ -264,6 +265,8 @@ decimal
 		inkey 32 =
 	until ;
 
+:m test-macro 1 100 + postpone lit ; ( Emits 101 as literal to where-ever this macro is invoked )
+
 : misc
 	." LIT    " [ 5 3 * ] lit      15 chk cr
 	." CONST  " SCREEN             9216 chk cr
@@ -271,6 +274,7 @@ decimal
 	." HEX    " hex 255 . cr ( ff )
 	." DEC    " decimal 255 . cr ( 255 )
 	." .S     " 1 2 3 .s drop drop drop cr
+	." MACRO  " test-macro . cr
 	;
 
 : i/o
@@ -372,18 +376,18 @@ decimal
 	misc
 
 	cr ." Running benchmarks..." cr
-	." STACK  " begin-profile benchmark-stack end-profile 	    ( 17829 -> 5721, 3.1 times faster )
-	." OVER   " begin-profile benchmark-over end-profile		( 2257 -> 212, 10.6 times faster )
-	." SWAP   " begin-profile benchmark-swap end-profile		( 15091 -> 3866, 3.9 times faster )
-	." LOOP   " begin-profile benchmark-loop end-profile		( 4676 -> 621, 7.5 times faster )
-	." >R R>  " begin-profile benchmark-rstack end-profile 	    ( 11088 -> 5022, 2.2 times faster )
-	." ARITH  " begin-profile benchmark-arith end-profile	    ( 24795 -> 5242, 4.7 times faster )
-	." ARITH2 " begin-profile benchmark-arith2 end-profile	    ( 27137 -> 792, 34 times faster )
-	." 1+     " begin-profile benchmark-1+ end-profile		    ( 12266 -> 466, 26 times faster )
-	." 2*     " begin-profile benchmark-2* end-profile		    ( 14248 -> 634, 22 times faster )
-	." 2/     " begin-profile benchmark-2/ end-profile		    ( 19151 -> 65, 294 times faster )
-	." *      " begin-profile benchmark-* end-profile		    ( 3430 -> 1237, 2.8 times faster )
-	." C*     " begin-profile benchmark-c* end-profile		    ( 3430 -> 529, 6.5 times faster )
+	." STACK  " begin-profile benchmark-stack end-profile 	    ( 17830 -> 5680, 3.1 times faster )
+	." OVER   " begin-profile benchmark-over end-profile		( 2257 -> 204, 11 times faster )
+	." SWAP   " begin-profile benchmark-swap end-profile		( 15091 -> 3865, 3.9 times faster )
+	." LOOP   " begin-profile benchmark-loop end-profile		( 4676 -> 598, 7.8 times faster )
+	." >R R>  " begin-profile benchmark-rstack end-profile 	    ( 11088 -> 5000, 2.2 times faster )
+	." ARITH  " begin-profile benchmark-arith end-profile	    ( 24795 -> 5200, 4.8 times faster )
+	." ARITH2 " begin-profile benchmark-arith2 end-profile	    ( 27322 -> 751, 36 times faster )
+	." 1+     " begin-profile benchmark-1+ end-profile		    ( 12266 -> 425, 29 times faster )
+	." 2*     " begin-profile benchmark-2* end-profile		    ( 14256 -> 613, 23 times faster )
+	." 2/     " begin-profile benchmark-2/ end-profile		    ( 19159 -> 62, 309 times faster )
+	." *      " begin-profile benchmark-* end-profile		    ( 3435 -> 1232, 2.8 times faster )
+	." C*     " begin-profile benchmark-c* end-profile		    ( 3689 -> 523, 7.1 times faster )
 
 	cr i/o
 

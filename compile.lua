@@ -188,6 +188,7 @@ F_NO_INLINE	= 0x01 			-- words that should never we inlined (explicitly marked a
 F_NO_ELIMINATE = 0x02		-- words that should not be eliminated even when they are not used
 F_HAS_SIDE_EXITS = 0x04		-- words that have side-exits and cannot there be inlined
 F_INVISIBLE = 0x08			-- word cannot be seen from user written code
+F_MACRO = 0x10				-- word is a macro (to be executed immediately at compile time)
 
 -- starting addresses of user defined words
 local word_start_addresses = {}
@@ -885,34 +886,15 @@ interpret_dict = {
 		end
 	end,
 	[':m'] = function() 
-		-- TODO: compile macro
-		error("macros not implemented yet")
-	end,
-	--TODO: eliminate IMMEDIATE (also from README)
-	--[[
-	immediate = function()
-		local name = last_word
-		comp_assert(name, "invalid use of IMMEDIATE")
+		-- compile macro
+		last_word = create_word(0, next_word(), F_MACRO | F_NO_INLINE | F_NO_ELIMINATE)
+		compile_mode = true
 
 		local addr = next_immediate_word
-
-		local code = erase_previous_word()
-
-		-- store code in compiler memory (skip code field)
-		for _, byte in ipairs(code) do
-			mem[next_immediate_word] = byte
-			next_immediate_word = next_immediate_word + 1
-		end
-
-		interpret_dict[name] = function()
-			execute(addr)
-		end
-
-		compile_dict[name] = function()
-			execute(addr)
-		end
+		interpret_dict[last_word] = function() execute(addr) end
+		compile_dict[last_word] = function() execute(addr) end
+		mcode_dict[last_word] = function() execute(addr) end
 	end,
-	--]]
 	noinline = function()
 		-- forbid inlining previous word
 		comp_assert(last_word, "invalid use of NOINLINE")
@@ -1187,6 +1169,17 @@ compile_dict = {
 				for i = 1, #code - 2 do
 					emit_byte(code[i])
 				end
+			end
+		end
+
+		-- finish macro
+		if (word_flags[last_word] & F_MACRO) ~= 0 then
+			local code = erase_previous_word()
+
+			-- store code in compiler memory
+			for _, byte in ipairs(code) do
+				mem[next_immediate_word] = byte
+				next_immediate_word = next_immediate_word + 1
 			end
 		end
 	end,

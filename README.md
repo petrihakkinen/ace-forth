@@ -52,7 +52,7 @@ On Windows which does not support shebangs you need to prefix the command line w
 
 - Floating point literals are not currently supported.
 
-- Words `DEFINER`, `DOES>` and `RUNS>` are not supported. The usual interpreter words `IMMEDIATE`, `POSTPONE`, `[`, `]`, `HERE` etc. are supported though.
+- Words `DEFINER`, `DOES>` and `RUNS>` are not supported. However, you can create macros (also known as "immediate words") using `:M`.
 
 - `WHILE` and `REPEAT` are not currently supported. They should be easy to add if needed though.
 
@@ -73,53 +73,41 @@ The compiler supports many extras not found on Jupiter Ace's Forth implementatio
 
 - New variable defining word `BYTE`, which works like `VARIABLE` but defines byte sized variables (remember to use `C@` and `C!` to access them).
 
-- New defining word `:m` which compiles the word into native machine code.
+- New defining word `:M` which defines a new macro. `:M name ;` is equivalent to `: name ; IMMEDIATE` in other Forth dialects. (ace-forth needs to know whether to compile to Forth bytecode or Z80 machine code at the beginning of a new word definition.) 
 
 - New words: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `C*` `.S` `HEX` `CODE` `POSTPONE` ...
 
 
 ## Machine Code Compilation
 
-The word `:m` allows compiling words into native machine code. Such words can be several times sometimes even an order of magnitude, faster. Machine code words can be called from normal Forth words and vice versa. 
+Using the command line option `--mcode`, the program is compiled into Z80 machine code instead of interpreted Forth bytecode. Machine code is typically 3 to 4 times faster, sometimes even an order of magnitude or more faster than interpreted Forth (see benchmarks below). The downsides are that machine code programs take about 50% more space and are not relocatable. Therefore, when loading a machine code compiled program, there should be no other user defined words defined previously, so that the loading address is same where the code was originally compiled to.
 
-A simple example of a machine code word:
-
-	:m stars 10 0 do ascii * emit loop ;
-
-Machine code words, however, have some disadvantages:
-
-- They take up more program space. If program size is important, you should consider compiling only the most often used words as machine code.
-
-- Machine code words are not relocatable. Therefore, when you load a program containing machine code words, there should be no other user defined words defined previously.
-
-### Performance Considerations
-
-Some words contained inside `:m` definitions cannot be compiled into machine code currently. Therefore, there is a performance penalty when the following words are used inside `:m` definitions:
+Some Forth words cannot be compiled into machine code and the execution will back to the Forth interpreter. Therefore, the following words should be avoided in performance critical parts:
 
 	FNEGATE F+ F- F* F/ F. UFLOAT INT D+ D< DNEGATE U/MOD */ MOD */MOD /MOD U. U* U<
 	. # #S #> <# SIGN HOLD
 	CLS SLOW FAST INVIS VIS ABORT QUIT LINE WORD NUMBER CONVERT RETYPE QUERY
 	PLOT BEEP EXECUTE CALL
 
-It's strongly recommended to not use any of these words inside `:m` definitions!
-
 The words `*` and `/`, when compiled to machine code, have specializations for values 1, 2, 4 and 256. Multiplying or dividing by any of these values is very fast. Division by any other value falls so the Forth interpreter code which is very slow.
 
 For 8-bit multiplication where both operands and the result fits into 8 bits, it is recommended to use the new word `C*` (it is more than twice as fast as `*` when compiled to machine code).
+
+Similarly, there is a new word `C=` for comparing the low bytes of two numbers for equality. It can be used in place or `=` when the numbers to compare are known to be bytes.
 
 The following table contains some benchmark results comparing the speed of machine code compiled Forth vs. interpreted Forth running on the Jupiter Ace. "Speed up" is how many times faster the machine code version runs.
 
 | Benchmark        | Speed up  | Notes                      |
 | ---------------- | --------- | -------------------------- |
 | Stack ops        | 3.1       | DUP DROP                   |
-| OVER             | 9.5       |                            |
-| Arithmetic       | 4.7       | + -                        |
-| DO LOOP          | 7.5       |                            |
-| 1+               | 26        |                            |
-| 2*               | 22        |                            |
-| 2/               | 294       |                            |
+| OVER             | 204       |                            |
+| Arithmetic       | 4.8       | + -                        |
+| DO LOOP          | 7.8       |                            |
+| 1+               | 29        |                            |
+| 2*               | 23        |                            |
+| 2/               | 309       |                            |
 | *                | 2.8       | 16-bit multiply            |
-| C*               | 6.5       | 8-bit multiply             |
+| C*               | 7.1       | 8-bit multiply             |
 
 
 ## Word Index
@@ -222,8 +210,8 @@ The following letters are used to denote values on the stack:
 
 | Word              | Stack              | Description                                                             |
 | ----------------- | ------------------ | ----------------------------------------------------------------------  |
-| : \<name\>        | ( - )              | Define new word with name \<name\> ("colon definition")                 |
-| :M \<name\>       | ( - )              | Define new machine code word with name \<name\>                         |
+| : \<name\>        | ( - )              | Define new word with name \<name\> ("colon definition")               |
+| :M \<name\>       | ( - )              | Define new macro \<name\> (same as colon definition followed by IMMEDIATE in other Forths) |
 | ;                 | ( - )              | Mark the end of colon definition, go back to interpreted state          |
 | ,                 | ( n - )            | Enclose 16-bit value to next free location in dictionary                |
 | C,                | ( n - )            | Enclose 8-bit value to next free location in dictionary                 |
@@ -245,7 +233,6 @@ The following letters are used to denote values on the stack:
 | ASCII \<char\>    | ( - (n) )          | Emit literal containing the ASCII code of the following symbol          |
 | HERE              | ( - n )            | Push the address of the next free location in output dictionary         |
 | LIT               | ( n - )            | Emit value from data stack to output dictionary                         |
-| IMMEDIATE         | ( - )              | Mark the previous word to be executed immediately when compiling        |
 | POSTPONE \<name\> | ( - )              | Write the compilation address of word \<name\> into the dictionary      |
 | NOINLINE          | ( - )              | Prevent inlining of previously added word                               |
 | [IF]              | ( flag - )         | Pop a value from compiler stack. If zero, skip until next [ELSE] or [THEN]. |
