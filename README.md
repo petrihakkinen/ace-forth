@@ -265,7 +265,7 @@ The following letters are used to denote values on the stack:
 | [ELSE]            | ( - )              | See [IF]                                                                |
 | [THEN]            | ( - )              | See [THEN]                                                              |
 | [DEFINED] \<name\> | ( - flag )        | If word named \<name\> is defined, push 1 to compiler stack. Otherwise push 0. |
-| FIND              | ( - addr )         | Pushes the compilation address of a word to compiler stack              |
+| FIND \<name\>     | ( - addr )         | Pushes the compilation address of a word to compiler stack              |
 
 
 ### Runtime
