@@ -1975,6 +1975,10 @@ local dict = {
 	ei = function()
 		_ei(); list_comment("ei")
 	end,
+	here = function()
+		stk_push_de(); list_comment("here")
+		_ld_fetch(DE, STKBOT)
+	end,
 }
 
 -- The following words do not have fast machine code implementation

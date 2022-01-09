@@ -1,10 +1,7 @@
 - OVER benchmark does not work
 
-- .S does not work:
-	- commented out from library in compile.lua
-	- HERE is missing from mcode dictionary, needed for compiling .S
-		- HERE returns the end of program basically
-		--> this can also be used to simplify CHECKSUM in demons!
+- .S does not work correctly when called from machine code
+	- caused by calling convention difference? or is HERE bugged?
 
 - implement :M ("define macro")
 

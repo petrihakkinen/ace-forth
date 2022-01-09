@@ -857,17 +857,19 @@ interpret_dict = {
 
 			last_word = create_word(DO_COLON, name, flags)
 
- 			-- patch codefield for machine code words
+			compile_mode = true
+
 			if opts.mcode then
+				-- patch codefield for machine code words
 				write_short(here() - 2, here())
-			end
 
-			compile_mode = opts.mcode and "mcode" or true
+				compile_mode = "mcode"
 
-			if mcode_dict[name] == nil or not dont_allow_redefining then
-				mcode_dict[name] = function()
-					mcode.call_mcode(name)
-					word_counts[name] = word_counts[name] + 1
+				if mcode_dict[name] == nil or not dont_allow_redefining then
+					mcode_dict[name] = function()
+						mcode.call_mcode(name)
+						word_counts[name] = word_counts[name] + 1
+					end
 				end
 			end
 		else
@@ -1354,9 +1356,7 @@ local library_words = [[
 : 2* dup + ;
 : 2/ 2 / ;
 : hex 16 base c! ;
-
-\ TODO: This causes "undefined word 'here'" error with --mcode option!
-\ : .s 15419 @ here 12 + over over - if do i @ . 2 +loop else drop drop then ;
+: .s 15419 @ here 12 + over over - if do i @ . 2 +loop else drop drop then ;
 
 : c* * ;
 : c= - 255 and 0= ;
