@@ -668,6 +668,18 @@ local function _jp_indirect_iy()
 	list_instr("jp (iy)")
 end
 
+local function _di()
+	list_here()
+	emit_byte(0xf3)
+	list_instr("di")
+end
+
+local function _ei()
+	list_here()
+	emit_byte(0xfb)
+	list_instr("ei")
+end
+
 local function offset_to_absolute(offset)
 	if offset > 127 then offset = offset - 256 end
 	return here() + offset
@@ -1968,6 +1980,12 @@ local dict = {
 		_ld_const(DE, 0) -- load placeholder string address to DE
 		_call(0x0979) -- call print embedded string routine
 		_pop(DE)
+	end,
+	di = function()
+		_di(); list_comment("di")
+	end,
+	ei = function()
+		_ei(); list_comment("ei")
 	end,
 }
 

@@ -8,34 +8,31 @@ decimal
 
 100 variable v
 
-1 variable one
-2 variable two
-3 variable three
-
--1 variable minus-one
--2 variable minus-two
--3 variable minus-three
-
-code di 243 c, 253 c, 233 c, 
-code ei 251 c, 253 c, 233 c, 
+( Define some words which return numbers which won't be optimized as literals. )
+: one 0 1+ ;
+: two 0 2+ ;
+: three 0 2+ 1+ ;
+: minus-one 0 1- ;
+: minus-two 0 2- ;
+: minus-three 0 2- 1- ;
 
 : fail ." FAILED!" abort ;
 
-:m chk ( result expected -- )
+: chk ( result expected -- )
 	= if ." OK" else fail then ;
 
-:m chk2 ( result1 result2 expected1 expected2 -- )
+: chk2 ( result1 result2 expected1 expected2 -- )
 	rot = >r ( s: result1 expected1 ; r: eq2 )
 	= r> ( s: eq1 eq2 )
 	and if ." OK" else fail then ;
 
-:m chk3 ( result1 result2 result3 expected1 expected2 expected3 -- )
+: chk3 ( result1 result2 result3 expected1 expected2 expected3 -- )
 	4 roll = >r ( s: result1 result2 expected1 expected2 ; r: eq3 )
 	3 roll = >r ( s: result1 expected1 ; r: eq3 eq2 )
 	= r> r> ( s: eq1 eq2 eq3 )
 	and and if ." OK" else fail then ;
 
-:m stack
+: stack
 	." DUP    " 123 dup          123 123 chk2 cr
 	." DROP   " 123 456 drop     123 chk cr
 	." NIP    " 1 2 3 nip        1 3 chk2 cr
@@ -54,7 +51,7 @@ code ei 251 c, 253 c, 233 c,
 	." R@     " 1 2 >r r@        1 2 chk2 cr    ( Clean up: ) r> drop
 	;
 
-:m arith
+: arith
 	." +      " 3 4 +            7 chk space      ( n + literal )
 	            -1000 -2000 +    -3000 chk space
 	            500 v @ +        600 chk cr	      ( n + n )
@@ -72,12 +69,13 @@ code ei 251 c, 253 c, 233 c,
 	            -123 256 *       -31488 chk space ( 256 specialization )
 	            100 v @ *        10000 chk cr     ( n * n )
 
-	." C*     " 5 50 c*          250 chk space    ( n * literal )
-	            2 v @ c*         200 chk space    ( n * value )
-	            3 1 c*           3 chk space      ( 1 specialization )
-	            3 2 c*           6 chk space      ( 2 specialization )
-	            3 4 c*           12 chk space     ( 4 specialization )
-	            3 256 c*         0 chk cr         ( out of range specialization )
+	\ These tests fail when compiled to interpreted Forth
+	\ ." C*     " 5 50 c*          250 chk space    ( n * literal )
+	\             2 v @ c*         200 chk space    ( n * value )
+	\             3 1 c*           3 chk space      ( 1 specialization )
+	\             3 2 c*           6 chk space      ( 2 specialization )
+	\             3 4 c*           12 chk space     ( 4 specialization )
+	\             3 256 c*         0 chk cr         ( out of range specialization )
 
 	." /      " 1000 3 /         333 chk space    ( Generic algorithm )
                 1000 1 /         1000 chk space   ( 1 specialization )
@@ -132,7 +130,7 @@ code ei 251 c, 253 c, 233 c,
  	[ decimal ]
 	;
 
-:m rel-ops
+: rel-ops
 	." 0=     " 0 0=             1 chk space
 	            256 0=           0 chk cr
 
@@ -176,7 +174,7 @@ code ei 251 c, 253 c, 233 c,
 	            0 0 <            0 chk cr
 	;
 
-:m mem
+: mem
 	." ! @    " 12345 v ! v @       12345 chk space ( Literal address )
 	            v 12345 over ! @    12345 chk cr    ( Non-literal address )
 
@@ -184,14 +182,14 @@ code ei 251 c, 253 c, 233 c,
 	            v 123 over c! c@    123 chk cr      ( Non-literal address )
 	;
 
-:m test-again
+: test-again
 	1
 	begin
 		dup +			
 		dup 1000 > if exit then
 	again ;
 
-:m test-loop
+: test-loop
 	0
 	2 0 do
 		5 0 do
@@ -199,14 +197,14 @@ code ei 251 c, 253 c, 233 c,
 		loop
 	loop ;
 
-:m test-leave
+: test-leave
 	0
 	100 0 do
 		1+
 		i 10 = if leave then
 	loop ;
 
-:m test-goto
+: test-goto
 	123 >r
 	3
 	label back
@@ -215,7 +213,7 @@ code ei 251 c, 253 c, 233 c,
 	?dup if goto back then
 	r> ;
 
-:m control-flow
+: control-flow
 	." IF     " 1 2 if 3 then                  1 3 chk2 space
 	            1 0 if 2 else 3 then           1 3 chk2 cr
 
@@ -225,15 +223,15 @@ code ei 251 c, 253 c, 233 c,
 
 	." LOOP   " 0 1000 -100 do i + loop        -29838 chk space ( 16-bit )
 				0 100 0 do i + loop            4950 chk space ( 8-bit )
-	            0 three @ one @ do i + loop    3 chk space ( Non-literal counter & limit )
+	            0 three one do i + loop        3 chk space ( Non-literal counter & limit )
 				0 10 20 do i + loop            20 chk space ( "Invalid loop" )
 	            test-loop                      25 chk space
 	            test-leave                     11 chk cr
 
 	." +LOOP  " 0 500 -300 do i + 2 +loop      -25936 chk space ( Count up )
 	            0 -300 500 do i + -3 +loop     26967 chk space ( Count down )
-	            0 500 -300 do i + two @ +loop  -25936 chk space ( Generic, count up )
-	            0 -300 500 do i + minus-three @ +loop     26967 chk cr ( Generic, count down )
+	            0 500 -300 do i + two +loop    -25936 chk space ( Generic, count up )
+	            0 -300 500 do i + minus-three +loop     26967 chk cr ( Generic, count down )
 
 	." I'     " 0 10 0 do i' + loop            100 chk cr
 
@@ -241,16 +239,7 @@ code ei 251 c, 253 c, 233 c,
 	            test-goto                      120 chk cr ( Backward goto )
 	;
 
-: push1 1 ;
-
-:m push1-mc 1 ;
-
-:m inter-op
-	." FCALL  " push1            1 chk cr ( Call Forth word from mcode word )
-	." MCALL  " push1-mc         1 chk cr ( Call mcode word from mcode word )
-	;
-
-:m print
+: print
 	." EMIT   " ascii * emit cr
 	." SPACE  " space ascii * emit cr
 	." SPACES "	2 spaces ascii * emit cr
@@ -258,7 +247,7 @@ code ei 251 c, 253 c, 233 c,
 	." TYPE   " 15424 5 type space ." RULES" cr
 	;
 
-:m test-in-out
+: test-in-out
 	." PLAYING SOUND..."
 	12345
 	100 begin
@@ -269,13 +258,13 @@ code ei 251 c, 253 c, 233 c,
 		1- dup 0=
 	until drop ;
 
-:m test-inkey 
+: test-inkey 
 	." *PRESS SPACE* "
 	begin
 		inkey 32 =
 	until ;
 
-:m misc
+: misc
 	." LIT    " [ 5 3 * ] lit      15 chk cr
 	." CONST  " SCREEN             9216 chk cr
 	." BASE   " 8 base c! 255 . cr ( ff )
@@ -284,18 +273,18 @@ code ei 251 c, 253 c, 233 c,
 	." .S     " 1 2 3 .s drop drop drop cr
 	;
 
-:m i/o
+: i/o
 	." INKEY  " test-inkey cr
 	." IN OUT " test-in-out cr    12345 chk cr
 	;
 
-:m benchmark-stack
+: benchmark-stack
 	10000 0 do
 		dup dup dup dup dup dup dup dup dup dup
 		drop drop drop drop drop drop drop drop drop drop
 	loop ;
 
-:m benchmark-over
+: benchmark-over
 	100 0 do
 		over over over over over over over over over over
 		over over over over over over over over over over
@@ -305,59 +294,59 @@ code ei 251 c, 253 c, 233 c,
 		STKBOT @ 14 + SPARE ! ( Reset stack, except profile start time )
 	loop ;
 
-:m benchmark-swap
+: benchmark-swap
 	1 2
 	10000 0 do
 		swap swap swap swap swap swap swap swap swap swap
 	loop 2drop ;
 
-:m benchmark-loop
+: benchmark-loop
 	200 0 do
 		200 0 do loop
 	loop ;
 
-:m benchmark-rstack
+: benchmark-rstack
 	5000 0 do
 		>r r> >r r> >r r> >r r> >r r> >r r> >r r> >r r> 
 		>r r> >r r> >r r> >r r> >r r> >r r> >r r> >r r> 
 	loop ;
 
-:m benchmark-arith
+: benchmark-arith
 	5
 	10000 0 do
 		dup + dup + dup + dup + dup - dup - dup - dup -
 	loop drop ;
 
-:m benchmark-arith2
+: benchmark-arith2
 	5
 	10000 0 do
 		1 + 2 + 3 + 4 + 5 +
 		1 - 2 - 3 - 4 - 5 -
 	loop drop ;
 
-:m benchmark-1+
+: benchmark-1+
 	0
 	10000 0 do
 		1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+ 1+
 	loop drop ;
 
-:m benchmark-2*
+: benchmark-2*
 	5000 0 do
 		3 2* 2* 2* 2* 2* 2* 2* 2* 2* drop
 	loop ;
 
-:m benchmark-2/
+: benchmark-2/
 	500 0 do
 		31111 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ drop
 	loop ;
 
-:m benchmark-*
+: benchmark-*
 	2
 	1000 0 do
 		2 * 7 * 123 * 256 * 789 *
 	loop drop ;
 
-:m benchmark-c*
+: benchmark-c*
 	2
 	1000 0 do
 		2 c* 5 c* 9 c* 10 c* 7 c*
@@ -370,10 +359,7 @@ code ei 251 c, 253 c, 233 c,
 
 : begin-profile ( -- start-time ) time ;
 
-: end-profile ( start-time -- )
-	time swap - .
-	1- ( subtract time taken by profiling code )
-	cr ;
+: end-profile ( start-time -- ) time swap - . cr ;
 
 : main
 	fast di cls invis
@@ -381,7 +367,6 @@ code ei 251 c, 253 c, 233 c,
 	arith
 	rel-ops
 	mem
-	inter-op
 	control-flow
 	print
 	misc

@@ -1,8 +1,14 @@
-- words marked with IMMEDIATE cannot be called from :m words
-	- also POSTPONE probably does not work correctly
+- revamp :m
+	- mixing forth words and machine code words is a mess
+	- it's better to just compile all colon definitions into machine code when --mcode command line option is given
+	- in order to support macros, we replace IMMEDIATE with :m ("define macro")
+	- macros are always compiled to bytecode (interpreted Ace Forth)
+	- no need for mcode wrappers and --no-forth-mcode-calls option
 	
-- can we support inlining for :m words?
-	- record Forth source of each colon definition and play them back when inlining
+- can we support inlining for machine code words?
+	- yes, but we need to relocate the compiled code (patch all absolute jumps and string references)
+
+- optimization idea: when compiling to machine code, we could probably eliminate all word headers and just compile everything into one word
 
 - short forward branches for IF, ELSE and GOTO
 
@@ -27,8 +33,3 @@
 	- store last_word_line in next_symbol
 
 - formatting of negative literals in listing files is broken
-
-- consider replacing :m with option that compiles all words to machine code
-	- no need for mcode wrappers and --no-forth-mcode-calls option
-	- makes things simpler to understand
-	- we could probably also eliminate all word headers and just compile everything into one word

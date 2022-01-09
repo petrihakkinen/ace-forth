@@ -254,6 +254,8 @@ The following letters are used to denote values on the stack:
 | [DEFINED] \<name\> | ( - flag )        | If word named \<name\> is defined, push 1 to compiler stack. Otherwise push 0. |
 | FAST              | ( - )              | Turn off stack underflow check                                          |
 | SLOW              | ( - )              | Turn on stack underflow check                                           |
+| DI                | ( - )              | Disable interrupts                                                      |
+| EI                | ( - )              | Enable interrupts                                                       |
 | CALL              | ( addr - )         | Call a machine code routine. The routine must end with JP (IY)          |
 | EXECUTE           | ( addr - )         | Execute a word given its compilation address                            |
 | INVIS             | ( - )              | Turn off printing of executed words                                     |
