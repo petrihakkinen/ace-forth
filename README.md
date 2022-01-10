@@ -85,7 +85,7 @@ The compiler supports many extras not found on Jupiter Ace's Forth implementatio
 
 - New defining word `:M` for creating macros (also known as immediate words). `:M name ;` is equivalent to `: name ; IMMEDIATE` in other Forth dialects. Before compiling a word, ace-forth needs to know whether the word should be compiled to Forth bytecode or Z80 machine code.
 
-- Many new words have been added: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `C*` `.S` `HEX` `CODE` `POSTPONE` ...
+- Many new words have been added: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `C*` `C=` `.S` `HEX` `CODE` `POSTPONE` ...
 
 
 ## Machine Code Compilation
@@ -100,7 +100,7 @@ Some Forth words cannot be compiled into machine code and their execution will b
 
 The words `*` and `/`, when compiled to machine code, have special optimizations for power of two values: if the value preceding `*` or `/` is a literal, positive and a power of two (1, 2, 4, 8, 16, ... 16384), the computation is performed by bit shifting.
 
-For 8-bit multiplication where both operands and the result fits into 8 bits, it is recommended to use the new word `C*` (it is more than twice as fast as `*` when compiled to machine code).
+For 8-bit multiplication where both operands fits into 8 bits (the result is 16 bit), it is recommended to use the new word `C*` (it is more than twice as fast as `*` when compiled to machine code).
 
 Similarly, there is a new word `C=` for comparing the low bytes of two numbers for equality. It can be used in place or `=` when the numbers to compare are known to be bytes.
 
@@ -173,7 +173,7 @@ The following letters are used to denote values on the stack:
 | +          | ( n n - n )        | Add two integers                                                    |
 | -          | ( n n - n )        | Subtract two integers                                               |
 | *          | ( n n - n )        | Multiply two integers                                               |
-| C*         | ( n n - n )        | Multiply two 8-bit integers                                         |
+| C*         | ( n n - n )        | Multiply two unsigned 8-bit integers (the result is 16 bit)         |
 | /          | ( n1 n2 - n )      | Divide n1 by n2                                                     |
 | 1+         | ( n - n )          | Increment value by 1                                                |
 | 1-         | ( n - n )          | Decrement value by 1                                                |

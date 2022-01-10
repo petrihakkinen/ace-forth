@@ -73,12 +73,13 @@ decimal
 	            -1 32768 *       -32768 chk space ( 32768* )
 	            100 v @ *        10000 chk cr     ( n * n )
 
-	( These tests fail when compiled to interpreted Forth! )
 	." C*     " 5 50 c*          250 chk space    ( n * literal )
 	            2 v @ c*         200 chk space    ( n * value )
 	            3 1 c*           3 chk space      ( 1 specialization )
 	            3 2 c*           6 chk space      ( 2 specialization )
 	            3 4 c*           12 chk space     ( 4 specialization )
+	            240 120 c*       28800 chk space
+	            120 240 c*       28800 chk space
 	            3 256 c*         0 chk cr         ( out of range specialization )
 
 	." /      " 1000 3 /         333 chk space    ( Generic algorithm )
