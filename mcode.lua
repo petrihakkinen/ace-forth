@@ -989,9 +989,18 @@ local function emit_subroutines()
 	_ld(E, A)
 	_ret()
 
-	-- sub
-	subroutines.sub = here()
-	list_header("sub")
+	-- +
+	subroutines['+'] = here()
+	list_header("+")
+	stk_pop_bc_inline()
+	_ex_de_hl()
+	_add(HL, BC)
+	_ex_de_hl()
+	_ret()
+
+	-- -
+	subroutines['-'] = here()
+	list_header("-")
 	_ld(B, D)
 	_ld(C, E)
 	stk_pop_de_inline()
@@ -1249,10 +1258,7 @@ local dict = {
 			_add(HL, DE)
 			_ex_de_hl()
 		else
-			stk_pop_bc(); list_comment("+")
-			_ex_de_hl()
-			_add(HL, BC)
-			_ex_de_hl()
+			_call(subroutines['+']); list_comment("+")
 		end
 	end,
 	['-'] = function()
@@ -1271,7 +1277,7 @@ local dict = {
 			_add(HL, DE)
 			_ex_de_hl()
 		else
-			_call(subroutines.sub); list_comment("-")
+			_call(subroutines['-']); list_comment("-")
 		end
 	end,
 	['*'] = function()
