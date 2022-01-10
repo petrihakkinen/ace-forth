@@ -5,12 +5,7 @@
 
 - short forward branches for IF, ELSE and GOTO
 
-- would byte size arithmetic make sense? C+ C- C< C>
-
 - document remaining words in README
-
-- extract long & rarely used mcode words to subroutines:
-	2OVER ROLL SPACES 0> MIN MAX ABS
 
 - eliminate unused machine code subroutines
 

@@ -989,6 +989,34 @@ local function emit_subroutines()
 	_ld(E, A)
 	_ret()
 
+	-- 2over (4 pick 4 pick)
+	subroutines['2over'] = here()
+	list_header("2over")
+	stk_push_de()
+	for i = 1, 2 do
+		_ld_const(DE, 4)
+		stk_push_de()
+		_call(0x094d)
+	end
+	stk_pop_de()
+	_ret()
+
+	-- roll
+	subroutines.roll = here()
+	list_header("roll")
+	stk_push_de()
+	_call(0x094d)
+	_ex_de_hl()
+	_ld_fetch(HL, STKBOT)
+	_ld(H, D)
+	_ld(L, E)
+	_inc(HL)
+	_inc(HL)
+	_ldir()
+	_ld_store(SPARE, DE)
+	stk_pop_de()
+	_ret()
+
 	-- +
 	subroutines['+'] = here()
 	list_header("+")
@@ -1098,6 +1126,36 @@ local function emit_subroutines()
 	_ld(E, A)
 	_ret()
 
+	-- min
+	subroutines.min = here()
+	list_header("min")
+	stk_pop_bc_inline()
+	_ld(H, D)
+	_ld(L, E)
+	_or(A) -- clear carry
+	_sbc(HL, BC)
+	_rl(H)
+	_jr_c(2) --> skip
+	_ld(D, B)
+	_ld(E, C)
+	-- skip:
+	_ret()
+
+	-- max
+	subroutines.max = here()
+	list_header("max")
+	stk_pop_bc_inline()
+	_ld(H, D)
+	_ld(L, E)
+	_or(A) -- clear carry
+	_sbc(HL, BC)
+	_rl(H)
+	_jr_nc(2) --> skip
+	_ld(D, B)
+	_ld(E, C)
+	-- skip:
+	_ret()
+
 	-- at
 	subroutines.at = here()
 	list_header("at")
@@ -1121,6 +1179,30 @@ local function emit_subroutines()
 	_ex_de_hl()	-- now HL points to end of string
 	_pop(DE) -- restore DE
 	_jp_indirect(HL)
+
+	-- spaces
+	subroutines.spaces = here()
+	list_header("spaces")
+	-- loop:
+	_dec(DE)
+	_bit(7, D)
+	_jr_nz(5) --> done
+	_ld_const(A, 0x20)
+	_rst(8)
+	_jr(0xf6) --> loop
+	-- done:
+	stk_pop_de()
+	_ret()
+
+	-- type
+	subroutines.type = here()
+	list_header("type")
+	_ld(B, D)	-- move count from DE to BC
+	_ld(C, E)
+	stk_pop_de()
+	_call(0x097f) -- call print string routine (BC = count, DE = addr)
+	stk_pop_de()
+	_ret()
 end
 
 local function emit_literal(n, comment)
@@ -1200,15 +1282,7 @@ local dict = {
 		stk_pop_de()
 	end,
 	['2over'] = function()
-		-- 4 pick 4 pick
-		stk_push_de(); list_comment("2over")
-		_ld_const(DE, 4)
-		stk_push_de()
-		_call(0x094d)
-		_ld_const(DE, 4)
-		stk_push_de()
-		_call(0x094d)
-		stk_pop_de()
+		_call(subroutines['2over']); list_comment("2over")
 	end,
 	pick = function()
 		stk_push_de(); list_comment("pick")
@@ -1216,18 +1290,7 @@ local dict = {
 		stk_pop_de()
 	end,
 	roll = function()
-		-- TODO: subroutine?
-		stk_push_de(); list_comment("roll")
-		_call(0x094d);
-		_ex_de_hl()
-		_ld_fetch(HL, STKBOT)
-		_ld(H, D)
-		_ld(L, E)
-		_inc(HL)
-		_inc(HL)
-		_ldir()
-		_ld_store(SPARE, DE)
-		stk_pop_de()
+		_call(subroutines.roll); list_comment("roll")
 	end,
 	rot = function()
 		_call(subroutines.rot); list_comment("rot")
@@ -1415,28 +1478,10 @@ local dict = {
 		-- skip:
 	end,
 	min = function()
-		stk_pop_bc(); list_comment("min")
-		_ld(H, D)
-		_ld(L, E)
-		_or(A) -- clear carry
-		_sbc(HL, BC)
-		_rl(H)
-		_jr_c(2) --> skip
-		_ld(D, B)
-		_ld(E, C)
-		-- skip:
+		_call(subroutines.min); list_comment("min")
 	end,
 	max = function()
-		stk_pop_bc(); list_comment("max")
-		_ld(H, D)
-		_ld(L, E)
-		_or(A) -- clear carry
-		_sbc(HL, BC)
-		_rl(H)
-		_jr_nc(2) --> skip
-		_ld(D, B)
-		_ld(E, C)
-		-- skip:
+		_call(subroutines.max); list_comment("max")
 	end,
 	xor = function()
 		local lit = erase_literal()
@@ -1549,7 +1594,7 @@ local dict = {
 	end,
 	['0<'] = function()
 		_xor(A); list_comment("0<")
-		_rl(D); list_comment("0<")
+		_rl(D)
 		_ld(D, A)
 		_rla()
 		_ld(E, A)
@@ -1687,26 +1732,14 @@ local dict = {
 		_rst(8)
 	end,
 	spaces = function()
-		-- loop:
-		_dec(DE); list_comment("spaces")
-		_bit(7, D)
-		_jr_nz(5) --> done
-		_ld_const(A, 0x20)
-		_rst(8)
-		_jr(0xf6) --> loop
-		-- done:
-		stk_pop_de()
+		_call(subroutines.spaces); list_comment("spaces")
 	end,
 	at = function()
 		_call(subroutines.at); list_comment("at")
 	end,
 	type = function()
 		-- ( addr count -- )
-		_ld(B, D); list_comment("type")	-- move count from DE to BC
-		_ld(C, E)
-		stk_pop_de()
-		_call(0x097f) -- call print string routine (BC = count, DE = addr)
-		stk_pop_de()
+		_call(subroutines.type); list_comment("type")
 	end,
 	base = function()
 		stk_push_de(); list_comment("base")
