@@ -109,7 +109,7 @@ The following table contains some benchmark results comparing the speed of machi
 | Benchmark        | Speed up  | Notes                      |
 | ---------------- | --------- | -------------------------- |
 | Stack ops        | 3.1       | DUP DROP                   |
-| OVER             | 204       |                            |
+| OVER             | 11        |                            |
 | Arithmetic       | 4.8       | + -                        |
 | DO LOOP          | 7.8       |                            |
 | 1+               | 29        |                            |
