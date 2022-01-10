@@ -932,7 +932,7 @@ local function emit_subroutines()
 
 	-- rot (r swap r> swap)
 	subroutines.rot = here()
-	list_comment("subroutine: rot")
+	list_header("rot")
 	_push(DE)
 	stk_pop_de()
 	_call(here() + 5) -- call swap
@@ -942,7 +942,7 @@ local function emit_subroutines()
 
 	-- swap
 	subroutines.swap = here()
-	list_comment("subroutine: swap")
+	list_header("swap")
 	_ld_fetch(HL, SPARE)	-- load second element from top of stack to BC
 	_dec(HL)
 	_ld(B, HL_INDIRECT)
@@ -964,7 +964,7 @@ local function emit_subroutines()
 
 	-- over
 	subroutines.over = here()
-	list_comment("subroutine: over")
+	list_header("over")
 	_ld_fetch(HL, SPARE) -- push old top
 	_ld(B, H)
 	_ld(C, L)
@@ -981,9 +981,21 @@ local function emit_subroutines()
 	_ld(E, A)
 	_ret()
 
+	-- sub
+	subroutines.sub = here()
+	list_header("sub")
+	_ld(B, D)
+	_ld(C, E)
+	stk_pop_de_inline()
+	_ex_de_hl()
+	_or(A) -- clear carry
+	_sbc(HL, BC)
+	_ex_de_hl()
+	_ret()
+
 	-- signed 16-bit * 16-bit multiplication routine
 	subroutines.mult16 = here()
-	list_header("subroutine: mult16")
+	list_header("mult16")
 	stk_pop_bc()
 	_ld_const(HL, 0)
 	_ld_const(A, 16)
@@ -1005,7 +1017,7 @@ local function emit_subroutines()
 	-- unsigned 8-bit * 8-bit multiplication routine
 	-- source: http://map.grauw.nl/sources/external/z80bits.html#1.1
 	subroutines.mult8 = here()
-	list_header("subroutine: mult8")
+	list_header("mult8")
 	stk_pop_bc()
 	_ld(H, C)
 	_ld_const(L, 0)
@@ -1024,7 +1036,7 @@ local function emit_subroutines()
 
 	-- >
 	subroutines['>'] = here()
-	list_header("subroutine: >")
+	list_header(">")
 	_ld_fetch(HL, SPARE)	-- load second value from top to BC
 	_dec(HL)
 	_ld(B, HL_INDIRECT)
@@ -1047,7 +1059,7 @@ local function emit_subroutines()
 
 	-- <
 	subroutines['<'] = here()
-	list_header("subroutine: <")
+	list_header("<")
 	_ld_fetch(HL, SPARE)	-- load second value from top to BC
 	_dec(HL)
 	_ld(B, HL_INDIRECT)
@@ -1071,7 +1083,7 @@ local function emit_subroutines()
 
 	-- at
 	subroutines.at = here()
-	list_header("subroutine: at")
+	list_header("at")
 	_ld_fetch(HL, SPARE)
 	_dec(HL)
 	_dec(HL)
@@ -1252,13 +1264,7 @@ local dict = {
 			_add(HL, DE)
 			_ex_de_hl()
 		else
-			_ld(B, D); list_comment("-")
-			_ld(C, E)
-			stk_pop_de()
-			_ex_de_hl()
-			_or(A) -- clear carry
-			_sbc(HL, BC)
-			_ex_de_hl()
+			_call(subroutines.sub); list_comment("-")
 		end
 	end,
 	['*'] = function()
@@ -1340,6 +1346,12 @@ local dict = {
 		_dec(DE)
 	end,
 	['2*'] = function()
+		-- 3 bytes, 19 cycles
+		-- _ex_de_hl(); list_comment("2*")
+		-- _add(HL, HL)
+		-- _ex_de_hl()
+		
+		-- 4 bytes, 12 cycles
 		_sla(E); list_comment("2*")
 		_rl(D)
 	end,

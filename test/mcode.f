@@ -383,7 +383,7 @@ decimal
 	." SWAP   " begin-profile benchmark-swap end-profile		( 15091 -> 3865, 3.9 times faster )
 	." LOOP   " begin-profile benchmark-loop end-profile		( 4676 -> 598, 7.8 times faster )
 	." >R R>  " begin-profile benchmark-rstack end-profile 	    ( 11088 -> 5000, 2.2 times faster )
-	." ARITH  " begin-profile benchmark-arith end-profile	    ( 24795 -> 5200, 4.8 times faster )
+	." ARITH  " begin-profile benchmark-arith end-profile	    ( 24795 -> 5151, 4.8 times faster )
 	." ARITH2 " begin-profile benchmark-arith2 end-profile	    ( 27322 -> 751, 36 times faster )
 	." 1+     " begin-profile benchmark-1+ end-profile		    ( 12266 -> 425, 29 times faster )
 	." 2*     " begin-profile benchmark-2* end-profile		    ( 14256 -> 613, 23 times faster )
