@@ -2,7 +2,6 @@
 
 local labels = {}	-- label -> address for current word
 local gotos = {}	-- address to be patched -> label for current word
-local strings = {}	-- strings to be enclosed into dictionary after current word (str, patch-addr, str, patch-addr, ...)
 
 local literal_pos	-- the dictionary position just after the newest emitted literal
 local literal_pos2	-- the dictionary position of the second newest literal
@@ -661,11 +660,20 @@ local function _jp_p(addr)
 	list_instr("$%04x", addr)
 end
 
-local function _jp_indirect_iy()
+local function _jp_indirect(r)
 	list_here()
-	emit_byte(0xfd)	-- jp (iy)
-	emit_byte(0xe9)
-	list_instr("jp (iy)")
+	if r == HL then
+		emit_byte(0xe9)	-- jp (hl)
+	elseif r == IX then
+		emit_byte(0xdd)	-- jp (ix)
+		emit_byte(0xe9)
+	elseif r == IY then
+		emit_byte(0xfd)	-- jp (iy)
+		emit_byte(0xe9)
+	else
+		error("_jp_indirect: unknown register")
+	end
+	list_instr("jp (%s)", reg_name[r])
 end
 
 local function _di()
@@ -1093,6 +1101,17 @@ local function emit_subroutines()
 	_ld_store(SCRPOS, HL)
 	stk_pop_de()
 	_ret()
+
+	-- ."
+	subroutines['."'] = here()
+	list_header('."')
+	_pop(HL)	-- HL = pointer to string data
+	_push(DE) -- preserve DE
+	_ex_de_hl()	-- DE = string data
+	_call(0x0979) -- call print embedded string routine
+	_ex_de_hl()	-- now HL points to end of string
+	_pop(DE) -- restore DE
+	_jp_indirect(HL)
 end
 
 local function emit_literal(n, comment)
@@ -1134,20 +1153,8 @@ local dict = {
 			write_short(patch_loc, target_addr)
 		end
 
-		-- write strings
-		for i = 1, #strings, 2 do
-			local str = strings[i]
-			local patch_loc = strings[i + 1]
-			write_short(patch_loc, here()) -- patch address at ."
-			list_here()
-			emit_short(#str)
-			emit_string(str)
-			list_comment('"%s"', str)
-		end
-
 		labels = {}
 		gotos = {}
-		strings = {}
 	end,
 	dup = function()
 		stk_push_de(); list_comment("dup")
@@ -1974,12 +1981,11 @@ local dict = {
 	end,
 	['."'] = function()
 		local str = next_symbol_with_delimiter('"')
-		strings[#strings + 1] = str	-- store string to be added later
-		_push(DE); list_comment('."')	-- preserve DE (can't use EXX because rst 8 routine trashes shadow registers)
-		strings[#strings + 1] = here() + 1 -- store patch location for string addr
-		_ld_const(DE, 0) -- load placeholder string address to DE
-		_call(0x0979) -- call print embedded string routine
-		_pop(DE)
+		_call(subroutines['."']); list_comment('."')
+		list_here()
+		emit_short(#str)
+		emit_string(str)
+		list_comment('"%s"', str)
 	end,
 	di = function()
 		_di(); list_comment("di")
