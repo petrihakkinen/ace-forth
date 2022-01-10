@@ -98,7 +98,7 @@ Some Forth words cannot be compiled into machine code and their execution will b
 	. # #S #> <# SIGN HOLD CLS SLOW FAST INVIS VIS ABORT QUIT LINE WORD NUMBER CONVERT
 	RETYPE QUERY PLOT BEEP EXECUTE CALL
 
-The words `*` and `/`, when compiled to machine code, have specializations for values 1, 2, 4 and 256. Multiplying or dividing by any of these values is very fast. Division by any other value falls so the Forth interpreter which is very slow.
+The words `*` and `/`, when compiled to machine code, have special optimizations for power of two values: if the value preceding `*` or `/` is a literal, positive and a power of two (1, 2, 4, 8, 16, ... 16384), the computation is performed by bit shifting.
 
 For 8-bit multiplication where both operands and the result fits into 8 bits, it is recommended to use the new word `C*` (it is more than twice as fast as `*` when compiled to machine code).
 

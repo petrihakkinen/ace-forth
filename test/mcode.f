@@ -63,26 +63,31 @@ decimal
 
 	." *      " 1000 5 *         5000 chk space   ( n * literal )
 	            -123 5 *         -615 chk space
-	            -123 0 *         0 chk space      ( 0 specialization )
-	            -123 1 *         -123 chk space   ( 1 specialization )
-	            -123 2 *         -246 chk space   ( 2 specialization )
-	            -123 4 *         -492 chk space   ( 4 specialization )
-	            -123 256 *       -31488 chk space ( 256 specialization )
+	            -123 0 *         0 chk space      ( 0* )
+	            -123 1 *         -123 chk space   ( 1* )
+	            -123 2 *         -246 chk space   ( 2* )
+	            -123 4 *         -492 chk space   ( 4* )
+	            -123 256 *       -31488 chk space ( 256* )
+	            -12 512 *        -6144 chk space  ( 512* )
+	            -12 2048 *       -24576 chk space ( 512* )
+	            -1 32768 *       -32768 chk space ( 32768* )
 	            100 v @ *        10000 chk cr     ( n * n )
 
-	\ These tests fail when compiled to interpreted Forth
-	\ ." C*     " 5 50 c*          250 chk space    ( n * literal )
-	\             2 v @ c*         200 chk space    ( n * value )
-	\             3 1 c*           3 chk space      ( 1 specialization )
-	\             3 2 c*           6 chk space      ( 2 specialization )
-	\             3 4 c*           12 chk space     ( 4 specialization )
-	\             3 256 c*         0 chk cr         ( out of range specialization )
+	( These tests fail when compiled to interpreted Forth! )
+	." C*     " 5 50 c*          250 chk space    ( n * literal )
+	            2 v @ c*         200 chk space    ( n * value )
+	            3 1 c*           3 chk space      ( 1 specialization )
+	            3 2 c*           6 chk space      ( 2 specialization )
+	            3 4 c*           12 chk space     ( 4 specialization )
+	            3 256 c*         0 chk cr         ( out of range specialization )
 
 	." /      " 1000 3 /         333 chk space    ( Generic algorithm )
-                1000 1 /         1000 chk space   ( 1 specialization )
-                1000 2 /         500 chk space    ( 2 specialization )
-                1000 4 /         250 chk space    ( 4 specialization )
-                1000 256 /       3 chk cr         ( 256 specialization )
+                1000 1 /         1000 chk space   ( 1/ )
+                1000 2 /         500 chk space    ( 2/ )
+                1000 4 /         250 chk space    ( 4/ )
+                -1000 8 /        -125 chk space   ( 8/ )
+                1000 256 /       3 chk space      ( 256/ )
+                10000 1024 /    9 chk cr
 
 	." 1+     " 5 1+             6 chk cr
 

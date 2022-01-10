@@ -1148,6 +1148,10 @@ local function erase_literal()
 	end
 end
 
+local function is_pow2(x)
+	return x > 0 and (x & (x - 1)) == 0
+end
+
 local dict = {
 	[';'] = function()
 		_ret()
@@ -1286,17 +1290,24 @@ local dict = {
 			_ld_const(DE, 0); list_comment("0 *")
 		elseif lit == 1 then
 			-- nothing to do
-		elseif lit == 2 then
-			_sla(E); list_comment("2 *")
-			_rl(D)
-		elseif lit == 4 then
-			_sla(E); list_comment("4 *")
-			_rl(D)
-			_sla(E)
-			_rl(D)
-		elseif lit == 256 then
-			_ld(D, E); list_comment("256 *")
-			_ld_const(E, 0)
+		elseif lit and is_pow2(lit) and lit <= 32767 then
+			if lit < 256 then
+				local comment = true
+				while lit > 1 do
+					_sla(E)
+					if comment then list_comment("%d *", lit); comment = false end
+					_rl(D)
+					lit = lit // 2
+				end
+			else
+				_ld(D, E); list_comment("%d *", lit)
+				_ld_const(E, 0)
+				lit = lit // 256
+				while lit > 1 do
+					_sla(D)
+					lit = lit // 2
+				end
+			end
 		elseif lit then
 			emit_literal(lit)
 			_call(subroutines.mult16); list_comment("*")
@@ -1310,11 +1321,13 @@ local dict = {
 			_ld_const(DE, 0); list_comment("%d c*", lit)
 		elseif lit == 1 then
 			-- nothing to do
-		elseif lit == 2 then
-			_sla(E); list_comment("2 c*")
-		elseif lit == 4 then
-			_sla(E); list_comment("4 c*")
-			_sla(E)
+		elseif lit and is_pow2(lit) then
+			local comment = true
+			while lit > 1 do
+				_sla(E)
+				if comment then list_comment("%d c*", lit); comment = false end
+				lit = lit // 2
+			end
 		elseif lit then
 			emit_literal(lit)
 			_call(subroutines.mult8); list_comment("c*")
@@ -1326,17 +1339,27 @@ local dict = {
 		local lit = erase_literal()
 		if lit == 1 then
 			-- nothing to do
-		elseif lit == 2 then
-			_sra(D); list_comment("2 /")
-			_rr(E)
-		elseif lit == 4 then
-			_sra(D); list_comment("4 /")
-			_rr(E)
-			_sra(D)
-			_rr(E)
-		elseif lit == 256 then
-			_ld(E, D); list_comment("256 /")
-			_ld_const(D, 0)
+		elseif lit and is_pow2(lit) and lit <= 32767 then
+			if lit < 256 then
+				local comment = true
+				while lit > 1 do
+					_sra(D)
+					if comment then list_comment("%d /", lit); comment = false end
+					_rr(E)
+					lit = lit // 2
+				end
+			else
+				_ld(E, D); list_comment("%d /", lit)
+				_ld_const(D, 0)
+				_bit(7, E)
+				_jr_z(1)
+				_dec(D)
+				lit = lit // 256
+				while lit > 1 do
+					_sra(E)
+					lit = lit // 2
+				end
+			end
 		elseif lit then
 			emit_literal(lit)
 			call_forth("/")
