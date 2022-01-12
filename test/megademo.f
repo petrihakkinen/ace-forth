@@ -4,12 +4,20 @@
 -1 variable dy
 1 variable len
 
-: pl x @ y @ abs 47 mod 3 plot ;
+: pl ( -- ) x @ y @ abs 47 mod 3 plot ;
 
 : !+ over @ + swap ! ;
 
-: step x dx @ !+ y dy @ !+ ;
+: step ( -- ) x dx @ !+ y dy @ !+ ;
 
-: turn dx @ negate dy @ dx ! dy ! ;
+: turn ( -- ) dx @ negate dy @ dx ! dy ! ;
 
-: main begin len @ 0 do pl step loop turn len 1 !+ 0 until ; 
+: main
+	fast di
+	begin
+		len @ 0
+		do
+			pl step
+		loop
+		turn len 1 !+ 
+	again ; 
