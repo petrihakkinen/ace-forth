@@ -55,9 +55,7 @@ do
 	while i <= #args do
 		local arg = args[i]
 		if string.match(arg, "^%-") then
-			if arg == "--no-headers" then
-				opts.no_headers = true
-			elseif arg == "--minimal-word-names" then
+			if arg == "--minimal-word-names" then
 				opts.minimal_word_names = true
 			elseif arg == "--inline" then
 				opts.inline_words = true
@@ -116,7 +114,6 @@ if #input_files == 0 then
 	print("  --inline                  Inline words that are only used once")
 	print("  --eliminate-unused-words  Eliminate unused words when possible")
 	print("  --small-literals          Optimize byte-sized literals")
-	print("  --no-headers              (unsafe) Eliminate word headers, except for main word")
 	print("  --optimize                Enable all safe optimizations")
 	print("  --no-warn                 Disable all warnings")
 	print("  --verbose                 Print information while compiling")
@@ -540,17 +537,13 @@ function create_word(code_field, name, flags)
 	word_flags[name] = flags
 	word_counts[name] = word_counts[name] or 0
 
-	local skip_header = false
-	if opts.no_headers and name ~= opts.main_word then skip_header = true end
-
-	update_word_length()
-
 	list_header(name)
-	list_here()
 
-	if skip_header then
-		emit_byte(0)
-	else
+	if not opts.mcode then
+		list_here()
+
+		update_word_length()
+
 		-- write name to dictionary, with terminator bit set for the last character
 		local name = name
 		if opts.minimal_word_names and name ~= opts.main_word then name = "@" end
@@ -565,6 +558,8 @@ function create_word(code_field, name, flags)
 	end
 
 	local compilation_addr = here()
+
+	-- TODO: eliminate code field when compiling to machine code
 	emit_short(code_field)	-- code field
 
 	-- remember compilation addresses for FIND
@@ -595,7 +590,9 @@ function erase_previous_word()
 	assert(compilation_addr, "could not determine compilation address of previous word")
 
 	-- fix prev word link
-	prev_word_link = read_short(compilation_addr - 3)
+	if not opts.mcode then
+		prev_word_link = read_short(compilation_addr - 3)
+	end
 
 	-- store old code (skip code field)
 	local code = {}
@@ -1353,6 +1350,18 @@ for name, addr in pairs(rom_words) do
 	compilation_addr_to_name[addr] = name
 end
 
+-- emit header for the main word enclosing the whole machine code program
+if opts.mcode then
+	-- write name to dictionary, with terminator bit set for the last character
+	local name = string.upper(opts.main_word)
+	emit_string(name:sub(1, #name - 1) .. string.char(name:byte(#name) | 128))
+	emit_short(0) -- placeholder word length
+	emit_short(prev_word_link)
+	prev_word_link = here()
+	emit_byte(#name)
+	emit_short(0)	-- placeholder code field
+end
+
 if opts.mcode then
 	mcode.emit_subroutines()
 end
@@ -1413,6 +1422,13 @@ for _, filename in ipairs(input_files) do
 
 	-- execute it!
 	execute_string(src, filename)
+end
+
+-- patch code field for main word
+if opts.mcode then
+	local addr = compilation_addresses[opts.main_word]
+	assert(addr, "could not find compilation address of main word")
+	write_short(prev_word_link + 1, addr + 2)
 end
 
 update_word_length()

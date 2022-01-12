@@ -38,7 +38,6 @@ https://github.com/petrihakkinen/sublime-forth
 	  --inline                  Inline words that are only used once
 	  --eliminate-unused-words  Eliminate unused words when possible
 	  --small-literals          Optimize byte-sized literals
-	  --no-headers              (unsafe) Eliminate word headers, except for main word
 	  --optimize                Enable all safe optimizations
 	  --no-warn                 Disable all warnings
 	  --verbose                 Print information while compiling
@@ -132,8 +131,6 @@ The compiler supports various optimizations which are controlled by the followin
 `--small-literals`: Reduce the size of byte sized literals. Normally every literal takes 4 bytes in compiled code. With this option byte sized literals can be encoded in 3 bytes. This option does nothing when compiling to machine code.
 
 `--optimize`: Enables all of the above optimizations.
-
-`--no-headers`: This is an experimental unsafe optimization. Do not use!
 
 
 ## Word Index

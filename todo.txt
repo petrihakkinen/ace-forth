@@ -1,13 +1,14 @@
+- eliminate code fields when compiling to machine code
+
+- eliminate unused machine code subroutines
+	- refactor subroutines into regular words and deadcode elimination should take care of unused words automatically
+
 - can we support inlining for machine code words?
 	- yes, but we need to relocate the compiled code (patch all absolute jumps and string references)
-
-- optimization idea: when compiling to machine code, we could probably eliminate all word headers and just compile everything into one word
 
 - short forward branches for IF, ELSE and GOTO
 
 - document remaining words in README
-
-- eliminate unused machine code subroutines
 
 - any mcode word that uses stk_pop_bc can be made faster by extracting the code to subroutine and inlining stk_pop_bc there
 
