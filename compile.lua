@@ -557,10 +557,14 @@ function create_word(code_field, name, flags)
 		emit_byte(#name)
 	end
 
+	-- compilation addresses work differently with interpreted Forth and machine code:
+	-- interpreter: compilation address points to code field of the word
+	-- machine code: compilation address points directly to the start of machine code
 	local compilation_addr = here()
 
-	-- TODO: eliminate code field when compiling to machine code
-	emit_short(code_field)	-- code field
+	if not opts.mcode then
+		emit_short(code_field)	-- code field
+	end
 
 	-- remember compilation addresses for FIND
 	compilation_addresses[name] = compilation_addr
@@ -594,9 +598,12 @@ function erase_previous_word()
 		prev_word_link = read_short(compilation_addr - 3)
 	end
 
+	local code_start = compilation_addr
+	if not opts.mcode then code_start = code_start + 2 end
+
 	-- store old code (skip code field)
 	local code = {}
-	for i = compilation_addr + 2, here() - 1 do
+	for i = code_start, here() - 1 do
 		code[#code + 1] = mem[i]
 	end
 
@@ -871,9 +878,6 @@ interpret_dict = {
 			compile_mode = true
 
 			if opts.mcode then
-				-- patch codefield for machine code words
-				write_short(here() - 2, here())
-
 				-- load top of stack to DE if this is the machine code entry point from Forth
 				if name == opts.main_word then
 					list_here()
@@ -912,7 +916,11 @@ interpret_dict = {
 	end,
 	code = function()
 		local name = create_word(0, next_word(), F_NO_ELIMINATE)
-		write_short(here() - 2, here())	-- patch codefield
+
+		-- patch codefield
+		if not opts.mcode then
+			write_short(here() - 2, here())
+		end
 
 		-- make it possible to call CODE words from machine code
 		if mcode_dict[name] == nil or not dont_allow_redefining then
@@ -1354,12 +1362,14 @@ end
 if opts.mcode then
 	-- write name to dictionary, with terminator bit set for the last character
 	local name = string.upper(opts.main_word)
+	list_here()
 	emit_string(name:sub(1, #name - 1) .. string.char(name:byte(#name) | 128))
 	emit_short(0) -- placeholder word length
 	emit_short(prev_word_link)
 	prev_word_link = here()
 	emit_byte(#name)
 	emit_short(0)	-- placeholder code field
+	list_comment("main word header")
 end
 
 if opts.mcode then
@@ -1428,7 +1438,7 @@ end
 if opts.mcode then
 	local addr = compilation_addresses[opts.main_word]
 	assert(addr, "could not find compilation address of main word")
-	write_short(prev_word_link + 1, addr + 2)
+	write_short(prev_word_link + 1, addr)
 end
 
 update_word_length()

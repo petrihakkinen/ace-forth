@@ -1,5 +1,3 @@
-- eliminate code fields when compiling to machine code
-
 - eliminate unused machine code subroutines
 	- refactor subroutines into regular words and deadcode elimination should take care of unused words automatically
 

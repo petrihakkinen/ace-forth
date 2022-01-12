@@ -898,7 +898,7 @@ end
 
 local function call_forth(name)
 	-- Calling Forth word from machine code
-	local addr = compilation_addresses[name] or rom_words[string.upper(name)]
+	local addr = rom_words[string.upper(name)]
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
@@ -920,7 +920,7 @@ local function call_code(name)
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	_call(addr + 2) -- words created using CODE don't have wrappers
+	_call(addr) -- words created using CODE don't have wrappers
 	list_comment(name)
 end
 
@@ -930,14 +930,12 @@ local function call_mcode(name)
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	_call(addr + 2)
+	_call(addr)
 	list_comment(name)
 end
 
 -- Emits invisible subroutine words to be used by mcode words.
 local function emit_subroutines()
-	create_word(0, "_mcode", F_INVISIBLE | F_NO_ELIMINATE)
-
 	-- rot (r swap r> swap)
 	subroutines.rot = here()
 	list_header("rot")
