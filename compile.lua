@@ -822,7 +822,7 @@ function write_listing(filename)
 		-- find end address of line
 		local e = here()
 		for i = addr + 1, here() do
-			if list_lines[i] or list_comments[i] then
+			if list_headers[i] or list_lines[i] or list_comments[i] then
 				e = i
 				break
 			end
