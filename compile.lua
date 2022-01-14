@@ -851,6 +851,11 @@ function write_listing(filename)
 	file:close()
 end
 
+function patch_forth_jump(instr_addr, jump_to_addr)
+	write_short(instr_addr + 2, jump_to_addr - instr_addr - 3)
+	list_patch(instr_addr, string.format("$%04x", jump_to_addr))
+end
+
 interpret_dict = {
 	create = function()
 		-- this word cannot be dead-code eliminated, because we don't know where it ends
@@ -1187,7 +1192,7 @@ compile_dict = {
 		for patch_loc, label in pairs(gotos) do
 			local target_addr = labels[label]
 			if target_addr == nil then comp_error("undefined label '%s'", label) end
-			write_short(patch_loc, target_addr - patch_loc - 1)
+			patch_forth_jump(patch_loc, target_addr)
 		end
 		labels = {}
 		gotos = {}
@@ -1235,9 +1240,9 @@ compile_dict = {
 	['if'] = function()
 		-- emit conditional branch
 		list_line("?branch $0000")
-		emit_short(CBRANCH)
 		cf_push(here())
 		cf_push('if')
+		emit_short(CBRANCH)
 		emit_short(0)	-- placeholder branch offset
 	end,
 	['else'] = function()
@@ -1245,18 +1250,18 @@ compile_dict = {
 		local where = cf_pop()
 		-- emit jump to THEN
 		list_line("branch $0000")
-		emit_short(BRANCH)
 		cf_push(here())
 		cf_push('if')
+		emit_short(BRANCH)
 		emit_short(0)	-- placeholder branch offset
-		-- patch branch offset for ?branch at IF
-		write_short(where, here() - where - 1)
+		-- patch ?branch at IF
+		patch_forth_jump(where, here())
 	end,
 	['then']= function()
-		-- patch branch offset for ?branch at IF
+		-- patch ?branch at IF
 		comp_assert(cf_pop() == 'if', "THEN without matching IF")
 		local where = cf_pop()
-		write_short(where, here() - where - 1)
+		patch_forth_jump(where, here())
 	end,
 	begin = function()
 		cf_push(here())
@@ -1301,10 +1306,9 @@ compile_dict = {
 	['goto'] = function()
 		local label = next_symbol()
 		list_line("branch $0000", label)
+		gotos[here()] = label
 		emit_short(BRANCH)
-		local addr = here()
 		emit_short(0)	-- place holder branch offset
-		gotos[addr] = label
 	end,
 	label = function()
 		local label = next_symbol()

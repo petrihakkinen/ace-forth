@@ -1,9 +1,3 @@
-- listings:
-	- forth listings are somewhat broken (see megademo.lst)
-	- patch jumps in forth listings
-	- erase eliminated words from listings
-	- header of 'main' word looks suspicious in megademo.lst when compiled to forth
-
 - eliminate unused machine code subroutines
 	- refactor subroutines into regular words and deadcode elimination should take care of unused words automatically
 
