@@ -539,7 +539,7 @@ function create_word(code_field, name, flags)
 		update_word_length()
 
 		list_comment("word header")
-		
+
 		-- write name to dictionary, with terminator bit set for the last character
 		local name = name
 		if opts.minimal_word_names and name ~= opts.main_word then name = "@" end
@@ -596,14 +596,18 @@ function erase_previous_word()
 	local code_start = compilation_addr
 	if not opts.mcode then code_start = code_start + 2 end
 
-	-- store old code (skip code field)
+	-- store old code & listing (skip code field)
 	local code = {}
+	local list = {}
 	for i = code_start, here() - 1 do
 		code[#code + 1] = mem[i]
+		list[i - code_start + 1] = list_lines[i]
 	end
 
 	for i = start_addr, here() - 1 do
 		mem[i] = 0
+		list_lines[i] = nil
+		list_comments[i] = nil
 	end
 
 	word_start_addresses[name] = nil
@@ -611,7 +615,7 @@ function erase_previous_word()
 
 	output_pos = start_addr
 
-	return code
+	return code, list
 end
 
 -- Execute user defined word at compile time.
@@ -991,14 +995,14 @@ interpret_dict = {
 
 		-- add compile time word which emits the constant as literal
 		compile_dict[name] = function()
-			emit_literal(value)
 			list_comment(name)
+			emit_literal(value)
 		end
 
 		-- add mcode behavior for the word which emits the constant as machine code literal
 		mcode_dict[name] = function()
-			emit_literal(value)
 			list_comment(name)
+			emit_literal(value)
 		end
 
 		-- add word to interpreter dictionary so that the constant can be used at compile time
@@ -1191,12 +1195,15 @@ compile_dict = {
 		-- inlining
 		if inline_words[last_word] then
 			local name = last_word
-			local code = erase_previous_word()
+			local code, list = erase_previous_word()
 
 			-- when the inlined word is compiled, we emit its code
 			compile_dict[name] = function()
 				-- skip ret at the end
+				list_comment("inlined %s", name)
 				for i = 1, #code - 2 do
+					local line = list[i]
+					if line then list_line("%s", line) end
 					emit_byte(code[i])
 				end
 			end
@@ -1227,7 +1234,7 @@ compile_dict = {
 	end,
 	['if'] = function()
 		-- emit conditional branch
-		list_line("?branch ???") -- TODO: patch jump
+		list_line("?branch $0000")
 		emit_short(CBRANCH)
 		cf_push(here())
 		cf_push('if')
@@ -1237,7 +1244,7 @@ compile_dict = {
 		comp_assert(cf_pop() == 'if', "ELSE without matching IF")
 		local where = cf_pop()
 		-- emit jump to THEN
-		list_line("branch ?")	-- TODO: patch jump
+		list_line("branch $0000")
 		emit_short(BRANCH)
 		cf_push(here())
 		cf_push('if')
@@ -1258,14 +1265,14 @@ compile_dict = {
 	['until'] = function()
 		comp_assert(cf_pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = cf_pop()
-		list_line("?branch %04x", target)
+		list_line("?branch $%04x", target)
 		emit_short(CBRANCH)
 		emit_short(target - here() - 1)
 	end,
 	again = function()
 		comp_assert(cf_pop() == 'begin', "AGAIN without matching BEGIN")
 		local target = cf_pop()
-		list_line("branch %04x", target)
+		list_line("branch $%04x", target)
 		emit_short(BRANCH)
 		emit_short(target - here() - 1)
 	end,
@@ -1278,14 +1285,14 @@ compile_dict = {
 	loop = function()
 		comp_assert(cf_pop() == 'do', "LOOP without matching DO")
 		local target = cf_pop()
-		list_line("loop %04x", target)
+		list_line("loop $%04x", target)
 		emit_short(LOOP)
 		emit_short(target - here() - 1)		
 	end,
 	['+loop'] = function()
 		comp_assert(cf_pop() == 'do', "+LOOP without matching DO")
 		local target = cf_pop()
-		list_line("+loop %04x", target)
+		list_line("+loop $%04x", target)
 		emit_short(PLUS_LOOP)
 		emit_short(target - here() - 1)		
 	end,
@@ -1293,7 +1300,7 @@ compile_dict = {
 	['repeat'] = function() comp_error("REPEAT not implemented") end,
 	['goto'] = function()
 		local label = next_symbol()
-		list_line("branch %s", label)	-- TODO: patch jump
+		list_line("branch $0000", label)
 		emit_short(BRANCH)
 		local addr = here()
 		emit_short(0)	-- place holder branch offset
