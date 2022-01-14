@@ -53,7 +53,7 @@ local reg_name = {
 }
 
 local function _ld(dest, src)
-	list_here()
+	list_line("ld %s,%s", reg_name[dest], reg_name[src])
 
 	if dest == BC_INDIRECT and src == A then
 		-- ld (bc), A
@@ -88,8 +88,6 @@ local function _ld(dest, src)
 		assert(src >= 0 and src <= 7, "_ld: unknown src register")
 		emit_byte(0x40 + dest * 8 + src)
 	end
-
-	list_instr("ld %s,%s", reg_name[dest], reg_name[src])
 end
 
 local function _ld_const(r, value)
@@ -106,7 +104,11 @@ local function _ld_const(r, value)
 	-- LD IX,nn		DD 21 nn nn
 	-- LD IY,nn		FD 21 nn nn
 
-	list_here()
+	if r >= 0 and r <= 7 then
+		list_line("ld %s,$%02x", reg_name[r], value)
+	else
+		list_line("ld %s,$%04x", reg_name[r], value)
+	end		
 
 	if r == BC then
 		emit_byte(0x01)
@@ -131,12 +133,6 @@ local function _ld_const(r, value)
 	else
 		error("_ld_const: unknown register")
 	end
-
-	if r >= 0 and r <= 7 then
-		list_instr("ld %s,$%02x", reg_name[r], value)
-	else
-		list_instr("ld %s,$%04x", reg_name[r], value)
-	end		
 end
 
 local function _ld_fetch(r, addr)
@@ -148,7 +144,7 @@ local function _ld_fetch(r, addr)
 	-- LD IY,(nn)	FD 2A nn nn
 	-- LD SP,(nn)	ED 7B nn nn	
 
-	list_here()
+	list_line("ld %s,($%04x)", reg_name[r], addr)
 
 	if r == A then
 		emit_byte(0x3a)
@@ -173,8 +169,6 @@ local function _ld_fetch(r, addr)
 		error("_ld_fetch: unknown register")
 	end
 	emit_short(addr)
-
-	list_instr("ld %s,($%04x)", reg_name[r], addr)
 end
 
 local function _ld_store(addr, r)
@@ -186,7 +180,7 @@ local function _ld_store(addr, r)
 	-- LD (nn),IY	FD 22 nn nn
 	-- LD (nn),SP	ED 73 nn nn
 
-	list_here()
+	list_line("ld ($%04x),%s", addr, reg_name[r])
 
 	if r == A then
 		emit_byte(0x32)
@@ -211,15 +205,13 @@ local function _ld_store(addr, r)
 		error("_ld_store: unknown register")
 	end
 	emit_short(addr)
-
-	list_instr("ld ($%04x),%s", addr, reg_name[r])
 end
 
 local function _ld_store_offset_const(r, offset, value)
 	-- LD (IX+OFFSET),N		DD 36 o n
 	-- LD (IY+OFFSET),N		FD 36 o n
 
-	list_here()
+	list_line("ld (%s+$%02x),$%02x", reg_name[r], offset, value)
 
 	if r == IX then
 		emit_byte(0xdd)
@@ -232,26 +224,21 @@ local function _ld_store_offset_const(r, offset, value)
 	emit_byte(0x36)
 	emit_byte(offset)
 	emit_byte(value)
-
-	list_instr("ld (%s+$%02x),$%02x", reg_name[r], offset, value)
 end
 
 local function _exx()
-	list_here()
+	list_line("exx")
 	emit_byte(0xd9)
-	list_instr("exx")
 end
 
 local function _ex_de_hl()
-	list_here()
+	list_line("ex de,hl")
 	emit_byte(0xeb)
-	list_instr("ex de,hl")
 end
 
 local function _ex_af_af()
-	list_here()
+	list_line("ex af,af'")
 	emit_byte(0x08)
-	list_instr("ex af,af'")
 end
 
 local function _inc(r)
@@ -265,7 +252,7 @@ local function _inc(r)
 	-- INC DE	13
 	-- INC HL	23
 
-	list_here()
+	list_line("inc %s", reg_name[r])
 
 	if r == BC then
 		emit_byte(0x03)
@@ -278,8 +265,6 @@ local function _inc(r)
 	else
 		error("_dec: unknown register")
 	end
-
-	list_instr("inc %s", reg_name[r])
 end
 
 local function _dec(r)
@@ -293,7 +278,7 @@ local function _dec(r)
 	-- DEC DE	1B
 	-- DEC HL	2B
 
-	list_here()
+	list_line("dec %s", reg_name[r])
 
 	if r == BC then
 		emit_byte(0x0b)
@@ -306,62 +291,52 @@ local function _dec(r)
 	else
 		error("_dec: unknown register")
 	end
-
-	list_instr("dec %s", reg_name[r])
 end
 
 local function _xor(r)
 	assert(r >= 0 and r <= 7, "_xor: unknown register")
-	list_here()
+	list_line("xor %s", reg_name[r])
 	emit_byte(0xa8 + r)
-	list_instr("xor %s", reg_name[r])
 end
 
 local function _xor_const(n)
-	list_here()
+	list_line("xor %d", n)
 	emit_byte(0xee)
 	emit_byte(n)
-	list_instr("xor %d", n)
 end
 
 local function _and(r)
 	assert(r >= 0 and r <= 7, "_and: unknown register")
-	list_here()
+	list_line("and %s", reg_name[r])
 	emit_byte(0xa0 + r)
-	list_instr("and %s", reg_name[r])
 end
 
 local function _and_const(n)
-	list_here()
+	list_line("and %d", n)
 	emit_byte(0xe6)
 	emit_byte(n)
-	list_instr("and %d", n)
 end
 
 local function _or(r)
 	assert(r >= 0 and r <= 7, "_or: unknown register")
-	list_here()
+	list_line("or %s", reg_name[r])
 	emit_byte(0xb0 + r)
-	list_instr("or %s", reg_name[r])
 end
 
 local function _or_const(n)
-	list_here()
+	list_line("or %d", n)
 	emit_byte(0xf6)
 	emit_byte(n)
-	list_instr("or %d", n)
 end
 
 local function _ccf()
-	list_here()
+	list_line("ccf")
 	emit_byte(0x3f)
-	list_instr("ccf")
 end
 
 local function _scf()
-	list_here()
+	list_line("scf")
 	emit_byte(0x37)
-	list_instr("scf")
 end
 
 local function _add(dest, src)
@@ -370,7 +345,7 @@ local function _add(dest, src)
 	-- ADD HL,HL	29
 	-- ADD HL,SP	39
 
-	list_here()
+	list_line("add %s,%s", reg_name[dest], reg_name[src])
 
 	if dest == HL then
 		if src == BC then
@@ -390,8 +365,6 @@ local function _add(dest, src)
 	else
 		error("_add: unknown operands")		
 	end
-
-	list_instr("add %s,%s", reg_name[dest], reg_name[src])
 end
 
 local function _adc(dest, src)
@@ -400,7 +373,7 @@ local function _adc(dest, src)
 	-- ADC HL,HL 	ED 6A
 	-- ADC HL,SP 	ED 7A
 
-	list_here()
+	list_line("adc %s,%s", reg_name[dest], reg_name[src])
 
 	if dest == HL then
 		if src == BC then
@@ -424,15 +397,12 @@ local function _adc(dest, src)
 	else
 		error("_adc: unknown operands")		
 	end
-
-	list_instr("adc %s,%s", reg_name[dest], reg_name[src])
 end
 
 local function _sub(r)
 	assert(r >= 0 and r <= 7, "_sub: unknown register")
-	list_here()
+	list_line("sub %s", reg_name[r])
 	emit_byte(0x90 + r)
-	list_instr("sub %s", reg_name[r])
 end
 
 local function _sbc(dest, src)
@@ -441,7 +411,7 @@ local function _sbc(dest, src)
 	-- SBC HL,HL	ED 62
 	-- SBC HL,SP	ED 72
 
-	list_here()
+	list_line("sbc %s,%s", reg_name[dest], reg_name[src])
 
 	if dest == HL then
 		if src == BC then
@@ -465,68 +435,58 @@ local function _sbc(dest, src)
 	else
 		error("_sbc: unknown operands")		
 	end
-
-	list_instr("sbc %s,%s", reg_name[dest], reg_name[src])
 end
 
 local function _cp_const(n)
-	list_here()
+	list_line("cp %d", n)
 	emit_byte(0xfe)
 	emit_byte(n)
-	list_instr("cp %d", n)
 end
 
 local function _bit(i, r)
 	assert(r >= 0 and r <= 7, "_bit: unknown register")
-	list_here()
+	list_line("bit %s,%s", i, reg_name[r])
 	emit_byte(0xcb)
 	emit_byte(0x40 + 8 * i + r)
-	list_instr("bit %s,%s", i, reg_name[r])
 end
 
 local function _sla(r)
 	assert(r >= 0 and r <= 7, "_sla: unknown register")
-	list_here()
+	list_line("sla %s", reg_name[r])
 	emit_byte(0xcb)
 	emit_byte(0x20 + r)
-	list_instr("sla %s", reg_name[r])
 end
 
 local function _sra(r)
 	assert(r >= 0 and r <= 7, "_sra: unknown register")
-	list_here()
+	list_line("sra %s", reg_name[r])
 	emit_byte(0xcb)
 	emit_byte(0x28 + r)
-	list_instr("sra %s", reg_name[r])
 end
 
 local function _rl(r)
 	assert(r >= 0 and r <= 7, "_rl: unknown register")
-	list_here()
+	list_line("rl %s", reg_name[r])
 	emit_byte(0xcb)
 	emit_byte(0x10 + r)
-	list_instr("rl %s", reg_name[r])
 end
 
 local function _rr(r)
 	assert(r >= 0 and r <= 7, "_rr: unknown register")
-	list_here()
+	list_line("rr %s", reg_name[r])
 	emit_byte(0xcb)
 	emit_byte(0x18 + r)
-	list_instr("rr %s", reg_name[r])
 end
 
 local function _rla()
-	list_here()
+	list_line("rla")
 	emit_byte(0x17)
-	list_instr("rla")
 end
 
 local function _ldir()
-	list_here()
+	list_line("ldir")
 	emit_byte(0xed)
 	emit_byte(0xb0)
-	list_instr("ldir")
 end
 
 local function _push(r)
@@ -537,7 +497,7 @@ local function _push(r)
 	-- PUSH IX	DD E5
 	-- PUSH IY	FD E5
 
-	list_here()
+	list_line("push %s", reg_name[r])
 
 	if r == AF then
 		emit_byte(0xf5)
@@ -556,8 +516,6 @@ local function _push(r)
 	else
 		error("_push: unknown register")
 	end
-
-	list_instr("push %s", reg_name[r])
 end
 
 local function _pop(r)
@@ -568,7 +526,7 @@ local function _pop(r)
 	-- POP IX	DD E1
 	-- POP IY	FD E1
 
-	list_here()
+	list_line("pop %s", reg_name[r])
 
 	if r == AF then
 		emit_byte(0xf1)
@@ -587,81 +545,64 @@ local function _pop(r)
 	else
 		error("_pop: unknown register")
 	end
-
-	list_instr("pop %s", reg_name[r])
 end
 
 local function _call(addr)
-	list_here()
+	list_line("call $%04x", addr)
 	emit_byte(0xcd)
 	emit_short(addr)
-	list_instr("call $%04x", addr)
 end
 
 local function _ret()
-	list_here()
+	list_line("ret")
 	emit_byte(0xc9)
-	list_instr("ret")
 end
 
 local function _jp(addr)
-	list_here()
+	list_line("jp $%04x", addr)
 	emit_byte(0xc3)
 	emit_short(addr)
-	list_instr("jp ")
-	list_instr("$%04x", addr)
 end
 
 local function _jp_z(addr)
-	list_here()
+	list_line("jp z,$%04x", addr)
 	emit_byte(0xca)
 	emit_short(addr)
-	list_instr("jp z,")
-	list_instr("$%04x", addr)
 end
 
 local function _jp_nz(addr)
-	list_here()
+	list_line("jp nz,$%04x", addr)
 	emit_byte(0xc2)
 	emit_short(addr)
-	list_instr("jp nz,")
-	list_instr("$%04x", addr)
 end
 
 local function _jp_c(addr)
-	list_here()
+	list_line("jp c,$%04x", addr)
 	emit_byte(0xda)
 	emit_short(addr)
-	list_instr("jp c,")
-	list_instr("$%04x", addr)
 end
 
 local function _jp_nc(addr)
-	list_here()
+	list_line("jp nc,$%04x", addr)
 	emit_byte(0xd2)
 	emit_short(addr)
-	list_instr("jp nc,")
-	list_instr("$%04x", addr)
 end
 
 local function _jp_m(addr)
-	list_here()
+	list_line("jp m,$%04x", addr)
 	emit_byte(0xfa)
 	emit_short(addr)
-	list_instr("jp m,")
-	list_instr("$%04x", addr)
 end
 
 local function _jp_p(addr)
-	list_here()
+	list_line("jp p,$%04x", addr)
 	emit_byte(0xf2)
 	emit_short(addr)
-	list_instr("jp p,")
-	list_instr("$%04x", addr)
 end
 
 local function _jp_indirect(r)
-	list_here()
+	assert(r == HL or r == IX or r == IY, "_jp_indirect: unknown register")
+	list_line("jp (%s)", reg_name[r])
 	if r == HL then
 		emit_byte(0xe9)	-- jp (hl)
 	elseif r == IX then
@@ -670,83 +611,53 @@ local function _jp_indirect(r)
 	elseif r == IY then
 		emit_byte(0xfd)	-- jp (iy)
 		emit_byte(0xe9)
-	else
-		error("_jp_indirect: unknown register")
 	end
-	list_instr("jp (%s)", reg_name[r])
 end
 
 local function _di()
-	list_here()
+	list_line("di")
 	emit_byte(0xf3)
-	list_instr("di")
 end
 
 local function _ei()
-	list_here()
+	list_line("ei")
 	emit_byte(0xfb)
-	list_instr("ei")
 end
 
+-- TODO: fix this! here() is different than before
 local function offset_to_absolute(offset)
 	if offset > 127 then offset = offset - 256 end
 	return here() + offset
 end
 
-local function patch_jump_listing(listing_pos, addr)
-	local opcode = read_byte(addr)
-	if opcode < 0x80 then
-		-- relative jump
-		local offset = read_byte(addr + 1)
-		list_patch(listing_pos + 3, string.format(" %02x", offset))
-		list_patch(listing_pos + 6, string.format("$%04x", addr + offset + 2))
-	else
-		-- absolute jump
-		local target_addr = read_short(addr + 1)
-		list_patch(listing_pos + 3, string.format(" %02x", target_addr & 0xff))
-		list_patch(listing_pos + 4, string.format(" %02x", target_addr >> 8))
-		list_patch(listing_pos + 7, string.format("$%04x", target_addr))
-	end
-end
-
 local function _jr(offset)
-	list_here()
+	list_line("jr $%04x", offset_to_absolute(offset))
 	emit_byte(0x18)
 	emit_byte(offset)
-	list_instr("jr ")
-	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_z(offset)
-	list_here()
+	list_line("jr z,$%04x", offset_to_absolute(offset))
 	emit_byte(0x28)
 	emit_byte(offset)
-	list_instr("jr z,")
-	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_nz(offset)
-	list_here()
+	list_line("jr nz,$%04x", offset_to_absolute(offset))
 	emit_byte(0x20)
 	emit_byte(offset)
-	list_instr("jr nz,")
-	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_c(offset)
-	list_here()
+	list_line("jr c,$%04x", offset_to_absolute(offset))
 	emit_byte(0x38)
 	emit_byte(offset)
-	list_instr("jr c,")
-	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _jr_nc(offset)
-	list_here()
+	list_line("jr nc,$%04x", offset_to_absolute(offset))
 	emit_byte(0x30)
 	emit_byte(offset)
-	list_instr("jr nc,")
-	list_instr("$%04x", offset_to_absolute(offset))
 end
 
 local function _in(r, port)
@@ -760,19 +671,17 @@ local function _in(r, port)
 	-- IN F,(C)		ED 70	not implemented!
 	assert(port == C, "_in: invalid port")
 	assert(r >= 0 and r <= 7, "_in: unknown register")
-	list_here()
+	list_line("in %s,(%s)", reg_name[r], reg_name[port])
 	emit_byte(0xed)
 	emit_byte(0x40 + r * 8)
-	list_instr("in %s,(%s)", reg_name[r], reg_name[port])
 end
 
 local function _in_const(r, port_addr)
 	assert(r == A, "_in_const: invalid register")
 	assert(port_addr >= 0 and port_addr <= 255, "_in_const: invalid port")
-	list_here()
+	list_line("in a,($%02x)", port_addr)
 	emit_byte(0xdb)
 	emit_byte(port_addr)
-	list_instr("in a,($%02x)", port_addr)
 end
 
 local function _out(port, r)
@@ -785,26 +694,23 @@ local function _out(port, r)
 	-- OUT (C),L	ED 69
 	assert(port == C, "_out: invalid port")
 	assert(r >= 0 and r <= 7, "_out: unknown register")
-	list_here()
+	list_line("out (%s),%s", reg_name[port], reg_name[r])
 	emit_byte(0xed)
 	emit_byte(0x41 + r * 8)
-	list_instr("out (%s),%s", reg_name[port], reg_name[r])
 end
 
 local function _out_const(port_addr, r)
 	assert(r == A, "_out_const: invalid register")
 	assert(port_addr >= 0 and port_addr <= 255, "_out_const: invalid port")
-	list_here()
+	list_line("out ($%02x),a", port_addr)
 	emit_byte(0xd3)
 	emit_byte(port_addr)
-	list_instr("out ($%02x),a", port_addr)
 end
 
 local function _rst(i)
 	assert(i >= 0 and i <= 0x38 and (i & 7) == 0, "invalid reset vector")
-	list_here()
+	list_line("rst %s", i)
 	emit_byte(0xc7 + i)
-	list_instr("rst %s", i)
 end
 
 -- Pushes DE on Forth stack, trashes HL.
@@ -849,8 +755,9 @@ local function stk_pop_bc_inline()
 	_ld_store(SPARE, HL)
 end
 
-local function branch_offset(addr)
-	local offset = addr - here() - 2
+local function branch_offset(jump_to_addr, instr_addr)
+	instr_addr = instr_addr or here()
+	local offset = jump_to_addr - instr_addr - 2
 	if offset < -128 or offset > 127 then return end	-- branch too long
 	if offset < 0 then offset = offset + 256 end
 	return offset
@@ -896,6 +803,20 @@ local function jump_nc(addr)
 	end
 end
 
+-- Patch already emitted jump instruction to jump to a new address.
+local function patch_jump(instr_addr, jump_to_addr)
+	local opcode = read_byte(instr_addr)
+	if opcode < 0x80 then
+		-- relative jump
+		local offset = branch_offset(jump_to_addr, instr_addr)
+		write_byte(instr_addr + 1, offset)
+	else
+		-- absolute jump
+		write_short(instr_addr + 1, jump_to_addr)
+	end
+	list_patch(instr_addr, string.format("$%04x", jump_to_addr))
+end
+
 local function call_forth(name)
 	-- Calling Forth word from machine code
 	local addr = rom_words[string.upper(name)]
@@ -903,14 +824,12 @@ local function call_forth(name)
 		comp_error("could not find compilation address of word %s", name)
 	end
 	stk_push_de()
-	_call(0x04b9) -- call forth
 	list_comment("call forth")
-	list_here()
+	_call(0x04b9) -- call forth
+	list_line(name)
 	emit_short(addr)
-	list_instr(name)
-	list_here()
+	list_line("end-forth")
 	emit_short(0x1a0e) -- end-forth
-	list_instr("end-forth")
 	stk_pop_de()
 end
 
@@ -920,8 +839,8 @@ local function call_code(name)
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	_call(addr) -- words created using CODE don't have wrappers
 	list_comment(name)
+	_call(addr) -- words created using CODE don't have wrappers
 end
 
 local function call_mcode(name)
@@ -930,8 +849,8 @@ local function call_mcode(name)
 	if addr == nil then
 		comp_error("could not find compilation address of word %s", name)
 	end
-	_call(addr)
 	list_comment(name)
+	_call(addr)
 end
 
 -- Emits invisible subroutine words to be used by mcode words.
@@ -1204,12 +1123,13 @@ local function emit_subroutines()
 end
 
 local function emit_literal(n, comment)
-	stk_push_de()
 	if comment then
 		list_comment(comment)
 	else
 		list_comment("lit %d", n)
 	end
+
+	stk_push_de()
 	_ld_const(DE, n)
 
 	literal_pos2 = literal_pos
@@ -1243,66 +1163,81 @@ local dict = {
 		for patch_loc, label in pairs(gotos) do
 			local target_addr = labels[label]
 			if target_addr == nil then comp_error("undefined label '%s'", label) end
-			write_short(patch_loc, target_addr)
+			write_short(patch_loc, target_addr)	-- TODO: patch_jump
 		end
 
 		labels = {}
 		gotos = {}
 	end,
 	dup = function()
-		stk_push_de(); list_comment("dup")
+		list_comment("dup")
+		stk_push_de()
 	end,
 	['?dup'] = function()
-		_ld(A, D); list_comment("?dup")
+		list_comment("?dup")
+		_ld(A, D)
 		_or(E)
 		_jr_z(1) --> skip
 		stk_push_de()
 		-- skip:
 	end,
 	over = function()
-		_call(subroutines.over); list_comment("over")
+		list_comment("over")
+		_call(subroutines.over)
 	end,
 	drop = function()
-		stk_pop_de(); list_comment("drop")
+		list_comment("drop")
+		stk_pop_de()
 	end,
 	nip = function()
 		-- swap drop
-		stk_pop_bc(); list_comment("nip")
+		list_comment("nip")
+		stk_pop_bc()
 	end,
 	swap = function()
-		_call(subroutines.swap); list_comment("swap")
+		list_comment("swap")
+		_call(subroutines.swap)
 	end,
 	['2dup'] = function()
-		_call(subroutines['2dup']); list_comment("2dup")
+		list_comment("2dup")
+		_call(subroutines['2dup'])
 	end,
 	['2drop'] = function()
-		stk_pop_de(); list_comment("2drop")
+		list_comment("2drop")
+		stk_pop_de()
 		stk_pop_de()
 	end,
 	['2over'] = function()
-		_call(subroutines['2over']); list_comment("2over")
+		list_comment("2over")
+		_call(subroutines['2over'])
 	end,
 	pick = function()
-		stk_push_de(); list_comment("pick")
+		list_comment("pick")
+		stk_push_de()
 		_call(0x094d)
 		stk_pop_de()
 	end,
 	roll = function()
-		_call(subroutines.roll); list_comment("roll")
+		list_comment("roll")
+		_call(subroutines.roll)
 	end,
 	rot = function()
-		_call(subroutines.rot); list_comment("rot")
+		list_comment("rot")
+		_call(subroutines.rot)
 	end,
 	['r>'] = function()
-		stk_push_de(); list_comment("r>")
+		list_comment("r>")
+		stk_push_de()
 		_pop(DE)
 	end,
 	['>r'] = function()
-		_push(DE); list_comment(">r")
+		list_comment(">r")
+		_push(DE)
 		stk_pop_de()
 	end,
 	['r@'] = function()
-		stk_push_de(); list_comment("r@")
+		list_comment("r@")
+		stk_push_de()
 		_pop(DE)
 		_push(DE)
 	end,
@@ -1312,18 +1247,21 @@ local dict = {
 			-- nothing to do
 		elseif lit and lit > 0 and lit <= 4 then
 			-- lit*6 cycles, lit*1 bytes
-			_inc(DE); list_comment("%d + ", lit)
+			list_comment("%d + ", lit)
+			_inc(DE)
 			for i = 2, lit do
 				_inc(DE)
 			end
 		elseif lit then
 			-- 28 cycles, 7 bytes
-			_ex_de_hl(); list_comment("%d + ", lit)
+			list_comment("%d + ", lit)
+			_ex_de_hl()
 			_ld_const(DE, lit)
 			_add(HL, DE)
 			_ex_de_hl()
 		else
-			_call(subroutines['+']); list_comment("+")
+			list_comment("+")
+			_call(subroutines['+'])
 		end
 	end,
 	['-'] = function()
@@ -1332,36 +1270,40 @@ local dict = {
 			-- nothing to do
 		elseif lit and lit > 0 and lit <= 4 then
 			-- lit*6 cycles, lit*1 bytes
-			_dec(DE); list_comment("%d - ", lit)
+			list_comment("%d - ", lit)
+			_dec(DE)
 			for i = 2, lit do
 				_dec(DE)
 			end
 		elseif lit then
-			_ex_de_hl(); list_comment("%d - ", lit)
+			list_comment("%d - ", lit)
+			_ex_de_hl()
 			_ld_const(DE, -lit)
 			_add(HL, DE)
 			_ex_de_hl()
 		else
-			_call(subroutines['-']); list_comment("-")
+			list_comment("-")
+			_call(subroutines['-'])
 		end
 	end,
 	['*'] = function()
 		local lit = erase_literal()
 		if lit == 0 then
-			_ld_const(DE, 0); list_comment("0 *")
+			list_comment("0 *")
+			_ld_const(DE, 0)
 		elseif lit == 1 then
 			-- nothing to do
 		elseif lit and is_pow2(lit) and lit <= 32767 then
 			if lit < 256 then
-				local comment = true
+				list_comment("%d *", lit)
 				while lit > 1 do
 					_sla(E)
-					if comment then list_comment("%d *", lit); comment = false end
 					_rl(D)
 					lit = lit // 2
 				end
 			else
-				_ld(D, E); list_comment("%d *", lit)
+				list_comment("%d *", lit)
+				_ld(D, E)
 				_ld_const(E, 0)
 				lit = lit // 256
 				while lit > 1 do
@@ -1371,29 +1313,33 @@ local dict = {
 			end
 		elseif lit then
 			emit_literal(lit)
-			_call(subroutines.mult16); list_comment("*")
+			list_comment("*")
+			_call(subroutines.mult16)
 		else
-			_call(subroutines.mult16); list_comment("*")
+			list_comment("*")
+			_call(subroutines.mult16)
 		end
 	end,
 	['c*'] = function()
 		local lit = erase_literal()
 		if lit and (lit == 0 or lit >= 256) then
-			_ld_const(DE, 0); list_comment("%d c*", lit)
+			list_comment("%d c*", lit)
+			_ld_const(DE, 0)
 		elseif lit == 1 then
 			-- nothing to do
 		elseif lit and is_pow2(lit) then
-			local comment = true
+			list_comment("%d c*", lit)
 			while lit > 1 do
 				_sla(E)
-				if comment then list_comment("%d c*", lit); comment = false end
 				lit = lit // 2
 			end
 		elseif lit then
 			emit_literal(lit)
-			_call(subroutines.mult8); list_comment("c*")
+			list_comment("c*")
+			_call(subroutines.mult8)
 		else
-			_call(subroutines.mult8); list_comment("c*")
+			list_comment("c*")
+			_call(subroutines.mult8)
 		end
 	end,
 	['/'] = function()
@@ -1402,15 +1348,15 @@ local dict = {
 			-- nothing to do
 		elseif lit and is_pow2(lit) and lit <= 32767 then
 			if lit < 256 then
-				local comment = true
+				list_comment("%d /", lit)
 				while lit > 1 do
 					_sra(D)
-					if comment then list_comment("%d /", lit); comment = false end
 					_rr(E)
 					lit = lit // 2
 				end
 			else
-				_ld(E, D); list_comment("%d /", lit)
+				list_comment("%d /", lit)
+				_ld(E, D)
 				_ld_const(D, 0)
 				_bit(7, E)
 				_jr_z(1)
@@ -1429,35 +1375,43 @@ local dict = {
 		end
 	end,
 	['1+'] = function()
-		_inc(DE); list_comment("1+")
+		list_comment("1+")
+		_inc(DE)
 	end,
 	['1-'] = function()
-		_dec(DE); list_comment("1-")
+		list_comment("1-")
+		_dec(DE)
 	end,
 	['2+'] = function()
-		_inc(DE); list_comment("2+")
+		list_comment("2+")
+		_inc(DE)
 		_inc(DE)
 	end,
 	['2-'] = function()
-		_dec(DE); list_comment("2-")
+		list_comment("2-")
+		_dec(DE)
 		_dec(DE)
 	end,
 	['2*'] = function()
 		-- 3 bytes, 19 cycles
-		-- _ex_de_hl(); list_comment("2*")
+		-- list_comment("2*")
+		-- _ex_de_hl()
 		-- _add(HL, HL)
 		-- _ex_de_hl()
 		
 		-- 4 bytes, 12 cycles
-		_sla(E); list_comment("2*")
+		list_comment("2*")
+		_sla(E)
 		_rl(D)
 	end,
 	['2/'] = function()
-		_sra(D); list_comment("2/")
+		list_comment("2/")
+		_sra(D)
 		_rr(E)
 	end,
 	negate = function()
-		_xor(A); list_comment("negate")
+		list_comment("negate")
+		_xor(A)
 		_sub(E)
 		_ld(E, A)
 		_sbc(A, A)
@@ -1465,7 +1419,8 @@ local dict = {
 		_ld(D, A)
 	end,
 	abs = function()
-		_bit(7, D); list_comment("abs")
+		list_comment("abs")
+		_bit(7, D)
 		_jr_z(6) --> skip
 		_xor(A)
 		_sub(E)
@@ -1476,28 +1431,32 @@ local dict = {
 		-- skip:
 	end,
 	min = function()
-		_call(subroutines.min); list_comment("min")
+		list_comment("min")
+		_call(subroutines.min)
 	end,
 	max = function()
-		_call(subroutines.max); list_comment("max")
+		list_comment("max")
+		_call(subroutines.max)
 	end,
 	xor = function()
 		local lit = erase_literal()
 		if lit then
+			if lit ~= 0 then list_comment("%d xor", lit) end
+
 			if (lit & 0xff) ~= 0 then
-				_ld(A, E); list_comment("%d xor", lit)
+				_ld(A, E)
 				_xor_const(lit & 0xff)
 				_ld(E, A)
 			end
 
 			if (lit & 0xff00) ~= 0 then
 				_ld(A, D)
-				if (lit & 0xff) == 0 then list_comment("%d xor", lit) end
 				_xor_const((lit & 0xff00) >> 8)
 				_ld(D, A)
 			end
 		else
-			stk_pop_bc(); list_comment("xor")
+			list_comment("xor")
+			stk_pop_bc()
 			_ld(A, E)
 			_xor(C)
 			_ld(E, A)
@@ -1511,27 +1470,27 @@ local dict = {
 		if lit then
 			local lo = lit & 0xff
 			local hi = (lit & 0xff00) >> 8
-			local comment = true
+
+			if lo ~= 0xff or hi ~= 0xff then list_comment("%d and", lit) end
 
 			if lo == 0 then
-				_ld_const(E, 0); list_comment("%d and", lit)
-				comment = false
+				_ld_const(E, 0)
 			elseif lo ~= 0xff then
-				_ld(A, E); list_comment("%d and", lit)
+				_ld(A, E)
 				_and_const(lo)
 				_ld(E, A)
-				comment = false
 			end
 
 			if hi == 0 then
-				_ld_const(D, 0); if comment then list_comment("%d and", lit) end
+				_ld_const(D, 0)
 			elseif hi ~= 0xff then
-				_ld(A, D); if comment then list_comment("%d and", lit) end
+				_ld(A, D)
 				_and_const(hi)
 				_ld(D, A)
 			end
 		else
-			stk_pop_bc(); list_comment("and")
+			list_comment("and")
+			stk_pop_bc()
 			_ld(A, E)
 			_and(C)
 			_ld(E, A)
@@ -1545,27 +1504,27 @@ local dict = {
 		if lit then
 			local lo = lit & 0xff
 			local hi = (lit & 0xff00) >> 8
-			local comment = true
+
+			if lo ~= 0 or hi ~= 0 then list_comment("%d or", lit) end
 
 			if lo == 0xff then
-				_ld_const(E, 0xff); list_comment("%d or", lit)
-				comment = false
+				_ld_const(E, 0xff)
 			elseif lo ~= 0 then
-				_ld(A, E); list_comment("%d or", lit)
+				_ld(A, E)
 				_or_const(lo)
 				_ld(E, A)
-				comment = false
 			end
 
 			if hi == 0xff then
-				_ld_const(D, 0xff); if comment then list_comment("%d or", lit) end
+				_ld_const(D, 0xff)
 			elseif hi ~= 0 then
-				_ld(A, D); if comment then list_comment("%d or", lit) end
+				_ld(A, D)
 				_or_const(hi)
 				_ld(D, A)
 			end
 		else
-			stk_pop_bc(); list_comment("or")
+			list_comment("or")
+			stk_pop_bc()
 			_ld(A, E)
 			_or(C)
 			_ld(E, A)
@@ -1575,7 +1534,8 @@ local dict = {
 		end
 	end,
 	['not'] = function()
-		_ld(A, D); list_comment("not")
+		list_comment("not")
+		_ld(A, D)
 		_or(E)
 		_ld_const(DE, 1)
 		_jr_z(1) --> skip
@@ -1583,7 +1543,8 @@ local dict = {
 		-- skip:
 	end,
 	['0='] = function()
-		_ld(A, D); list_comment("0=")
+		list_comment("0=")
+		_ld(A, D)
 		_or(E)
 		_ld_const(DE, 1)
 		_jr_z(1) --> skip
@@ -1591,14 +1552,16 @@ local dict = {
 		-- skip:
 	end,
 	['0<'] = function()
-		_xor(A); list_comment("0<")
+		list_comment("0<")
+		_xor(A)
 		_rl(D)
 		_ld(D, A)
 		_rla()
 		_ld(E, A)
 	end,
 	['0>'] = function()
-		_ld(A, D); list_comment("0>")
+		list_comment("0>")
+		_ld(A, D)
 		_or(E)
 		_jr_z(3) --> skip
 		_rl(D)
@@ -1612,7 +1575,8 @@ local dict = {
 	['='] = function()
 		local lit = erase_literal()
 		if lit then
-			_ex_de_hl(); list_comment("%d =", lit)
+			list_comment("%d =", lit)
+			_ex_de_hl()
 			_ld_const(BC, -lit)
 			_or(A) -- clear carry
 			_adc(HL, BC)	-- ADD HL, BC can't be used here because it does not update Z flag!
@@ -1621,7 +1585,8 @@ local dict = {
 			_inc(E)
 			-- skip:
 		else
-			stk_pop_bc(); list_comment("=")
+			list_comment("=")
+			stk_pop_bc()
 			_ex_de_hl()
 			_or(A) -- clear carry
 			_sbc(HL, BC)
@@ -1635,14 +1600,16 @@ local dict = {
 		local lit = erase_literal()
 		if lit then
 			comp_assert(lit >= 0 and lit <= 255, "Literal outside range for C=")
-			_ld(A, E); list_comment("%d c=", lit)
+			list_comment("%d c=", lit)
+			_ld(A, E)
 			_cp_const(lit)
 			_ld_const(DE, 0)
 			_jr_nz(1) --> skip
 			_inc(E)
 			-- skip:
 		else
-			_ld(A, E); list_comment("c=")
+			list_comment("c=")
+			_ld(A, E)
 			stk_pop_de() -- preserves A
 			_sub(E)
 			_ld_const(DE, 0)
@@ -1652,19 +1619,23 @@ local dict = {
 		end
 	end,
 	['>'] = function()
-		_call(subroutines['>']); list_comment(">")
+		list_comment(">")
+		_call(subroutines['>'])
 	end,
 	['<'] = function()
-		_call(subroutines['<']); list_comment("<")
+		list_comment("<")
+		_call(subroutines['<'])
 	end,
 	['!'] = function()
 		-- ( n addr -- )
 		local addr = erase_literal()
 		if addr then
-			_ld_store(addr, DE); list_comment("%04x !", addr)
+			list_comment("%04x !", addr)
+			_ld_store(addr, DE)
 			stk_pop_de()
 		else
-			stk_pop_bc(); list_comment("!")
+			list_comment("!")
+			stk_pop_bc()
 			_ex_de_hl()
 			_ld(HL_INDIRECT, C)
 			_inc(HL)
@@ -1676,10 +1647,12 @@ local dict = {
 		-- ( addr -- n )
 		local addr = erase_literal()
 		if addr then
-			stk_push_de(); list_comment("%04x @", addr)
+			list_comment("%04x @", addr)
+			stk_push_de()
 			_ld_fetch(DE, addr)
 		else
-			_ex_de_hl(); list_comment("@")
+			list_comment("@")
+			_ex_de_hl()
 			_ld(E, HL_INDIRECT)
 			_inc(HL)
 			_ld(D, HL_INDIRECT)
@@ -1689,11 +1662,13 @@ local dict = {
 		-- ( n addr -- )
 		local addr = erase_literal()
 		if addr then
-			_ld(A, E); list_comment("%04x c!", addr)
+			list_comment("%04x c!", addr)
+			_ld(A, E)
 			_ld_store(addr, A)
 			stk_pop_de()
 		else
-			stk_pop_bc(); list_comment("c!")
+			list_comment("c!")
+			stk_pop_bc()
 			_ld(A, C)
 			_ld(DE_INDIRECT, A)
 			stk_pop_de()
@@ -1703,12 +1678,14 @@ local dict = {
 		-- ( addr - n )
 		local addr = erase_literal()
 		if addr then
-			stk_push_de(); list_comment("%04x c@", addr)
+			list_comment("%04x c@", addr)
+			stk_push_de()
 			_ld_fetch(A, addr)
 			_ld(E, A)
 			_ld_const(D, 0)
 		else
-			_ld(A, DE_INDIRECT); list_comment("c@")
+			list_comment("c@")
+			_ld(A, DE_INDIRECT)
 			_ld(E, A)
 			_ld_const(D, 0)
 		end
@@ -1717,47 +1694,58 @@ local dict = {
 		(compile_dict.ascii or compile_dict.ASCII)()
 	end,
 	emit = function()
-		_ld(A, E); list_comment("emit")
+		list_comment("emit")
+		_ld(A, E)
 		_rst(8)
 		stk_pop_de()
 	end,
 	cr = function()
-		_ld_const(A, 0x0d); list_comment("cr")
+		list_comment("cr")
+		_ld_const(A, 0x0d)
 		_rst(8)
 	end,
 	space = function()
-		_ld_const(A, 0x20); list_comment("space")
+		list_comment("space")
+		_ld_const(A, 0x20)
 		_rst(8)
 	end,
 	spaces = function()
-		_call(subroutines.spaces); list_comment("spaces")
+		list_comment("spaces")
+		_call(subroutines.spaces)
 	end,
 	at = function()
-		_call(subroutines.at); list_comment("at")
+		list_comment("at")
+		_call(subroutines.at)
 	end,
 	type = function()
 		-- ( addr count -- )
-		_call(subroutines.type); list_comment("type")
+		list_comment("type")
+		_call(subroutines.type)
 	end,
 	base = function()
-		stk_push_de(); list_comment("base")
+		list_comment("base")
+		stk_push_de()
 		_ld_const(DE, 0x3c3f)
 	end,
 	hex = function()
-		_ld_store_offset_const(IX, 0x3f, 0x10); list_comment("hex")
+		list_comment("hex")
+		_ld_store_offset_const(IX, 0x3f, 0x10)
 	end,
 	decimal = function()
-		_ld_store_offset_const(IX, 0x3f, 0x0a); list_comment("decimal")
+		list_comment("decimal")
+		_ld_store_offset_const(IX, 0x3f, 0x0a)
 	end,
 	out = function()
 		-- ( n port -- )
 		local port = erase_literal()
 		if port then
-			_ld(A, E); list_comment("$%04x out", port)
+			list_comment("$%04x out", port)
+			_ld(A, E)
 			_out_const(port & 0xff, A)
 			stk_pop_de()
 		else
-			_ld(C, E); list_comment("out")	-- C = port
+			list_comment("out")	-- C = port
+			_ld(C, E)
 			stk_pop_de()	-- E = value to output (stk_pop_de does not trash C)
 			_out(C, E)
 			stk_pop_de()
@@ -1767,61 +1755,58 @@ local dict = {
 		-- ( port -- n )
 		local port = erase_literal()
 		if port then
-			stk_push_de(); list_comment("$%04x in", port)
+			list_comment("$%04x in", port)
+			stk_push_de()
 			--_ld_const(A, port >> 8) -- place hi byte to address bus when reading keyboard (untested)
 			_in_const(A, port & 0xff)
 			_ld(E, A)
 			_ld_const(D, 0)
 		else
-			_ld(C, E); list_comment("in")	-- C = port
+			list_comment("in")	-- C = port
+			_ld(C, E)
 			_ld_const(D, 0)
 			_in(E, C)
 		end
 	end,
 	inkey = function()
 		-- ( -- n )
-		stk_push_de(); list_comment("inkey")
+		list_comment("inkey")
+		stk_push_de()
 		_call(0x0336) -- call keyscan routine
 		_ld(E, A)
 		_ld_const(D, 0)
 	end,
 	['if'] = function()
-		_ld(A, D); list_comment("if")
+		list_comment("if")
+		_ld(A, D)
 		_or(E)
 		stk_pop_de()
 		cf_push(here())
-		cf_push(list_pos())
 		cf_push('if')
 		-- TODO: this could be optimized to _jr_z()
 		_jp_z(0)	-- placeholder jump addr
 	end,
 	['else'] = function()
 		comp_assert(cf_pop() == 'if', "ELSE without matching IF")
-		local listing_pos = cf_pop()
 		local where = cf_pop()
 		-- emit jump to THEN
 		cf_push(here())
-		cf_push(list_pos())
 		cf_push('if')
 		-- TODO: this could be optimized to _jr()
-		_jp(0); list_comment("else") -- placeholder jump addr
+		list_comment("else") -- placeholder jump addr
+		_jp(0)
 		-- patch jump target at previous IF
-		write_short(where + 1, here())
-		patch_jump_listing(listing_pos, where)
+		patch_jump(where, here())
 	end,
 	['then'] = function()
 		comp_assert(cf_pop() == 'if', "THEN without matching IF")
-		local listing_pos = cf_pop()
 		local where = cf_pop()
 		-- patch jump target at previous IF or ELSE
-		write_short(where + 1, here())
-		patch_jump_listing(listing_pos, where)
+		patch_jump(where, here())
 	end,
 	label = function()
 		local label = next_symbol()
 		labels[label] = here()
-		list_here()
-		list_instr("label %s", label)
 	end,
 	['goto'] = function()
 		local label = next_symbol()
@@ -1829,12 +1814,14 @@ local dict = {
 		if labels[label] then
 			-- label found -> this is a backward jump
 			-- emit the jump immediately
-			jump(labels[label]); list_comment("goto (backward)")
+			list_comment("goto (backward)")
+			jump(labels[label])
 		else
 			-- label not found -> this is a forward jump
 			-- emit placeholder jump and resolve jump address in ;
 			gotos[here() + 1] = label
-			_jp(0); list_comment("goto (forward)")
+			list_comment("goto (forward)")
+			_jp(0)
 		end
 	end,
 	begin = function()
@@ -1844,12 +1831,14 @@ local dict = {
 	again = function()
 		comp_assert(cf_pop() == 'begin', "AGAIN without matching BEGIN")
 		local target = cf_pop()
-		jump(target); list_comment("again")
+		list_comment("again")
+		jump(target)
 	end,
 	['until'] = function()
 		comp_assert(cf_pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = cf_pop()
-		_ld(A, D); list_comment("until")
+		list_comment("until")
+		_ld(A, D)
 		_or(E)
 		_ex_af_af()	-- store Z flag
 		stk_pop_de()
@@ -1870,18 +1859,21 @@ local dict = {
 		if limit and counter then
 			assert(erase_literal() == counter)
 			assert(erase_literal() == limit)
-			_ld_const(BC, limit); list_comment("%d %d do", limit, counter)
+			list_comment("%d %d do", limit, counter)
+			_ld_const(BC, limit)
 			_push(BC) -- push limit to return stack
 			_ld_const(BC, counter)
 			_push(BC) -- push counter to return stack
 		elseif counter then
 			assert(erase_literal() == counter)
-			_push(DE); list_comment("%d do", counter) -- push limit to return stack
+			list_comment("%d do", counter) -- push limit to return stack
+			_push(DE)
 			_ld_const(DE, counter)
 			_push(DE) -- push counter to return stack
 			stk_pop_de()
 		else
-			stk_pop_bc(); list_comment("do") -- pop limit
+			list_comment("do") -- pop limit
+			stk_pop_bc(); 
 			_push(BC) -- push limit to return stack
 			_push(DE) -- push counter to return stack
 			stk_pop_de()
@@ -1900,7 +1892,8 @@ local dict = {
 
 		if limit and counter and limit >= 0 and limit <= 255 and counter >= 0 and counter <= 255 then
 			-- specialization for unsigned 8-bit loop with known limit
-			_pop(BC); list_comment("loop (8-bit)") -- pop counter
+			list_comment("loop (8-bit)") -- pop counter
+			_pop(BC)
 			_inc(C)
 			_push(BC) -- push counter
 			_ld(A, C)
@@ -1910,7 +1903,8 @@ local dict = {
 			_pop(BC)
 		elseif limit then
 			-- specialization for 16-bit loop with known limit
-			_pop(BC); list_comment("loop (16-bit)") -- pop counter
+			list_comment("loop (16-bit)") -- pop counter
+			_pop(BC)
 			_inc(BC)
 			_push(BC) -- push counter
 			_scf() -- set carry
@@ -1921,7 +1915,8 @@ local dict = {
 			_pop(BC)
 		else
 			-- limit unknown
-			_pop(BC); list_comment("loop (generic)") -- pop counter
+			list_comment("loop (generic)") -- pop counter
+			_pop(BC)
 			_pop(HL) -- pop limit
 			_push(HL) -- push limit
 			_inc(BC)
@@ -1943,7 +1938,8 @@ local dict = {
 
 		if step and step >= 0 and step < 32768 then
 			-- specialization for counting up
-			_pop(HL); list_comment("%d +loop (count up)", step) -- pop counter
+			list_comment("%d +loop (count up)", step) -- pop counter
+			_pop(HL)
 			_ld_const(BC, step)
 			_add(HL, BC) -- HL = counter + step
 			_pop(BC) -- pop limit
@@ -1957,7 +1953,8 @@ local dict = {
 		elseif step and step >= 32768 then
 			-- specialization for counting down
 			step = step - 65536
-			_pop(HL); list_comment("%d +loop (count down)", step) -- pop counter
+			list_comment("%d +loop (count down)", step) -- pop counter
+			_pop(HL)
 			_ld_const(BC, step)
 			_add(HL, BC) -- HL = counter + step
 			_pop(BC) -- pop limit
@@ -1972,7 +1969,8 @@ local dict = {
 			-- counting direction unknown!
 			warn("+LOOP with non-literal step produces bad code!")
 			-- lots of code but this should be very rare
-			_pop(HL); list_comment("+loop") -- pop counter
+			list_comment("+loop") -- pop counter
+			_pop(HL)
 			_add(HL, DE) -- increment loop counter
 			_ld(B, D) -- B contains sign of step
 			_ex_de_hl() -- DE = new counter value
@@ -2005,19 +2003,22 @@ local dict = {
 		comp_error("mcode word WHILE not yet implemented")
 	end,
 	i = function()
-		stk_push_de(); list_comment("i")
+		list_comment("i")
+		stk_push_de()
 		_pop(DE)
 		_push(DE)
 	end,
 	['i\''] = function()
-		stk_push_de(); list_comment("i'")
+		list_comment("i'")
+		stk_push_de()
 		_pop(BC)
 		_pop(DE)
 		_push(DE)
 		_push(BC)
 	end,
 	j = function()
-		stk_push_de(); list_comment("j")
+		list_comment("j")
+		stk_push_de()
 		_ld_const(HL, 4)
 		_add(HL, SP)
 		_ld(E, HL_INDIRECT)
@@ -2025,13 +2026,15 @@ local dict = {
 		_ld(D, HL_INDIRECT)
 	end,
 	leave = function()
-		_pop(HL); list_comment("leave") -- pop counter
+		list_comment("leave") -- pop counter
+		_pop(HL)
 		_pop(HL) -- pop limit
 		_push(HL) -- push limit
 		_push(HL) -- push limit as new counter
 	end,
 	exit = function()
-		_ret(); list_comment("exit")
+		list_comment("exit")
+		_ret()
 	end,
 	['['] = function()
 		compile_dict['[']()
@@ -2041,20 +2044,23 @@ local dict = {
 	end,
 	['."'] = function()
 		local str = next_symbol_with_delimiter('"')
-		_call(subroutines['."']); list_comment('."')
-		list_here()
+		list_comment('."')
+		_call(subroutines['."'])
+		list_comment('"%s"', str)
 		emit_short(#str)
 		emit_string(str)
-		list_comment('"%s"', str)
 	end,
 	di = function()
-		_di(); list_comment("di")
+		list_comment("di")
+		_di()
 	end,
 	ei = function()
-		_ei(); list_comment("ei")
+		list_comment("ei")
+		_ei()
 	end,
 	here = function()
-		stk_push_de(); list_comment("here")
+		list_comment("here")
+		stk_push_de()
 		_ld_fetch(DE, STKBOT)
 	end,
 }

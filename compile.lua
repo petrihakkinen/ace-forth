@@ -145,8 +145,9 @@ local gotos = {}						-- address to be patched -> label for current word
 local last_word							-- name of last user defined word
 local word_counts = {}					-- how many times each word is used in generated code?
 local word_flags = {}					-- bitfield of F_* flags
-local listing = {}						-- array of strings
-local listing_line_len = 0				-- length of current listing line
+local list_headers = {}					-- listing headers (addr -> string)
+local list_lines = {}					-- listing lines (addr -> string)
+local list_comments = {}				-- listing comments (addr -> string)
 local dont_allow_redefining = false		-- if set, do not allow redefining word behaviors (hack for library words)
 local warnings = {}						-- array of strings
 
@@ -418,7 +419,6 @@ function emit_byte(x)
 	comp_assert(output_pos < 65536, "out of space")
 	mem[output_pos] = x
 	output_pos = output_pos + 1
-	write_listing(" %02x", x)
 end
 
 function emit_short(x)
@@ -442,11 +442,8 @@ function emit_literal(n)
 			comp_error("literal out of range")
 		end
 	else
-		-- this optimization seems to be unsafe and causes the tape loader in ROM to mess up
-		--if n == 0 and opts.small_literals then
-		--	emit_short(PUSH_ZERO)
+		list_line("lit %d", n)
 
-		list_here()
 		if n >= 0 and n < 256 and opts.small_literals then
 			emit_short(PUSH_BYTE)
 			emit_byte(n)
@@ -457,7 +454,6 @@ function emit_literal(n)
 		else
 			comp_error("literal out of range")
 		end
-		list_instr("lit %d", n)
 	end
 end
 
@@ -540,10 +536,10 @@ function create_word(code_field, name, flags)
 	list_header(name)
 
 	if not opts.mcode then
-		list_here()
-
 		update_word_length()
 
+		list_comment("word header")
+		
 		-- write name to dictionary, with terminator bit set for the last character
 		local name = name
 		if opts.minimal_word_names and name ~= opts.main_word then name = "@" end
@@ -573,9 +569,8 @@ function create_word(code_field, name, flags)
 	if (flags & F_INVISIBLE) == 0 then
 		compile_dict[name] = function()
 			word_counts[name] = word_counts[name] + 1
-			list_here()
+			list_line(name)
 			emit_short(compilation_addr)
-			list_instr(name)
 		end
 	end
 
@@ -751,86 +746,105 @@ function execute_string(src, filename)
 	end
 end
 
--- Writes string to listing file.
-function write_listing(...)
+-- Listings
+
+function list_header(...)
 	if opts.listing_file then
-		local str = string.format(...)
-		assert(string.find(str, "\n") == nil, "string may not contain newlines")
-		listing[#listing + 1] = str
-		listing_line_len = listing_line_len + #str
+		list_headers[here()] = string.format(...)
 	end
 end
 
-function list_newline()
+function list_line(...)
 	if opts.listing_file then
-		listing[#listing + 1] = "\n"
-		listing_line_len = 0
-	end
-end
-
-function list_header(name)
-	if opts.listing_file then
-		if #listing > 0 then
-			list_newline()
-			list_newline()
-		end
-		write_listing("%s:", name)
-	end
-end
-
-function list_here()
-	if opts.listing_file then
-		list_newline()
-		write_listing("%04x", here())
-	end
-end
-
-function list_align(x)
-	if opts.listing_file then
-		local spaces = x - listing_line_len
-		if spaces > 0 then
-			write_listing(string.rep(" ", spaces))
-		end
-	end
-end
-
-function list_instr(...)
-	if opts.listing_file then
-		list_align(20)
-		write_listing(...)
+		list_lines[here()] = string.format(...)
 	end
 end
 
 function list_comment(...)
 	if opts.listing_file then
-		list_align(39)
-		write_listing(" ; ")
-		write_listing(...)
+		list_comments[here()] = string.format(...)
 	end
 end
 
-function list_pos()
-	return #listing + 1
-end
-
--- Patches an entry in the listing file.
--- For patching jump instructions after the jump target has been resolved.
-function list_patch(pos, str)
+-- Patches hex literal (jump address) in already emitted listing line.
+function list_patch(addr, new_value)
 	if opts.listing_file then
-		listing[pos] = str
+		local line = list_lines[addr]
+		assert(line, "invalid listing line")
+		line = line:gsub("%$%x+", new_value)
+		list_lines[addr] = line
 	end
 end
 
 -- Erases the last n lines, including the current line, from the listing.
 function list_erase_lines(n)
 	if opts.listing_file then
-		while n > 0 do
-			if listing[#listing] == "\n" then
+		local addr = here()
+		while n > 0 and addr >= start_address do
+			if list_lines[addr] then
+				list_lines[addr] = nil
+				list_comments[addr] = nil
 				n = n - 1
 			end
-			listing[#listing] = nil
+			addr = addr - 1
 		end
 	end
+end
+
+function write_listing(filename)
+	local file = io.open(filename, "wb")
+	local addr = start_address
+	local len = 0
+
+	local function align(x)
+		local spaces = x - len
+		if spaces > 0 then
+			file:write(string.rep(" ", spaces))
+			len = len + spaces
+		end
+	end
+
+	while addr < here() do
+		if list_headers[addr] then
+			if addr > start_address then file:write("\n") end
+			file:write(list_headers[addr], ":\n")
+		end
+
+		-- find end address of line
+		local e = here()
+		for i = addr + 1, here() do
+			if list_lines[i] or list_comments[i] then
+				e = i
+				break
+			end
+		end
+		assert(e > addr)
+
+		file:write(string.format("%04x", addr))
+		len = 4
+
+		-- emit bytes
+		for i = addr, e - 1 do
+			file:write(string.format(" %02x", read_byte(i)))
+			len = len + 3
+		end
+
+		if list_lines[addr] then
+			align(20)
+			file:write(" ", list_lines[addr])
+			len = len + #list_lines[addr] + 1
+		end
+
+		if list_comments[addr] then
+			align(40)
+			file:write(" ; ", list_comments[addr])
+		end
+
+		file:write("\n")
+		addr = e
+	end
+
+	file:close()
 end
 
 interpret_dict = {
@@ -880,10 +894,9 @@ interpret_dict = {
 			if opts.mcode then
 				-- load top of stack to DE if this is the machine code entry point from Forth
 				if name == opts.main_word then
-					list_here()
-					emit_byte(0xc7 + 24)
-					list_instr("rst 24")
+					list_line("rst 24")
 					list_comment("adjust stack for machine code")
+					emit_byte(0xc7 + 24)
 				end
 
 				compile_mode = "mcode"
@@ -1160,9 +1173,8 @@ compile_dict = {
 		comp_error("invalid :")
 	end,
 	[';'] = function()
-		list_here()
+		list_line("forth-end")
 		emit_short(FORTH_END)
-		list_instr("forth-end")
 		compile_mode = false
 
 		check_control_flow_stack()
@@ -1208,33 +1220,30 @@ compile_dict = {
 	end,
 	['."'] = function()
 		local str = next_symbol_with_delimiter('"')
-		list_here()
+		list_line(' ." %s"', str)
 		emit_short(PRINT)
 		emit_short(#str)
 		emit_string(str)
-		list_instr(' ." %s"', str)
 	end,
 	['if'] = function()
 		-- emit conditional branch
-		list_here()
+		list_line("?branch ???") -- TODO: patch jump
 		emit_short(CBRANCH)
 		cf_push(here())
 		cf_push('if')
 		emit_short(0)	-- placeholder branch offset
-		list_instr("?branch ?")
 	end,
 	['else'] = function()
 		comp_assert(cf_pop() == 'if', "ELSE without matching IF")
 		local where = cf_pop()
 		-- emit jump to THEN
-		list_here()
+		list_line("branch ?")	-- TODO: patch jump
 		emit_short(BRANCH)
 		cf_push(here())
 		cf_push('if')
 		emit_short(0)	-- placeholder branch offset
 		-- patch branch offset for ?branch at IF
 		write_short(where, here() - where - 1)
-		list_instr("branch ?")
 	end,
 	['then']= function()
 		-- patch branch offset for ?branch at IF
@@ -1249,63 +1258,54 @@ compile_dict = {
 	['until'] = function()
 		comp_assert(cf_pop() == 'begin', "UNTIL without matching BEGIN")
 		local target = cf_pop()
-		list_here()
+		list_line("?branch %04x", target)
 		emit_short(CBRANCH)
 		emit_short(target - here() - 1)
-		list_instr("?branch %04x", target)
 	end,
 	again = function()
 		comp_assert(cf_pop() == 'begin', "AGAIN without matching BEGIN")
 		local target = cf_pop()
-		list_here()
+		list_line("branch %04x", target)
 		emit_short(BRANCH)
 		emit_short(target - here() - 1)
-		list_instr("branch %04x", target)
 	end,
 	['do'] = function()
-		list_here()
+		list_line("do")
 		emit_short(DO)
-		list_instr("do")
 		cf_push(here())
 		cf_push('do')
 	end,
 	loop = function()
 		comp_assert(cf_pop() == 'do', "LOOP without matching DO")
 		local target = cf_pop()
-		list_here()
+		list_line("loop %04x", target)
 		emit_short(LOOP)
 		emit_short(target - here() - 1)		
-		list_instr("loop %04x", target)
 	end,
 	['+loop'] = function()
 		comp_assert(cf_pop() == 'do', "+LOOP without matching DO")
 		local target = cf_pop()
-		list_here()
+		list_line("+loop %04x", target)
 		emit_short(PLUS_LOOP)
 		emit_short(target - here() - 1)		
-		list_instr("+loop %04x", target)
 	end,
 	['while'] = function() comp_error("WHILE not implemented") end,
 	['repeat'] = function() comp_error("REPEAT not implemented") end,
 	['goto'] = function()
 		local label = next_symbol()
-		list_here()
+		list_line("branch %s", label)	-- TODO: patch jump
 		emit_short(BRANCH)
 		local addr = here()
 		emit_short(0)	-- place holder branch offset
-		list_instr("branch %s", label)
 		gotos[addr] = label
 	end,
 	label = function()
 		local label = next_symbol()
 		labels[label] = here()
-		list_here()
-		list_instr("label %s", label)
 	end,
 	exit = function()
-		list_here()
+		list_line("exit")
 		emit_short(rom_words.EXIT)
-		list_instr("exit")
 		word_flags[last_word] = word_flags[last_word] | F_HAS_SIDE_EXITS
 	end,
 	ascii = function()
@@ -1317,23 +1317,21 @@ compile_dict = {
 	postpone = function()
 		local name = next_word()
 		if compile_dict[name] == nil then comp_error("undefined word %s", name) end
-		list_here()
+		list_line("postpone")
 		emit_short(POSTPONE)
+		list_comment("%s", name)
 		emit_short(#name)
 		emit_string(name)
-		list_instr("postpone %s", name)
 	end,
 	['r@'] = function()
 		-- R@ is alias for I
-		list_here()
+		list_line("r@")
 		emit_short(rom_words.I)
-		list_instr("r@")
 	end,
 	['not'] = function()
 		-- NOT is alias for 0=
-		list_here()
+		list_line("not")
 		emit_short(rom_words['0='])
-		list_instr("not")
 	end,
 }
 
@@ -1350,9 +1348,8 @@ end
 for name, addr in pairs(rom_words) do
 	name = string.lower(name)
 	compile_dict[name] = compile_dict[name] or function()
-		list_here()
+		list_line(name)
 		emit_short(addr)
-		list_instr(name)
 	end
 
 	compilation_addr_to_name[addr] = name
@@ -1362,14 +1359,13 @@ end
 if opts.mcode then
 	-- write name to dictionary, with terminator bit set for the last character
 	local name = string.upper(opts.main_word)
-	list_here()
+	list_header("main word header")
 	emit_string(name:sub(1, #name - 1) .. string.char(name:byte(#name) | 128))
 	emit_short(0) -- placeholder word length
 	emit_short(prev_word_link)
 	prev_word_link = here()
 	emit_byte(#name)
 	emit_short(0)	-- placeholder code field
-	list_comment("main word header")
 end
 
 if opts.mcode then
@@ -1535,7 +1531,5 @@ end
 
 -- write listing file
 if opts.listing_file then
-	local file = io.open(opts.listing_file, "wb")
-	file:write(table.concat(listing, ""))
-	file:close()
+	write_listing(opts.listing_file)
 end
