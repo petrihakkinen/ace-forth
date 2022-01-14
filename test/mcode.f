@@ -1,11 +1,9 @@
 ( Test Machine Code Compilation )
 ( This program should be compiled with --mcode and --optimize options. )
 
-hex
-2400 const SCREEN
-3C37 const STKBOT
-3C3B const SPARE
-decimal
+[hex] 2400 const SCREEN
+[hex] 3C37 const STKBOT
+[hex] 3C3B const SPARE
 
 100 variable v
 

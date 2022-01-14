@@ -7,8 +7,6 @@
 
 - can we make machine code version of . or at least call it without call_forth?
 
-- [HEX] STK! STK?
-
 - document warnings in README
 
 - add xx00 specialization (e.g when adding SCREEN address)

@@ -88,7 +88,7 @@ The compiler supports many extras not found on Jupiter Ace's Forth implementatio
 
 - New defining word `:M` for creating macros (also known as immediate words). `:M name ;` is equivalent to `: name ; IMMEDIATE` in other Forth dialects. Before compiling a word, ace-forth needs to know whether the word should be compiled to Forth bytecode or Z80 machine code.
 
-- Many new words have been added: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `C*` `C=` `.S` `HEX` `CODE` `POSTPONE` ...
+- Many new words have been added: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `C*` `C=` `.S` `HEX` `[HEX]` `CODE` `POSTPONE` ...
 
 
 ## Machine Code Compilation
@@ -262,6 +262,7 @@ The following letters are used to denote values on the stack:
 | ;BYTES            | ( - )              | Mark the end of BYTES                                                   |
 | ALLOT             | ( n - )            | Allocates space for n elements from the dictionary                      |
 | ASCII \<char\>    | ( - (n) )          | Emit literal containing the ASCII code of the following symbol          |
+| [HEX] \<number\>  | ( - (n) )          | Parse the next symbol as hexadecimal number, regardless of numeric base |
 | HERE              | ( - n )            | Push the address of the next free location in the dictionary            |
 | LIT               | ( n - )            | Emit value from data stack to the dictionary                            |
 | POSTPONE \<name\> | ( - )              | (Macros) Emit code for invoking a word \<name\> into the dictionary     |

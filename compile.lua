@@ -278,6 +278,7 @@ function comp_assert(expr, message)
 	if not expr then
 		comp_error("%s", message)
 	end
+	return expr
 end
 
 function warn(...)
@@ -1141,6 +1142,11 @@ interpret_dict = {
 		if #char ~= 1 then comp_error("invalid symbol following ASCII") end
 		push(char:byte(1))
 	end,
+	['[hex]'] = function()
+		local sym = next_symbol()
+		local n = comp_assert(tonumber(sym, 16), "invalid symbol following [HEX]")
+		push(n)
+	end,
 	['c!'] = function()
 		local n, addr = pop2()
 		if n < 0 then n = n + 256 end
@@ -1358,6 +1364,11 @@ compile_dict = {
 		local char = next_symbol()
 		if #char ~= 1 then comp_error("invalid symbol following ASCII") end
 		emit_literal(char:byte(1))
+	end,
+	['[hex]'] = function()
+		local sym = next_symbol()
+		local n = comp_assert(tonumber(sym, 16), "invalid symbol following [HEX]")
+		emit_literal(n)
 	end,
 	lit = function() emit_literal(pop()) end,
 	postpone = function()

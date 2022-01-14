@@ -1737,6 +1737,9 @@ local dict = {
 	ascii = function()
 		(compile_dict.ascii or compile_dict.ASCII)()
 	end,
+	['[hex]'] = function()
+		(compile_dict['[hex]'] or compile_dict['[HEX]'])()
+	end,
 	emit = function()
 		list_comment("emit")
 		_ld(A, E)
