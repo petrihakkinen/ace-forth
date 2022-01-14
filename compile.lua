@@ -577,6 +577,14 @@ function create_word(code_field, name, flags)
 	return name
 end
 
+function mark_used(name)
+	word_counts[name] = word_counts[name] + 1
+end
+
+function is_word_used(name)
+	return not eliminate_words[name]
+end
+
 -- Erases previously compiled word from dictionary.
 -- Returns the contents of the parameter field of the erased word.
 function erase_previous_word()
@@ -909,7 +917,6 @@ interpret_dict = {
 				if mcode_dict[name] == nil or not dont_allow_redefining then
 					mcode_dict[name] = function()
 						mcode.call_mcode(name)
-						word_counts[name] = word_counts[name] + 1
 					end
 				end
 			end
@@ -944,7 +951,6 @@ interpret_dict = {
 		if mcode_dict[name] == nil or not dont_allow_redefining then
 			mcode_dict[name] = function()
 				mcode.call_code(name)
-				word_counts[name] = word_counts[name] + 1
 			end
 		end
 	end,

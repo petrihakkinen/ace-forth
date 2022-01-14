@@ -6,8 +6,6 @@ local gotos = {}	-- address to be patched -> label for current word
 local literal_pos	-- the dictionary position just after the newest emitted literal
 local literal_pos2	-- the dictionary position of the second newest literal
 
-local subroutines = {}	-- addresses of subroutines
-
 -- Z80 registers
 local A = 7
 local B = 0
@@ -840,6 +838,7 @@ local function call_code(name)
 	end
 	list_comment(name)
 	_call(addr) -- words created using CODE don't have wrappers
+	mark_used(name)
 end
 
 local function call_mcode(name)
@@ -850,275 +849,298 @@ local function call_mcode(name)
 	end
 	list_comment(name)
 	_call(addr)
+	mark_used(name)
 end
 
 -- Emits invisible subroutine words to be used by mcode words.
 local function emit_subroutines()
-	-- rot (r swap r> swap)
-	subroutines.rot = here()
-	list_header("rot")
-	_push(DE)
-	stk_pop_de()
-	_call(here() + 5) -- call swap
-	stk_push_de()
-	_pop(DE)
-	-- fall through to swap...
+	-- rot
+	if is_word_used("rot") then
+		-- >r swap r> swap
+		create_word(0, "rot", F_INVISIBLE)
+		_push(DE)
+		stk_pop_de()
+		_call(here() + 5) -- call swap
+		stk_push_de()
+		_pop(DE)
+		-- fall through to swap...
+	end
 
 	-- swap
-	subroutines.swap = here()
-	list_header("swap")
-	_ld_fetch(HL, SPARE)	-- load second element from top of stack to BC
-	_dec(HL)
-	_ld(B, HL_INDIRECT)
-	_dec(HL)
-	_ld(C, HL_INDIRECT)
-	_ld(HL_INDIRECT, E)		-- push old top
-	_inc(HL)
-	_ld(HL_INDIRECT, D)
-	_inc(HL)
-	_ld_store(SPARE, HL)
-	_ld(D, B)				-- second element to DE
-	_ld(E, C)
-	_ret()
+	if is_word_used("swap") or is_word_used("rot") then
+		create_word(0, "swap", F_INVISIBLE)
+		_ld_fetch(HL, SPARE)	-- load second element from top of stack to BC
+		_dec(HL)
+		_ld(B, HL_INDIRECT)
+		_dec(HL)
+		_ld(C, HL_INDIRECT)
+		_ld(HL_INDIRECT, E)		-- push old top
+		_inc(HL)
+		_ld(HL_INDIRECT, D)
+		_inc(HL)
+		_ld_store(SPARE, HL)
+		_ld(D, B)				-- second element to DE
+		_ld(E, C)
+		_ret()
+	end
 
-	-- 2dup (over over)
-	subroutines['2dup'] = here()
-	_call(here() + 3) -- call swap
-	-- fall through to over...
+	-- 2dup
+	if is_word_used("2dup") then
+		-- over over
+		create_word(0, "2dup", F_INVISIBLE)
+		_call(here() + 3) -- call over
+		-- fall through to over...
+	end
 
 	-- over
-	subroutines.over = here()
-	list_header("over")
-	_ld_fetch(HL, SPARE) -- push old top
-	_ld(B, H)
-	_ld(C, L)
-	_ld(HL_INDIRECT, E)
-	_inc(HL)
-	_ld(HL_INDIRECT, D)
-	_inc(HL)
-	_ld_store(SPARE, HL)
-	_dec(BC)  -- second element to DE
-	_ld(A, BC_INDIRECT)
-	_ld(D, A)
-	_dec(BC)
-	_ld(A, BC_INDIRECT)
-	_ld(E, A)
-	_ret()
-
-	-- 2over (4 pick 4 pick)
-	subroutines['2over'] = here()
-	list_header("2over")
-	stk_push_de()
-	for i = 1, 2 do
-		_ld_const(DE, 4)
-		stk_push_de()
-		_call(0x094d)
+	if is_word_used("over") or is_word_used("2dup") then
+		create_word(0, "over", F_INVISIBLE)
+		_ld_fetch(HL, SPARE) -- push old top
+		_ld(B, H)
+		_ld(C, L)
+		_ld(HL_INDIRECT, E)
+		_inc(HL)
+		_ld(HL_INDIRECT, D)
+		_inc(HL)
+		_ld_store(SPARE, HL)
+		_dec(BC)  -- second element to DE
+		_ld(A, BC_INDIRECT)
+		_ld(D, A)
+		_dec(BC)
+		_ld(A, BC_INDIRECT)
+		_ld(E, A)
+		_ret()
 	end
-	stk_pop_de()
-	_ret()
+
+	-- 2over
+	if is_word_used("2over") then
+		-- 4 pick 4 pick
+		create_word(0, "2over", F_INVISIBLE)
+		stk_push_de()
+		for i = 1, 2 do
+			_ld_const(DE, 4)
+			stk_push_de()
+			_call(0x094d)
+		end
+		stk_pop_de()
+		_ret()
+	end
 
 	-- roll
-	subroutines.roll = here()
-	list_header("roll")
-	stk_push_de()
-	_call(0x094d)
-	_ex_de_hl()
-	_ld_fetch(HL, STKBOT)
-	_ld(H, D)
-	_ld(L, E)
-	_inc(HL)
-	_inc(HL)
-	_ldir()
-	_ld_store(SPARE, DE)
-	stk_pop_de()
-	_ret()
+	if is_word_used("roll") then
+		create_word(0, "roll", F_INVISIBLE)
+		stk_push_de()
+		_call(0x094d)
+		_ex_de_hl()
+		_ld_fetch(HL, STKBOT)
+		_ld(H, D)
+		_ld(L, E)
+		_inc(HL)
+		_inc(HL)
+		_ldir()
+		_ld_store(SPARE, DE)
+		stk_pop_de()
+		_ret()
+	end
 
 	-- +
-	subroutines['+'] = here()
-	list_header("+")
-	stk_pop_bc_inline()
-	_ex_de_hl()
-	_add(HL, BC)
-	_ex_de_hl()
-	_ret()
+	if is_word_used("+") then
+		create_word(0, "+", F_INVISIBLE)
+		stk_pop_bc_inline()
+		_ex_de_hl()
+		_add(HL, BC)
+		_ex_de_hl()
+		_ret()
+	end
 
 	-- -
-	subroutines['-'] = here()
-	list_header("-")
-	_ld(B, D)
-	_ld(C, E)
-	stk_pop_de_inline()
-	_ex_de_hl()
-	_or(A) -- clear carry
-	_sbc(HL, BC)
-	_ex_de_hl()
-	_ret()
+	if is_word_used("-") then
+		create_word(0, "-", F_INVISIBLE)
+		_ld(B, D)
+		_ld(C, E)
+		stk_pop_de_inline()
+		_ex_de_hl()
+		_or(A) -- clear carry
+		_sbc(HL, BC)
+		_ex_de_hl()
+		_ret()
+	end
 
 	-- signed 16-bit * 16-bit multiplication routine
-	subroutines.mult16 = here()
-	list_header("mult16")
-	stk_pop_bc()
-	_ld_const(HL, 0)
-	_ld_const(A, 16)
-	-- loop:
-	_add(HL, HL)
-	_ex_de_hl()
-	_adc(HL, HL)
-	_ex_de_hl()
-	_jr_nc(4) --> skip
-	_add(HL, BC)
-	_jr_nc(1) --> skip
-	_inc(DE)
-	 -- skip:
-	_dec(A)
-	_jr_nz(0xf2) --> loop
-	_ex_de_hl()
-	_ret()
+	if is_word_used("mult16") then
+		create_word(0, "mult16", F_INVISIBLE)
+		stk_pop_bc()
+		_ld_const(HL, 0)
+		_ld_const(A, 16)
+		-- loop:
+		_add(HL, HL)
+		_ex_de_hl()
+		_adc(HL, HL)
+		_ex_de_hl()
+		_jr_nc(4) --> skip
+		_add(HL, BC)
+		_jr_nc(1) --> skip
+		_inc(DE)
+		 -- skip:
+		_dec(A)
+		_jr_nz(0xf2) --> loop
+		_ex_de_hl()
+		_ret()
+	end
 
 	-- unsigned 8-bit * 8-bit multiplication routine
 	-- source: http://map.grauw.nl/sources/external/z80bits.html#1.1
-	subroutines.mult8 = here()
-	list_header("mult8")
-	stk_pop_bc()
-	_ld(H, C)
-	_ld_const(L, 0)
-	_sla(H)
-	_jr_nc(1) --> skip
-	_ld(L, E)
-	-- skip:
-	for i = 1, 7 do
-		_add(HL, HL)
-		_jr_nc(1) --> skipn
-		_add(HL, DE)
-		-- skipn:
+	if is_word_used("mult8") then
+		create_word(0, "mult8", F_INVISIBLE)
+		stk_pop_bc()
+		_ld(H, C)
+		_ld_const(L, 0)
+		_sla(H)
+		_jr_nc(1) --> skip
+		_ld(L, E)
+		-- skip:
+		for i = 1, 7 do
+			_add(HL, HL)
+			_jr_nc(1) --> skipn
+			_add(HL, DE)
+			-- skipn:
+		end
+		_ex_de_hl()
+		_ret()
 	end
-	_ex_de_hl()
-	_ret()
 
 	-- >
-	subroutines['>'] = here()
-	list_header(">")
-	_ld_fetch(HL, SPARE)	-- load second value from top to BC
-	_dec(HL)
-	_ld(B, HL_INDIRECT)
-	_dec(HL)
-	_ld(C, HL_INDIRECT)
-	_ld_store(SPARE, HL)
-	_ex_de_hl() -- HL = top value
-	-- sign: HL = value1, BC = value2
-	_ld(A, H)
-	_xor(B)
-	_jp_m(here() + 5) --> skip
-	_sbc(HL, BC)
-	-- skip:
-	_rl(H)
-	_ld_const(A, 0)
-	_ld(D, A)
-	_rla()
-	_ld(E, A)
-	_ret()
+	if is_word_used(">") then
+		create_word(0, ">", F_INVISIBLE)
+		_ld_fetch(HL, SPARE)	-- load second value from top to BC
+		_dec(HL)
+		_ld(B, HL_INDIRECT)
+		_dec(HL)
+		_ld(C, HL_INDIRECT)
+		_ld_store(SPARE, HL)
+		_ex_de_hl() -- HL = top value
+		-- sign: HL = value1, BC = value2
+		_ld(A, H)
+		_xor(B)
+		_jp_m(here() + 5) --> skip
+		_sbc(HL, BC)
+		-- skip:
+		_rl(H)
+		_ld_const(A, 0)
+		_ld(D, A)
+		_rla()
+		_ld(E, A)
+		_ret()
+	end
 
 	-- <
-	subroutines['<'] = here()
-	list_header("<")
-	_ld_fetch(HL, SPARE)	-- load second value from top to BC
-	_dec(HL)
-	_ld(B, HL_INDIRECT)
-	_dec(HL)
-	_ld(C, HL_INDIRECT)
-	_ld_store(SPARE, HL)
-	_ld(H, B)
-	_ld(L, C)
-	-- sign: HL = value1, DE = value2
-	_ld(A, H)
-	_xor(D)
-	_jp_m(here() + 5) --> skip
-	_sbc(HL, DE)
-	-- skip:
-	_rl(H)
-	_ld_const(A, 0)
-	_ld(D, A)
-	_rla()
-	_ld(E, A)
-	_ret()
+	if is_word_used("<") then
+		create_word(0, "<", F_INVISIBLE)
+		_ld_fetch(HL, SPARE)	-- load second value from top to BC
+		_dec(HL)
+		_ld(B, HL_INDIRECT)
+		_dec(HL)
+		_ld(C, HL_INDIRECT)
+		_ld_store(SPARE, HL)
+		_ld(H, B)
+		_ld(L, C)
+		-- sign: HL = value1, DE = value2
+		_ld(A, H)
+		_xor(D)
+		_jp_m(here() + 5) --> skip
+		_sbc(HL, DE)
+		-- skip:
+		_rl(H)
+		_ld_const(A, 0)
+		_ld(D, A)
+		_rla()
+		_ld(E, A)
+		_ret()
+	end
 
 	-- min
-	subroutines.min = here()
-	list_header("min")
-	stk_pop_bc_inline()
-	_ld(H, D)
-	_ld(L, E)
-	_or(A) -- clear carry
-	_sbc(HL, BC)
-	_rl(H)
-	_jr_c(2) --> skip
-	_ld(D, B)
-	_ld(E, C)
-	-- skip:
-	_ret()
+	if is_word_used("min") then
+		create_word(0, "min", F_INVISIBLE)
+		stk_pop_bc_inline()
+		_ld(H, D)
+		_ld(L, E)
+		_or(A) -- clear carry
+		_sbc(HL, BC)
+		_rl(H)
+		_jr_c(2) --> skip
+		_ld(D, B)
+		_ld(E, C)
+		-- skip:
+		_ret()
+	end
 
 	-- max
-	subroutines.max = here()
-	list_header("max")
-	stk_pop_bc_inline()
-	_ld(H, D)
-	_ld(L, E)
-	_or(A) -- clear carry
-	_sbc(HL, BC)
-	_rl(H)
-	_jr_nc(2) --> skip
-	_ld(D, B)
-	_ld(E, C)
-	-- skip:
-	_ret()
+	if is_word_used("max") then
+		create_word(0, "max", F_INVISIBLE)
+		stk_pop_bc_inline()
+		_ld(H, D)
+		_ld(L, E)
+		_or(A) -- clear carry
+		_sbc(HL, BC)
+		_rl(H)
+		_jr_nc(2) --> skip
+		_ld(D, B)
+		_ld(E, C)
+		-- skip:
+		_ret()
+	end
 
 	-- at
-	subroutines.at = here()
-	list_header("at")
-	_ld_fetch(HL, SPARE)
-	_dec(HL)
-	_dec(HL)
-	_ld(A, HL_INDIRECT)
-	_ld_store(SPARE, HL)
-	_call(0x0b28)	-- at routine in ROM, in: A = y, E = x
-	_ld_store(SCRPOS, HL)
-	stk_pop_de()
-	_ret()
+	if is_word_used("at") then
+		create_word(0, "at", F_INVISIBLE)
+		_ld_fetch(HL, SPARE)
+		_dec(HL)
+		_dec(HL)
+		_ld(A, HL_INDIRECT)
+		_ld_store(SPARE, HL)
+		_call(0x0b28)	-- at routine in ROM, in: A = y, E = x
+		_ld_store(SCRPOS, HL)
+		stk_pop_de()
+		_ret()
+	end
 
 	-- ."
-	subroutines['."'] = here()
-	list_header('."')
-	_pop(HL)	-- HL = pointer to string data
-	_push(DE) -- preserve DE
-	_ex_de_hl()	-- DE = string data
-	_call(0x0979) -- call print embedded string routine
-	_ex_de_hl()	-- now HL points to end of string
-	_pop(DE) -- restore DE
-	_jp_indirect(HL)
+	if is_word_used('."') then
+		create_word(0, '."', F_INVISIBLE)
+		_pop(HL)	-- HL = pointer to string data
+		_push(DE) -- preserve DE
+		_ex_de_hl()	-- DE = string data
+		_call(0x0979) -- call print embedded string routine
+		_ex_de_hl()	-- now HL points to end of string
+		_pop(DE) -- restore DE
+		_jp_indirect(HL)
+	end
 
 	-- spaces
-	subroutines.spaces = here()
-	list_header("spaces")
-	-- loop:
-	_dec(DE)
-	_bit(7, D)
-	_jr_nz(5) --> done
-	_ld_const(A, 0x20)
-	_rst(8)
-	_jr(0xf6) --> loop
-	-- done:
-	stk_pop_de()
-	_ret()
+	if is_word_used("spaces") then
+		create_word(0, "spaces", F_INVISIBLE)
+		-- loop:
+		_dec(DE)
+		_bit(7, D)
+		_jr_nz(5) --> done
+		_ld_const(A, 0x20)
+		_rst(8)
+		_jr(0xf6) --> loop
+		-- done:
+		stk_pop_de()
+		_ret()
+	end
 
 	-- type
-	subroutines.type = here()
-	list_header("type")
-	_ld(B, D)	-- move count from DE to BC
-	_ld(C, E)
-	stk_pop_de()
-	_call(0x097f) -- call print string routine (BC = count, DE = addr)
-	stk_pop_de()
-	_ret()
+	if is_word_used("type") then
+		create_word(0, "type", F_INVISIBLE)
+		_ld(B, D)	-- move count from DE to BC
+		_ld(C, E)
+		stk_pop_de()
+		_call(0x097f) -- call print string routine (BC = count, DE = addr)
+		stk_pop_de()
+		_ret()
+	end
 end
 
 local function emit_literal(n, comment)
@@ -1181,8 +1203,7 @@ local dict = {
 		-- skip:
 	end,
 	over = function()
-		list_comment("over")
-		_call(subroutines.over)
+		call_mcode("over")
 	end,
 	drop = function()
 		list_comment("drop")
@@ -1194,12 +1215,10 @@ local dict = {
 		stk_pop_bc()
 	end,
 	swap = function()
-		list_comment("swap")
-		_call(subroutines.swap)
+		call_mcode("swap")
 	end,
 	['2dup'] = function()
-		list_comment("2dup")
-		_call(subroutines['2dup'])
+		call_mcode("2dup")
 	end,
 	['2drop'] = function()
 		list_comment("2drop")
@@ -1207,8 +1226,7 @@ local dict = {
 		stk_pop_de()
 	end,
 	['2over'] = function()
-		list_comment("2over")
-		_call(subroutines['2over'])
+		call_mcode("2over")
 	end,
 	pick = function()
 		list_comment("pick")
@@ -1217,12 +1235,10 @@ local dict = {
 		stk_pop_de()
 	end,
 	roll = function()
-		list_comment("roll")
-		_call(subroutines.roll)
+		call_mcode("roll")
 	end,
 	rot = function()
-		list_comment("rot")
-		_call(subroutines.rot)
+		call_mcode("rot")
 	end,
 	['r>'] = function()
 		list_comment("r>")
@@ -1259,8 +1275,7 @@ local dict = {
 			_add(HL, DE)
 			_ex_de_hl()
 		else
-			list_comment("+")
-			_call(subroutines['+'])
+			call_mcode("+")
 		end
 	end,
 	['-'] = function()
@@ -1281,8 +1296,7 @@ local dict = {
 			_add(HL, DE)
 			_ex_de_hl()
 		else
-			list_comment("-")
-			_call(subroutines['-'])
+			call_mcode("-")
 		end
 	end,
 	['*'] = function()
@@ -1312,11 +1326,9 @@ local dict = {
 			end
 		elseif lit then
 			emit_literal(lit)
-			list_comment("*")
-			_call(subroutines.mult16)
+			call_mcode("mult16")
 		else
-			list_comment("*")
-			_call(subroutines.mult16)
+			call_mcode("mult16")
 		end
 	end,
 	['c*'] = function()
@@ -1334,11 +1346,9 @@ local dict = {
 			end
 		elseif lit then
 			emit_literal(lit)
-			list_comment("c*")
-			_call(subroutines.mult8)
+			call_mcode("mult8")
 		else
-			list_comment("c*")
-			_call(subroutines.mult8)
+			call_mcode("mult8")
 		end
 	end,
 	['/'] = function()
@@ -1430,12 +1440,10 @@ local dict = {
 		-- skip:
 	end,
 	min = function()
-		list_comment("min")
-		_call(subroutines.min)
+		call_mcode("min")
 	end,
 	max = function()
-		list_comment("max")
-		_call(subroutines.max)
+		call_mcode("max")
 	end,
 	xor = function()
 		local lit = erase_literal()
@@ -1618,12 +1626,10 @@ local dict = {
 		end
 	end,
 	['>'] = function()
-		list_comment(">")
-		_call(subroutines['>'])
+		call_mcode(">")
 	end,
 	['<'] = function()
-		list_comment("<")
-		_call(subroutines['<'])
+		call_mcode("<")
 	end,
 	['!'] = function()
 		-- ( n addr -- )
@@ -1709,17 +1715,14 @@ local dict = {
 		_rst(8)
 	end,
 	spaces = function()
-		list_comment("spaces")
-		_call(subroutines.spaces)
+		call_mcode("spaces")
 	end,
 	at = function()
-		list_comment("at")
-		_call(subroutines.at)
+		call_mcode("at")
 	end,
 	type = function()
 		-- ( addr count -- )
-		list_comment("type")
-		_call(subroutines.type)
+		call_mcode("type")
 	end,
 	base = function()
 		list_comment("base")
@@ -2043,8 +2046,7 @@ local dict = {
 	end,
 	['."'] = function()
 		local str = next_symbol_with_delimiter('"')
-		list_comment('."')
-		_call(subroutines['."'])
+		call_mcode('."')
 		list_comment('"%s"', str)
 		emit_short(#str)
 		emit_string(str)
