@@ -136,12 +136,13 @@ decimal
 			i star-speed? + ( Move star )
 
 			( Did StarX overflow )
-			dup 7 > if
+			dup 7 > if ( TODO: C> with literal specialization )
 				( Wrap around to 0-7 )
 				7 and
 
 				( Decrement num stars )
-				i star-char? num-stars? 1- i star-char? num-stars!
+				i star-char? ( char )
+				dup num-stars? 1- swap num-stars! ( TODO: +! )
 
 				( Erase star from char )
 				0 i star-char-addr? c!
@@ -160,6 +161,8 @@ decimal
 				1- ( Move left on the screen )
 
 				( Wrap around to end of screen )
+				( TODO: this can be optimize with C= if we had RSHIFT: )
+				( dup 8 rshift [ SCREEN 1- 8 rshift ] lit C= if )
 				dup [ SCREEN 1- ] lit = if
 					drop [ SCREEN SCREEN_WIDTH SCREEN_HEIGHT * + 1- ] lit
 				then
@@ -181,13 +184,14 @@ decimal
 					i star-char! ( -- )
 				then
 
-				( Recompute char address )
-				i star-char? 8 * i star-y? + CHARS + i star-char-addr!
+				drop ( Drop screen-addr )
 
-				drop ( drop screen-addr )
+				( Recompute char address )
+				i star-char? ( char )
+				dup 8 * i star-y? + CHARS + i star-char-addr!
 
 				( Increase num stars )
-				i star-char? num-stars? 1+ i star-char? num-stars!
+				dup num-stars? 1+ swap num-stars!	( TODO: +! )
 			then
 
 			( Store star X )
