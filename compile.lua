@@ -1440,7 +1440,7 @@ end
 -- patch code field for main word
 if opts.mcode then
 	local addr = compilation_addresses[opts.main_word]
-	assert(addr, "could not find compilation address of main word")
+	if addr == nil then comp_error("could not find word '%s'", opts.main_word) end
 	write_short(prev_word_link + 1, addr)
 end
 
