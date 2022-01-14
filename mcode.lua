@@ -624,10 +624,9 @@ local function _ei()
 	emit_byte(0xfb)
 end
 
--- TODO: fix this! here() is different than before
 local function offset_to_absolute(offset)
 	if offset > 127 then offset = offset - 256 end
-	return here() + offset
+	return here() + offset + 2
 end
 
 local function _jr(offset)
