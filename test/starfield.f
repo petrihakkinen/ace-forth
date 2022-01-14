@@ -15,6 +15,7 @@ create StarY STAR_COUNT allot
 create StarSpeed STAR_COUNT allot
 create StarChar STAR_COUNT allot
 create StarScreenAddr STAR_COUNT 2* allot
+create StarCharAddr STAR_COUNT 2* allot
 
 create NumStars CHAR_COUNT allot
 
@@ -47,17 +48,17 @@ decimal
 : star-speed? ( star -- speed ) StarSpeed + c@ ;
 : star-char? ( star -- char ) StarChar + c@ ;
 : star-screen-addr? ( star - addr ) 2* StarScreenAddr + @ ;
+: star-char-addr? ( star - addr ) 2* StarCharAddr + @ ;
 
 : star-x! ( x star -- ) StarX + c! ;
 : star-y! ( y star -- ) StarY + c! ;
 : star-speed! ( speed star -- ) StarSpeed + c! ;
 : star-char! ( char star -- ) StarChar + c! ;
 : star-screen-addr! ( addr star -- ) 2* StarScreenAddr + ! ;
+: star-char-addr! ( addr star -- ) 2* StarCharAddr + ! ;
 
 : num-stars? ( char -- n ) NumStars + c@ ; ( How many stars are using a char? )
 : num-stars! ( n char -- ) NumStars + c! ;
-
-: star-char-addr ( star - addr ) dup star-char? 8 * swap star-y? + CHARS + ; ( Return star's address in charset memory )
 
 : alloc-char ( -- char )
 	NumFree c@ 1- ( s: NumFree-1 )
@@ -97,11 +98,12 @@ decimal
 
 	( Initialize stars, one star per char initially )
 	STAR_COUNT 0 do
-		i 7 and i star-x!
-		rnd 2 / 7 and i star-y!
-		i 3 and 1+ i star-speed!
-		i i star-char!
-		1 i num-stars!
+		i 7 and i star-x! ( Init X )
+		rnd 2 / 7 and i star-y! ( Init Y )
+		i 3 and 1+ i star-speed! ( Init speed )
+		i i star-char! ( Init char )
+		i 8 * i star-y? + CHARS + i star-char-addr! ( Init char addr )
+		1 i num-stars! ( Init NumStars )
 
 		( Initialize star screen address )
 		label again
@@ -142,7 +144,7 @@ decimal
 				i star-char? num-stars? 1- i star-char? num-stars!
 
 				( Erase star from char )
-				0 i star-char-addr c!
+				0 i star-char-addr? c!
 
 				( Get star's screen address )
 				i star-screen-addr? ( s: screen-addr )
@@ -179,6 +181,9 @@ decimal
 					i star-char! ( -- )
 				then
 
+				( Recompute char address )
+				i star-char? 8 * i star-y? + CHARS + i star-char-addr!
+
 				drop ( drop screen-addr )
 
 				( Increase num stars )
@@ -190,7 +195,7 @@ decimal
 
 			( Draw star to char )
 			StarBitMask + c@ ( bitmask )
-			i star-char-addr c!
+			i star-char-addr? c!
 		loop
 
 		stk?
