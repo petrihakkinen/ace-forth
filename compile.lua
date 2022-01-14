@@ -780,17 +780,13 @@ function list_patch(addr, new_value)
 	end
 end
 
--- Erases the last n lines, including the current line, from the listing.
-function list_erase_lines(n)
+-- Erases all listing lines in given address range.
+function list_erase(start_addr, end_addr)
 	if opts.listing_file then
-		local addr = here()
-		while n > 0 and addr >= start_address do
-			if list_lines[addr] then
-				list_lines[addr] = nil
-				list_comments[addr] = nil
-				n = n - 1
-			end
-			addr = addr - 1
+		for i = start_addr, end_addr do
+			list_headers[i] = nil
+			list_lines[i] = nil
+			list_comments[i] = nil
 		end
 	end
 end

@@ -1139,8 +1139,8 @@ end
 local function erase_literal()
 	if literal_pos == here() then
 		local value = read_short(literal_pos - 2)
+		list_erase(here() - 4, here() - 1)
 		erase(4)
-		list_erase_lines(2)
 		literal_pos = literal_pos2
 		literal_pos2 = nil
 		return value
