@@ -829,6 +829,9 @@ function write_listing(filename)
 		end
 		assert(e > addr)
 
+		-- add line breaks for long sections of data
+		e = math.min(e, addr + 16)
+
 		file:write(string.format("%04x", addr))
 		len = 4
 
