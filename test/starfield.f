@@ -97,15 +97,15 @@ decimal
 
 	( Initialize stars, one star per char initially )
 	STAR_COUNT 0 do
-		rnd 7 and i star-x!
-		rnd 7 and i star-y!
+		i 7 and i star-x!
+		rnd 2 / 7 and i star-y!
 		i 3 and 1+ i star-speed!
 		i i star-char!
 		1 i num-stars!
 
 		( Initialize star screen address )
 		label again
-		rnd [ SCREEN_WIDTH SCREEN_HEIGHT * ] lit mod SCREEN + ( s: screen-addr )
+		rnd 16 / [ SCREEN_WIDTH SCREEN_HEIGHT * ] lit mod SCREEN + ( s: screen-addr )
 		( Make sure screen location is empty )
 		dup c@ 127 = if
 			i star-screen-addr! 
@@ -130,12 +130,13 @@ decimal
 
 		( Update stars )
 		STAR_COUNT 0 do
-			i star-x? i star-speed? + i star-x! ( StarX[i] = StarX[i] + StarSpeed[i] )
+			i star-x? ( Get star x-coord )
+			i star-speed? + ( Move star )
 
 			( Did StarX overflow )
-			i star-x? 7 > if
+			dup 7 > if
 				( Wrap around to 0-7 )
-				i star-x? 7 and i star-x!
+				7 and
 
 				( Decrement num stars )
 				i star-char? num-stars? 1- i star-char? num-stars!
@@ -184,8 +185,11 @@ decimal
 				i star-char? num-stars? 1+ i star-char? num-stars!
 			then
 
+			( Store star X )
+			dup i star-x!
+
 			( Draw star to char )
-			i star-x? StarBitMask + c@ ( bitmask )
+			StarBitMask + c@ ( bitmask )
 			i star-char-addr c!
 		loop
 
