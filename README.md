@@ -34,16 +34,19 @@ https://github.com/petrihakkinen/sublime-forth
 	  -l <filename>             Write listing to file
 	  --mcode                   Compile to machine code
 	  --ignore-case             Treat all word names as case insensitive
-	  --minimal-word-names      Rename all words as '@', except main word
-	  --inline                  Inline words that are only used once
-	  --eliminate-unused-words  Eliminate unused words when possible
-	  --small-literals          Optimize byte-sized literals
-	  --tail-call               Optimize tail calls (mcode only)
-	  --optimize                Enable all safe optimizations
 	  --no-warn                 Disable all warnings
 	  --verbose                 Print information while compiling
 	  --main <name>             Sets name of main executable word (default 'main')
 	  --filename <name>         Sets the filename for tap header (default 'dict')
+
+	Optimizations:
+	  --optimize                Enable all optimizations
+	  --minimal-word-names      Rename all words as '@', except main word
+	  --inline                  Inline words that are used only once
+	  --eliminate-unused-words  Eliminate unused words when possible
+	  --small-literals          Optimize byte-sized literals
+	  --tail-call               Optimize tail calls (mcode only)
+	  --short-branches          Use relative branches when possible (mcode only)
 
 On Windows which does not support shebangs you need to prefix the command line with path to the Lua interpreter.
 
@@ -132,6 +135,8 @@ The compiler supports various optimizations which are controlled by the followin
 `--small-literals`: Reduce the size of byte sized literals. Normally every literal takes 4 bytes in compiled code. With this option byte sized literals can be encoded in 3 bytes. This option does nothing when compiling to machine code.
 
 `--tail-call`: (machine code only) In the generated machine code, replace CALL followed by RET instruction with JP instruction when possible.
+
+`--short-branches`: (machine code only) Optimize IF and ELSE to use relative branches instead of jumping to absolute address when possible.
 
 `--optimize`: Enables all of the above optimizations.
 

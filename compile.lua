@@ -65,12 +65,15 @@ do
 				opts.small_literals = true
 			elseif arg == "--tail-call" then
 				opts.tail_call = true
+			elseif arg == "--short-branches" then
+				opts.short_branches = true
 			elseif arg == "--optimize" then
 				opts.inline_words = true
 				opts.minimal_word_names = true
 				opts.eliminate_unused_words = true
 				opts.small_literals = true
 				opts.tail_call = true
+				opts.short_branches = true
 			elseif arg == "--verbose" then
 				opts.verbose = true
 			elseif arg == "--ignore-case" then
@@ -113,17 +116,25 @@ if #input_files == 0 then
 	print("  -l <filename>             Write listing to file")
 	print("  --mcode                   Compile to machine code")
 	print("  --ignore-case             Treat all word names as case insensitive")
-	print("  --minimal-word-names      Rename all words as '@', except main word")
-	print("  --inline                  Inline words that are only used once")
-	print("  --eliminate-unused-words  Eliminate unused words when possible")
-	print("  --small-literals          Optimize byte-sized literals")
-	print("  --tail-call               Optimize tail calls (mcode only)")
-	print("  --optimize                Enable all safe optimizations")
 	print("  --no-warn                 Disable all warnings")
 	print("  --verbose                 Print information while compiling")
 	print("  --main <name>             Sets name of main executable word (default 'main')")
 	print("  --filename <name>         Sets the filename for tap header (default 'dict')")
+	print("\nOptimizations:")
+	print("  --optimize                Enable all optimizations")
+	print("  --minimal-word-names      Rename all words as '@', except main word")
+	print("  --inline                  Inline words that are used only once")
+	print("  --eliminate-unused-words  Eliminate unused words when possible")
+	print("  --small-literals          Optimize byte-sized literals")
+	print("  --tail-call               Optimize tail calls (mcode only)")
+	print("  --short-branches          Use relative branches when possible (mcode only)")
 	os.exit(-1)
+end
+
+function verbose(...)
+	if opts.verbose then
+		print(string.format(...))
+	end
 end
 
 local eliminate_words = {}
@@ -132,7 +143,7 @@ local pass = 1
 
 ::restart::
 
-if opts.verbose then print("Pass " .. pass) end
+verbose("Pass %d", pass)
 
 local input								-- source code as string
 local input_file						-- current input filename
@@ -158,6 +169,9 @@ local warnings = {}						-- array of strings
 -- address of prev word's name length field in RAM
 -- initial value: address of FORTH in RAM
 local prev_word_link = 0x3C49
+
+-- should we run another pass after this one?
+more_work = false
 
 rom_words = {
 	FORTH = 0x3c4a, UFLOAT = 0x1d59, INT = 0x1d22, FNEGATE = 0x1d0f, ["F/"] = 0x1c7b, ["F*"] = 0x1c4b,
@@ -385,6 +399,11 @@ function skip_until(end_marker)
 			next_symbol_with_delimiter(')')
 		end
 	end
+end
+
+-- Returns a string that unique identifies the current parsing location (file and position within it).
+function parse_pos()
+	return input_file .. "@" .. cur_pos
 end
 
 -- Checks whether two word names are the same, taking case sensitivity option into account.
@@ -1466,14 +1485,12 @@ end
 
 update_word_length()
 
-local more_work = false
-
 -- eliminate unused words
 if opts.eliminate_unused_words then
 	-- mark unused words for next pass
 	for name in pairs(compilation_addresses) do
 		if word_counts[name] == 0 and name ~= opts.main_word and (word_flags[name] & F_NO_ELIMINATE) == 0 then
-			if opts.verbose then print("Eliminating unused word: " .. name) end
+			verbose("Eliminating unused word: %s", name)
 			eliminate_words[name] = true
 			more_work = true
 		end
@@ -1488,7 +1505,7 @@ if opts.inline_words then
 			if read_short(compilation_addr) == DO_COLON then
 				-- check for side exits
 				if (word_flags[name] & F_HAS_SIDE_EXITS) == 0 then
-					if opts.verbose then print("Inlining word: " .. name) end
+					verbose("Inlining word: %s", name)
 					inline_words[name] = true
 					more_work = true
 				else

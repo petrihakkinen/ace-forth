@@ -9,6 +9,8 @@ local literal_pos2	-- the dictionary position of the second newest literal
 local call_pos		-- the dictionary position just after the newest emitted Z80 call instruction
 local jump_targets = {}	-- addresses targeted by (forward) jumps, for detecting when tail-calls can't be used
 
+local short_jumps = {}	-- locations in source code where jumps can be optimized to branches (for ELSE and THEN)
+
 -- Z80 registers
 local A = 7
 local B = 0
@@ -819,6 +821,14 @@ local function patch_jump(instr_addr, jump_to_addr)
 	jump_targets[jump_to_addr] = true
 end
 
+local function record_short_jump(ppos)
+	if not short_jumps[ppos] then
+		verbose("Optimizing jump to branch (%s)", ppos)
+		short_jumps[ppos] = true
+		more_work = true
+	end
+end
+
 local function call_forth(name)
 	-- Calling Forth word from machine code
 	local addr = rom_words[string.upper(name)]
@@ -1202,9 +1212,9 @@ local dict = {
 		-- patch gotos
 		-- this must be done before ret() because a goto may target the address of the ret instruction
 		for patch_loc, label in pairs(gotos) do
-			local target_addr = labels[label]
-			if target_addr == nil then comp_error("undefined label '%s'", label) end
-			patch_jump(patch_loc, target_addr)
+			local jump_to_addr = labels[label]
+			if jump_to_addr == nil then comp_error("undefined label '%s'", label) end
+			patch_jump(patch_loc, jump_to_addr)
 		end
 
 		ret()
@@ -1812,28 +1822,51 @@ local dict = {
 		_ld(A, D)
 		_or(E)
 		stk_pop_de()
+		local ppos = parse_pos()
+		cf_push(ppos)
 		cf_push(here())
 		cf_push('if')
-		-- TODO: this could be optimized to _jr_z()
-		_jp_z(0)	-- placeholder jump addr
+		-- emit conditional branch with placeholder jump to address
+		-- use relative branch if possible (see ELSE)
+		if opts.short_branches and short_jumps[ppos] then
+			_jr_z(0)
+		else
+			_jp_z(0)
+		end
 	end,
 	['else'] = function()
 		comp_assert(cf_pop() == 'if', "ELSE without matching IF")
 		local where = cf_pop()
-		-- emit jump to THEN
+		local if_ppos = cf_pop()
+		local ppos = parse_pos()
+		cf_push(ppos)
 		cf_push(here())
 		cf_push('if')
-		-- TODO: this could be optimized to _jr()
-		list_comment("else") -- placeholder jump addr
-		_jp(0)
+		-- emit unconditional branch to jump to THEN with placeholder jump to address
+		-- use relative branch if possible
+		list_comment("else")
+		if opts.short_branches and short_jumps[ppos] then
+			_jr(0)
+		else
+			_jp(0)
+		end
 		-- patch jump target at previous IF
 		patch_jump(where, here())
+		-- if the jump at previous IF could have been optimized to branch, record it
+		if opts.short_branches and branch_offset(here(), where) then
+			record_short_jump(if_ppos)
+		end
 	end,
 	['then'] = function()
 		comp_assert(cf_pop() == 'if', "THEN without matching IF")
 		local where = cf_pop()
+		local ppos = cf_pop()
 		-- patch jump target at previous IF or ELSE
 		patch_jump(where, here())
+		-- if the jump at previous IF or ELSE could have been optimized to branch, record it
+		if opts.short_branches and branch_offset(here(), where) then
+			record_short_jump(ppos)
+		end
 	end,
 	label = function()
 		local label = next_symbol()
