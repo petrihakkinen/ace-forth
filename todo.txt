@@ -1,5 +1,4 @@
 - listings:
-	- "TODO: patch_jump" in mcode.lua
 	- forth listings are somewhat broken (see megademo.lst)
 	- patch jumps in forth listings
 	- erase eliminated words from listings

@@ -1162,7 +1162,7 @@ local dict = {
 		for patch_loc, label in pairs(gotos) do
 			local target_addr = labels[label]
 			if target_addr == nil then comp_error("undefined label '%s'", label) end
-			write_short(patch_loc, target_addr)	-- TODO: patch_jump
+			patch_jump(patch_loc, target_addr)
 		end
 
 		labels = {}
@@ -1813,13 +1813,13 @@ local dict = {
 		if labels[label] then
 			-- label found -> this is a backward jump
 			-- emit the jump immediately
-			list_comment("goto (backward)")
+			list_comment("goto %s", label)
 			jump(labels[label])
 		else
 			-- label not found -> this is a forward jump
 			-- emit placeholder jump and resolve jump address in ;
-			gotos[here() + 1] = label
-			list_comment("goto (forward)")
+			gotos[here()] = label
+			list_comment("goto %s", label)
 			_jp(0)
 		end
 	end,
