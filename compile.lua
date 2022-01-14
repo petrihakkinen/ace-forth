@@ -792,7 +792,8 @@ end
 function list_erase(start_addr, end_addr)
 	if opts.listing_file then
 		for i = start_addr, end_addr do
-			list_headers[i] = nil
+			-- not clearing headers on purpose, because erase_literal() at the start of word would erase the header...
+			--list_headers[i] = nil 
 			list_lines[i] = nil
 			list_comments[i] = nil
 		end
