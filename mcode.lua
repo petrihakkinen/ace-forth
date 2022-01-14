@@ -6,6 +6,9 @@ local gotos = {}	-- address to be patched -> label for current word
 local literal_pos	-- the dictionary position just after the newest emitted literal
 local literal_pos2	-- the dictionary position of the second newest literal
 
+local call_pos		-- the dictionary position just after the newest emitted Z80 call instruction
+local jump_targets = {}	-- addresses targeted by (forward) jumps, for detecting when tail-calls can't be used
+
 -- Z80 registers
 local A = 7
 local B = 0
@@ -549,6 +552,7 @@ local function _call(addr)
 	list_line("call $%04x", addr)
 	emit_byte(0xcd)
 	emit_short(addr)
+	call_pos = here()
 end
 
 local function _ret()
@@ -811,7 +815,8 @@ local function patch_jump(instr_addr, jump_to_addr)
 		-- absolute jump
 		write_short(instr_addr + 1, jump_to_addr)
 	end
-	list_patch(instr_addr, string.format("$%04x", jump_to_addr))
+	list_patch(instr_addr, "%$%x+", string.format("$%04x", jump_to_addr))
+	jump_targets[jump_to_addr] = true
 end
 
 local function call_forth(name)
@@ -850,6 +855,25 @@ local function call_mcode(name)
 	list_comment(name)
 	_call(addr)
 	mark_used(name)
+end
+
+-- Emit a return instruction, or change the previous call to tail call when possible.
+local function ret()
+	if opts.tail_call and call_pos == here() then
+		-- check that the call opcode is really there
+		assert(read_byte(call_pos - 3) == 0xcd)
+		-- change it to jp
+		write_byte(call_pos - 3, 0xc3)
+		list_patch(call_pos - 3, "call", "jp")
+		list_comment_append(call_pos - 3, " (tail-call)")
+
+		-- ret cannot be eliminated if there's a jump to the address where the ret instruction should be
+		if jump_targets[here()] then
+			_ret()
+		end
+	else
+		_ret()
+	end
 end
 
 -- Emits invisible subroutine words to be used by mcode words.
@@ -1175,20 +1199,25 @@ end
 
 local dict = {
 	[';'] = function()
-		_ret()
-
-		interpreter_state()
-		check_control_flow_stack()
-
 		-- patch gotos
+		-- this must be done before ret() because a goto may target the address of the ret instruction
 		for patch_loc, label in pairs(gotos) do
 			local target_addr = labels[label]
 			if target_addr == nil then comp_error("undefined label '%s'", label) end
 			patch_jump(patch_loc, target_addr)
 		end
 
+		ret()
+
+		interpreter_state()
+		check_control_flow_stack()
+
 		labels = {}
 		gotos = {}
+		jump_targets = {}
+		call_pos = nil
+		literal_pos = nil
+		literal_pos2 = nil
 	end,
 	dup = function()
 		list_comment("dup")
@@ -2036,7 +2065,7 @@ local dict = {
 	end,
 	exit = function()
 		list_comment("exit")
-		_ret()
+		ret()
 	end,
 	['['] = function()
 		compile_dict['[']()

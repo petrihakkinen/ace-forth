@@ -38,6 +38,7 @@ https://github.com/petrihakkinen/sublime-forth
 	  --inline                  Inline words that are only used once
 	  --eliminate-unused-words  Eliminate unused words when possible
 	  --small-literals          Optimize byte-sized literals
+	  --tail-call               Optimize tail calls (mcode only)
 	  --optimize                Enable all safe optimizations
 	  --no-warn                 Disable all warnings
 	  --verbose                 Print information while compiling
@@ -129,6 +130,8 @@ The compiler supports various optimizations which are controlled by the followin
 `--eliminate-unused-words`: Automatically remove words that are not used anywhere in your program.
 
 `--small-literals`: Reduce the size of byte sized literals. Normally every literal takes 4 bytes in compiled code. With this option byte sized literals can be encoded in 3 bytes. This option does nothing when compiling to machine code.
+
+`--tail-call`: (machine code only) In the generated machine code, replace CALL followed by RET instruction with JP instruction when possible.
 
 `--optimize`: Enables all of the above optimizations.
 

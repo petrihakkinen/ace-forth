@@ -63,11 +63,14 @@ do
 				opts.eliminate_unused_words = true
 			elseif arg == "--small-literals" then
 				opts.small_literals = true
+			elseif arg == "--tail-call" then
+				opts.tail_call = true
 			elseif arg == "--optimize" then
 				opts.inline_words = true
 				opts.minimal_word_names = true
 				opts.eliminate_unused_words = true
 				opts.small_literals = true
+				opts.tail_call = true
 			elseif arg == "--verbose" then
 				opts.verbose = true
 			elseif arg == "--ignore-case" then
@@ -114,6 +117,7 @@ if #input_files == 0 then
 	print("  --inline                  Inline words that are only used once")
 	print("  --eliminate-unused-words  Eliminate unused words when possible")
 	print("  --small-literals          Optimize byte-sized literals")
+	print("  --tail-call               Optimize tail calls (mcode only)")
 	print("  --optimize                Enable all safe optimizations")
 	print("  --no-warn                 Disable all warnings")
 	print("  --verbose                 Print information while compiling")
@@ -778,12 +782,18 @@ function list_comment(...)
 	end
 end
 
+function list_comment_append(addr, ...)
+	if opts.listing_file then
+		list_comments[addr] = (list_comments[addr] or "") .. string.format(...)
+	end
+end
+
 -- Patches hex literal (jump address) in already emitted listing line.
-function list_patch(addr, new_value)
+function list_patch(addr, pattern, replacement)
 	if opts.listing_file then
 		local line = list_lines[addr]
 		assert(line, "invalid listing line")
-		line = line:gsub("%$%x+", new_value)
+		line = line:gsub(pattern, replacement)
 		list_lines[addr] = line
 	end
 end
@@ -861,7 +871,7 @@ end
 
 function patch_forth_jump(instr_addr, jump_to_addr)
 	write_short(instr_addr + 2, jump_to_addr - instr_addr - 3)
-	list_patch(instr_addr, string.format("$%04x", jump_to_addr))
+	list_patch(instr_addr, "%$%x+", string.format("$%04x", jump_to_addr))
 end
 
 interpret_dict = {
