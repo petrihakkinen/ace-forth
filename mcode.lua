@@ -574,6 +574,16 @@ local function _ret()
 	emit_byte(0xc9)
 end
 
+local function _ret_c()
+	list_line("ret c")
+	emit_byte(0xd8)
+end
+
+local function _ret_nc()
+	list_line("ret nc")
+	emit_byte(0xd0)
+end
+
 local function _jp(addr)
 	list_line("jp $%04x", addr)
 	emit_byte(0xc3)
@@ -1113,10 +1123,9 @@ local function emit_subroutines()
 		_or(A) -- clear carry
 		_sbc(HL, BC)
 		_rl(H)
-		_jr_c(2) --> skip
+		_ret_c()
 		_ld(D, B)
 		_ld(E, C)
-		-- skip:
 		_ret()
 	end
 
@@ -1129,10 +1138,9 @@ local function emit_subroutines()
 		_or(A) -- clear carry
 		_sbc(HL, BC)
 		_rl(H)
-		_jr_nc(2) --> skip
+		_ret_nc()
 		_ld(D, B)
 		_ld(E, C)
-		-- skip:
 		_ret()
 	end
 
