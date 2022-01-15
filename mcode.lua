@@ -370,6 +370,12 @@ local function _add(dest, src)
 	end
 end
 
+local function _add_const(n)
+	list_line("add %d", n)
+	emit_byte(0xc6)
+	emit_byte(n)
+end
+
 local function _adc(dest, src)
 	-- ADC HL,BC 	ED 4A
 	-- ADC HL,DE 	ED 5A
@@ -406,6 +412,12 @@ local function _sub(r)
 	assert(r >= 0 and r <= 7, "_sub: unknown register")
 	list_line("sub %s", reg_name[r])
 	emit_byte(0x90 + r)
+end
+
+local function _sub_const(n)
+	list_line("sub %d", n)
+	emit_byte(0xd6)
+	emit_byte(n)
 end
 
 local function _sbc(dest, src)
@@ -1306,6 +1318,11 @@ local dict = {
 			for i = 2, lit do
 				_inc(DE)
 			end
+		elseif lit and (lit & 0xff) == 0 then
+			list_comment("$%04x + ", lit)
+			_ld(A, D)
+			_add_const((lit & 0xff00) >> 8)
+			_ld(D, A)
 		elseif lit then
 			-- 28 cycles, 7 bytes
 			list_comment("%d + ", lit)
@@ -1328,6 +1345,11 @@ local dict = {
 			for i = 2, lit do
 				_dec(DE)
 			end
+		elseif lit and (lit & 0xff) == 0 then
+			list_comment("$%04x - ", lit)
+			_ld(A, D)
+			_sub_const((lit & 0xff00) >> 8)
+			_ld(D, A)
 		elseif lit then
 			list_comment("%d - ", lit)
 			_ex_de_hl()

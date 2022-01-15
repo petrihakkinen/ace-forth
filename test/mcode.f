@@ -51,13 +51,15 @@
 	;
 
 : arith
-	." +      " 3 4 +            7 chk space      ( n + literal )
-	            -1000 -2000 +    -3000 chk space
-	            500 v @ +        600 chk cr	      ( n + n )
+	." +      " 3 4 +                7 chk space      ( n + literal )
+	            -1000 -2000 +        -3000 chk space
+	            500 v @ +            600 chk space    ( n + n )
+	            [ hex ] 134 5000 +   5134 chk cr [ decimal ]   
 
-	." -      " 3 4 -            -1 chk space     ( n - literal )
-	            -1000 -2000 -    1000 chk space
-	            500 v @ -        400 chk cr       ( n - n )    
+	." -      " 3 4 -                -1 chk space     ( n - literal )
+	            -1000 -2000 -        1000 chk space
+	            500 v @ -            400 chk space    ( n - n )    
+	            [ hex ] 5134 5000 -  134 chk cr [ decimal ]
 
 	." *      " 1000 5 *         5000 chk space   ( n * literal )
 	            -123 5 *         -615 chk space
@@ -86,7 +88,7 @@
                 1000 4 /         250 chk space    ( 4/ )
                 -1000 8 /        -125 chk space   ( 8/ )
                 1000 256 /       3 chk space      ( 256/ )
-                10000 1024 /    9 chk cr
+                10000 1024 /     9 chk cr
 
 	." 1+     " 5 1+             6 chk cr
 

@@ -9,8 +9,6 @@
 
 - document warnings in README
 
-- add xx00 specialization (e.g when adding SCREEN address)
-
 - BUG: errors and warnings have incorrect line number for words at the end of the line
 	- store last_word_line in next_symbol
 

@@ -7,20 +7,22 @@
 32 const SCREEN_WIDTH
 24 const SCREEN_HEIGHT
 
-50 const STAR_COUNT
+50 const STAR_COUNT		( Max 127! )
 127 const CHAR_COUNT
 
-create StarX STAR_COUNT allot
-create StarY STAR_COUNT allot
-create StarSpeed STAR_COUNT allot
-create StarChar STAR_COUNT allot
-create StarScreenAddr STAR_COUNT 2* allot
-create StarCharAddr STAR_COUNT 2* allot
+( Star data arrays )
+( These are aligned to start at page boundaries so that computing address within the array is faster. )
+[hex] 5000 const StarX			( Star X coordinates within a char 0-7 )
+[hex] 5100 const StarY			( Star Y coordinates within a char 0-7 )
+[hex] 5200 const StarSpeed		( Star speeds as pixels per tick )
+[hex] 5300 const StarChar		( Char index used by each star )
+[hex] 5400 const StarScreenAddr	( Stars' screen addresses )
+[hex] 5500 const StarCharAddr	( Stars' character addresses )
+[hex] 5600 const NumStars		( How many stars per char )
 
-create NumStars CHAR_COUNT allot
-
-create FreeList 128 allot	( Stack of free character indices )
-0 byte NumFree				( Number of items in the free list )
+( Free list for alloc-char )
+[hex] 5700 const FreeList		( Stack of free character indices )
+0 byte NumFree					( Number of items in the free list )
 
 2 base c!
 create StarBitMask
@@ -96,6 +98,11 @@ decimal
 	( Clear screen with empty char )
 	[ SCREEN SCREEN_WIDTH SCREEN_HEIGHT * + ] lit SCREEN do
 		127 i c!
+	loop
+
+	( Clear num stars )
+	[ NumStars CHAR_COUNT + ] lit NumStars do
+		0 i c!
 	loop
 
 	( Initialize stars, one star per char initially )
