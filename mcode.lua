@@ -1322,8 +1322,7 @@ local dict = {
 		elseif lit and lit > 0 and lit <= 4 then
 			-- lit*6 cycles, lit*1 bytes
 			list_comment("%d + ", lit)
-			_inc(DE)
-			for i = 2, lit do
+			for i = 1, lit do
 				_inc(DE)
 			end
 		elseif lit and (lit & 0xff) == 0 then
@@ -1349,8 +1348,7 @@ local dict = {
 		elseif lit and lit > 0 and lit <= 4 then
 			-- lit*6 cycles, lit*1 bytes
 			list_comment("%d - ", lit)
-			_dec(DE)
-			for i = 2, lit do
+			for i = 1, lit do
 				_dec(DE)
 			end
 		elseif lit and (lit & 0xff) == 0 then
@@ -1376,15 +1374,14 @@ local dict = {
 		elseif lit == 1 then
 			-- nothing to do
 		elseif lit and is_pow2(lit) and lit <= 32767 then
+			list_comment("%d *", lit)
 			if lit < 256 then
-				list_comment("%d *", lit)
 				while lit > 1 do
 					_sla(E)
 					_rl(D)
 					lit = lit // 2
 				end
 			else
-				list_comment("%d *", lit)
 				_ld(D, E)
 				_ld_const(E, 0)
 				lit = lit // 256
@@ -1425,15 +1422,14 @@ local dict = {
 		if lit == 1 then
 			-- nothing to do
 		elseif lit and is_pow2(lit) and lit <= 32767 then
+			list_comment("%d /", lit)
 			if lit < 256 then
-				list_comment("%d /", lit)
 				while lit > 1 do
 					_sra(D)
 					_rr(E)
 					lit = lit // 2
 				end
 			else
-				list_comment("%d /", lit)
 				_ld(E, D)
 				_ld_const(D, 0)
 				_bit(7, E)
@@ -1471,13 +1467,6 @@ local dict = {
 		_dec(DE)
 	end,
 	['2*'] = function()
-		-- 3 bytes, 19 cycles
-		-- list_comment("2*")
-		-- _ex_de_hl()
-		-- _add(HL, HL)
-		-- _ex_de_hl()
-		
-		-- 4 bytes, 12 cycles
 		list_comment("2*")
 		_sla(E)
 		_rl(D)
