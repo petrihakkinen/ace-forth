@@ -1449,6 +1449,9 @@ local library_words = [[
 : c< 255 and swap 255 and swap < ;
 : c> 255 and swap 255 and swap > ;
 
+: inc dup c@ 1+ swap c! ;
+: dec dup c@ 1- swap c! ;
+
 code di 243 c, 253 c, 233 c, 
 code ei 251 c, 253 c, 233 c,
 ]]

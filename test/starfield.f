@@ -155,9 +155,11 @@ decimal
 				( Wrap around to 0-7 )
 				7 and
 
+				( TODO: fast path -- num stars = 1 and left side does not have a char -> move char left )
+
 				( Decrement num stars )
 				i star-char? ( char )
-				dup num-stars? 1- swap num-stars! ( TODO: +! )
+				NumStars + dec
 
 				( Erase star from char )
 				0 i star-char-addr? c!
@@ -176,8 +178,6 @@ decimal
 				1- ( Move left on the screen )
 
 				( Wrap around to end of screen )
-				( TODO: this can be optimize with C= if we had RSHIFT: )
-				( dup 8 rshift [ SCREEN 1- 8 rshift ] lit C= if )
 				dup [ SCREEN 1- ] lit = if
 					drop [ SCREEN SCREEN_WIDTH SCREEN_HEIGHT * + 1- ] lit
 				then
@@ -206,7 +206,7 @@ decimal
 				dup 8 * i star-y? + CHARS + i star-char-addr!
 
 				( Increase num stars )
-				dup num-stars? 1+ swap num-stars!	( TODO: +! )
+				NumStars + inc
 			then
 
 			( Store star X )

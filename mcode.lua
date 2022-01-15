@@ -254,6 +254,7 @@ local function _inc(r)
 	-- INC BC	03
 	-- INC DE	13
 	-- INC HL	23
+	-- INC (HL)	34
 
 	list_line("inc %s", reg_name[r])
 
@@ -263,6 +264,8 @@ local function _inc(r)
 		emit_byte(0x13)
 	elseif r == HL then
 		emit_byte(0x23)
+	elseif r == HL_INDIRECT then
+		emit_byte(0x34)
 	elseif r >= 0 and r <= 7 then 
 		emit_byte(0x04 + r * 8)
 	else
@@ -280,6 +283,7 @@ local function _dec(r)
 	-- DEC BC	0B
 	-- DEC DE	1B
 	-- DEC HL	2B
+	-- DEC (HL)	35
 
 	list_line("dec %s", reg_name[r])
 
@@ -289,6 +293,8 @@ local function _dec(r)
 		emit_byte(0x1b)
 	elseif r == HL then
 		emit_byte(0x2b)
+	elseif r == HL_INDIRECT then
+		emit_byte(0x35)
 	elseif r >= 0 and r <= 7 then
 		emit_byte(0x05 + r * 8)
 	else
@@ -1802,6 +1808,34 @@ local dict = {
 			_ld(A, DE_INDIRECT)
 			_ld(E, A)
 			_ld_const(D, 0)
+		end
+	end,
+	inc = function()
+		-- ( addr - )
+		local addr = erase_literal()
+		if addr then
+			list_comment("%04x inc", addr)
+			_ld_const(HL, addr)
+			_inc(HL_INDIRECT)
+		else
+			list_comment("inc")
+			_ex_de_hl()
+			_inc(HL_INDIRECT)
+			stk_pop_de()
+		end
+	end,
+	dec = function()
+		-- ( addr - )
+		local addr = erase_literal()
+		if addr then
+			list_comment("%04x dec", addr)
+			_ld_const(HL, addr)
+			_dec(HL_INDIRECT)
+		else
+			list_comment("dec")
+			_ex_de_hl()
+			_dec(HL_INDIRECT)
+			stk_pop_de()
 		end
 	end,
 	ascii = function()

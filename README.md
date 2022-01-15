@@ -90,7 +90,7 @@ The compiler supports many extras not found on Jupiter Ace's Forth implementatio
 
 - 8-bit unsigned arithmetic and comparison words: `C*` `C=` `C<` `C>`. These are much faster than 16-bit equivalents when compiled to machine code.
 
-- Many new words have been added: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `.S` `HEX` `[HEX]` `CODE` `POSTPONE` ...
+- Many new words have been added: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `INC` `DEC` `.S` `HEX` `[HEX]` `CODE` `POSTPONE` ...
 
 
 ## Machine Code Compilation
@@ -239,6 +239,8 @@ The following letters are used to denote values on the stack:
 | !          | ( n addr - )       | Store 16-bit value at address                                     |
 | C@         | ( addr - n )       | Fetch 8-bit value from address                                    |
 | C!         | ( n addr - )       | Store 8-bit value at address                                      |
+| INC        | ( addr - )         | Add one to byte at address                                        |
+| DEC        | ( addr - )         | Subtract one from byte at address                                 |
 
 
 ### Compilation

@@ -6,6 +6,7 @@
 [hex] 3C3B const SPARE
 
 100 variable v
+500 variable temp
 
 ( Define some words which return numbers which won't be optimized as literals. )
 : one 0 1+ ;
@@ -133,7 +134,7 @@
  	." OR     " 1234 f0f0 or     f2f4 chk space   ( n or literal )
  	            f0 v @ or        f4 chk space     ( n or n )
  	            1234 ff or       12ff chk space   ( set lo byte )
- 	            1234 ff00 or     ff34 chk space   ( set hi byte )
+ 	            1234 ff00 or     ff34 chk cr      ( set hi byte )
  	[ decimal ]
 	;
 
@@ -207,6 +208,10 @@
 
 	." C! C@  " 123 v c! v c@       123 chk space   ( Literal address )
 	            v 123 over c! c@    123 chk cr      ( Non-literal address )
+
+	." INC    " temp inc temp @     501 chk cr
+
+	." DEC    " temp dec temp @     500 chk cr
 	;
 
 : test-again
