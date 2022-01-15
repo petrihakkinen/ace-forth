@@ -160,6 +160,26 @@
 	            100 v c@ c=      1 chk space    ( Non-literal )
 	            101 v c@ c=      0 chk cr       ( Non-literal )
 
+	." C>     " 3 5 c>           0 chk space
+				5 5 c>           0 chk space
+				6 5 c>           1 chk space
+				255 50 c>        1 chk space
+				255 255 c>       0 chk space
+				0 -1 c>          0 chk space
+				1 three c>       0 chk space
+				4 three c>       1 chk space
+				3 three c>       0 chk space
+				-1 three c>      1 chk cr       ( Comparison is unsigned, so -1 equals 255 )
+
+	." C<     " 3 5 c<           1 chk space
+				5 5 c<           0 chk space
+				6 5 c<           0 chk space
+				30 0 c<          0 chk space
+				254 -1 c<        1 chk space
+				1 three c<       1 chk space
+				4 three c<       0 chk space
+				3 three c<       0 chk cr
+
 	." >      " 3000 5000 >      0 chk space
 	            5000 -3000 >     1 chk space
 	            -3000 5000 >     0 chk space

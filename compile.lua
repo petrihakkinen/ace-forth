@@ -1446,6 +1446,8 @@ local library_words = [[
 
 : c* 255 and swap 255 and * ;
 : c= - 255 and 0= ;
+: c< 255 and swap 255 and swap < ;
+: c> 255 and swap 255 and swap > ;
 
 code di 243 c, 253 c, 233 c, 
 code ei 251 c, 253 c, 233 c,

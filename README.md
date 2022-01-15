@@ -88,7 +88,9 @@ The compiler supports many extras not found on Jupiter Ace's Forth implementatio
 
 - New defining word `:M` for creating macros (also known as immediate words). `:M name ;` is equivalent to `: name ; IMMEDIATE` in other Forth dialects. Before compiling a word, ace-forth needs to know whether the word should be compiled to Forth bytecode or Z80 machine code.
 
-- Many new words have been added: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `C*` `C=` `.S` `HEX` `[HEX]` `CODE` `POSTPONE` ...
+- 8-bit unsigned arithmetic and comparison words: `C*` `C=` `C<` `C>`. These are much faster than 16-bit equivalents when compiled to machine code.
+
+- Many new words have been added: `NIP` `2DUP` `2DROP` `2OVER` `R@` `2*` `2/` `.S` `HEX` `[HEX]` `CODE` `POSTPONE` ...
 
 
 ## Machine Code Compilation
@@ -216,9 +218,11 @@ The following letters are used to denote values on the stack:
 | Word       | Stack              | Description                                                         |
 | ---------- | ------------------ | ------------------------------------------------------------------- |
 | =          | ( n1 n2 - flag )   | Compare n1 = n2 and set flag accordingly                            |
-| C=         | ( n1 n2 - flag )   | Compare the low byte of n1 and n2 for equality. Faster than =       |
 | <          | ( n1 n2 - flag )   | Compare n1 < n2 and set flag accordingly                            |
 | >          | ( n1 n2 - flag )   | Compare n1 > n2 and set flag accordingly                            |
+| C=         | ( n1 n2 - flag )   | Compare the low byte of n1 and n2 for equality                      |
+| C<         | ( n1 n2 - flag )   | 8-bit unsigned version of <                                         |
+| C>         | ( n1 n2 - flag )   | 8-bit unsigned version of >                                         |
 | D<         | ( d1 d1 - flag )   | Compute less than of two double length integers                     |
 | U<         | ( n1 n2 - flag )   | Compute less than of two integers, interpreting them as unsigned numbers |
 | 0=         | ( n - flag )       | Compare n = 0 and set flag accordingly                              |

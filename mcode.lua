@@ -1667,8 +1667,59 @@ local dict = {
 	['>'] = function()
 		call_mcode(">")
 	end,
+	['c>'] = function()
+		local lit = erase_literal()
+		if lit then lit = lit & 0xff end
+
+		if lit and lit == 255 then
+			list_comment("255 c>")
+			_ld_const(DE, 0)
+		elseif lit then
+			list_comment("%d c>", lit)
+			_ld(A, E)
+			_ld_const(DE, 0)
+			_cp_const(lit + 1)
+			_jr_c(1)
+			_inc(E)
+		else
+			list_comment("c>")
+			_ld(A, E)
+			stk_pop_de() -- preserves A
+			_sub(E)
+			_ld_const(DE, 0)
+			_jr_nc(1) --> skip
+			_inc(E)
+			-- skip:
+		end
+	end,
 	['<'] = function()
 		call_mcode("<")
+	end,
+	['c<'] = function()
+		local lit = erase_literal()
+		if lit then lit = lit & 0xff end
+
+		if lit and lit == 0 then
+			list_comment("0 c<")
+			_ld_const(DE, 0)
+		elseif lit then
+			list_comment("%d c<", lit)
+			_ld(A, E)
+			_ld_const(DE, 0)
+			_cp_const(lit)
+			_jr_nc(1)
+			_inc(E)
+		else
+			list_comment("c<")
+			_ld(A, E)
+			stk_pop_de() -- preserves A
+			_scf()
+			_sbc(A, E)
+			_ld_const(DE, 0)
+			_jr_c(1) --> skip
+			_inc(E)
+			-- skip:
+		end
 	end,
 	['!'] = function()
 		-- ( n addr -- )

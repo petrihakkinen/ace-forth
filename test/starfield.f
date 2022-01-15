@@ -43,6 +43,8 @@ decimal
 	dup
 	seed ! ;
 
+( TODO: inlining )
+
 : star-x? ( star -- x ) StarX + c@ ;
 : star-y? ( star -- y ) StarY + c@ ;
 : star-speed? ( star -- speed ) StarSpeed + c@ ;
@@ -135,8 +137,8 @@ decimal
 			i star-x? ( Get star x-coord )
 			i star-speed? + ( Move star )
 
-			( Did StarX overflow )
-			dup 7 > if ( TODO: C> with literal specialization )
+			( Did StarX overflow? )
+			dup 7 c> if
 				( Wrap around to 0-7 )
 				7 and
 
