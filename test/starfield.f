@@ -65,16 +65,14 @@ decimal
 : num-stars! ( n char -- ) NumStars + c! ;
 
 : alloc-char ( -- char )
-	NumFree c@ 1- ( s: NumFree-1 )
-	dup FreeList + c@ >r ( r: FreeList[NumFree-1] )
-	NumFree c! ( NumFree = NumFree-1 )
-	r> ;
+	NumFree dec ( NumFree-- )
+	NumFree c@ ( s: NumFree )
+	FreeList + c@ ; ( push FreeList[NumFree] )
 
 : free-char ( char -- )
-	NumFree c@ >r ( s: char, r: num-free )
-	r@ FreeList + c! ( FreeList[NumFree] = char )
-	r> 1+ NumFree c! ( NumFree++ )
-	;
+	NumFree c@ ( s: char num-free )
+	FreeList + c! ( FreeList[NumFree] = char )
+	NumFree inc ; ( NumFree++ )
 
 0 variable stack-guard	( Debug only )
 
