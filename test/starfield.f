@@ -19,13 +19,15 @@
 [hex] 5400 const StarScreenAddr	( Stars' screen addresses )
 [hex] 5500 const StarCharAddr	( Stars' character addresses )
 [hex] 5600 const NumStars		( How many stars per char )
-
-( Free list for alloc-char )
 [hex] 5700 const FreeList		( Stack of free character indices )
-0 byte NumFree					( Number of items in the free list )
+[hex] 5800 const StarBitMask	( Copy of StarBitMask_slow for fast access )
+
+0 byte NumFree ( Number of items in the free list )
+
+0 variable seed  ( Random number seed )
 
 2 base c!
-create StarBitMask
+create StarBitMask_slow
 	00000001 c,
 	00000010 c,
 	00000100 c,
@@ -35,8 +37,6 @@ create StarBitMask
 	01000000 c,
 	10000000 c,
 decimal
-
-0 variable seed  ( Random number seed )
 
 : rnd
 	seed @
@@ -103,6 +103,12 @@ decimal
 	( Clear num stars )
 	[ NumStars CHAR_COUNT + ] lit NumStars do
 		0 i c!
+	loop
+
+	( Initialize star bit masks )
+	8 0 do
+		i StarBitMask_slow + c@ ( Read )
+		i StarBitMask + c! ( Write )
 	loop
 
 	( Initialize stars, one star per char initially )
