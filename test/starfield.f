@@ -27,15 +27,15 @@
 0 variable seed  ( Random number seed )
 
 2 base c!
-create StarBitMask_slow
-	00000001 c,
-	00000010 c,
-	00000100 c,
-	00001000 c,
-	00010000 c,
-	00100000 c,
-	01000000 c,
-	10000000 c,
+bytes StarBitMask_slow
+	00000001
+	00000010
+	00000100
+	00001000
+	00010000
+	00100000
+	01000000
+	10000000
 	;
 decimal
 
@@ -66,12 +66,14 @@ decimal
 : alloc-char ( -- char )
 	NumFree dec ( NumFree-- )
 	NumFree c@ ( s: NumFree )
-	FreeList + c@ ; inline ( push FreeList[NumFree] )
+	FreeList + c@ ( push FreeList[NumFree] )
+	; inline
 
 : free-char ( char -- )
 	NumFree c@ ( s: char num-free )
 	FreeList + c! ( FreeList[NumFree] = char )
-	NumFree inc ; inline ( NumFree++ )
+	NumFree inc ( NumFree++ )
+	; inline
 
 0 variable stack-guard	( Debug only )
 
@@ -80,8 +82,7 @@ decimal
 
 : stk? ( check stack guard )
 	SPARE @ stack-guard @ = 0= if
-		0 0 at ." STACK GUARD FAILED! "
-		SPARE @ stack-guard @ - 2 / . ( print delta )
+		abort
 	then ;
 
 : stars
