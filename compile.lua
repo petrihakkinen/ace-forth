@@ -958,7 +958,29 @@ interpret_dict = {
 		mcode_dict[last_word] = function() execute(addr) end
 	end,
 	[';'] = function()
-		-- marks end of CODE or CREATEd word
+		-- marks end of CREATE, CODE or BYTES definition
+		comp_assert(inside_definition, "unexpected ;")
+
+		if inside_definition == "bytes" then
+			-- find start of bytes block
+			local start
+			for i = #stack, 1, -1 do
+				if stack[i] == 'bytes' then
+					start = i
+					break
+				end
+			end
+
+			comp_assert(start, "could not find start of BYTES data (unbalanced compiler stack?)")
+
+			for i = start + 1, #stack do
+				emit_byte(stack[i])
+				stack[i] = nil
+			end 
+
+			stack[start] = nil
+		end
+
 		inside_definition = false
 	end,
 	noinline = function()
@@ -1000,24 +1022,22 @@ interpret_dict = {
 		end
 	end,
 	bytes = function()	-- emit bytes, terminated by ; symbol
-		push('bytes')
-	end,
-	[';bytes'] = function()
-		-- find start of bytes block
-		local start
-		for i = #stack, 1, -1 do
-			if stack[i] == 'bytes' then
-				start = i
-				break
+		local name = next_word()
+		if not eliminate_words[name] then
+			create_word(DO_PARAM, name)
+			local addr = here()
+			inside_definition = "bytes"
+
+			-- make it possible to refer to variable from machine code
+			mcode_dict[name] = function()
+				mcode.emit_literal(addr, name)
+				mark_used(name)
 			end
+
+			push('bytes')
+		else
+			skip_until(';')
 		end
-		comp_assert(start, "invalid use of ;BYTES")
-		for i = start + 1, #stack do
-			emit_byte(stack[i])
-			stack[i] = nil
-		end 
-		stack[start] = nil
-		compile_bytes = false
 	end,
 	variable = function()
 		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE)

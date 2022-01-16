@@ -63,7 +63,7 @@ Examples:
 
 - Word names are case sensitive by default. However, you can turn off case sensitivity using the `--ignore-case` option. When in case sensitive mode, standard word names should be written in lower case (e.g. `dup` instead of `DUP`).
 
-- All word definitions must be terminated with `;`. This includes words defined with `:`, `:M`, `CREATE` and `CODE`.
+- All word definitions must be terminated with `;`. This includes words defined with `:`, `:M`, `CREATE`, `CODE` and `BYTES`.
 
 - Floating point literals are not currently supported.
 
@@ -87,6 +87,9 @@ The compiler supports many extras not found on Jupiter Ace's Forth implementatio
 - Line comments using `\` word are supported.
 
 - New variable defining word `BYTE`, which works like `VARIABLE` but defines byte sized variables (remember to use `C@` and `C!` to access them).
+
+- New defining word `BYTES` which can be used to conveniently embed byte data. For example:
+	bytes pow2 1 2 4 8 16 32 64 128 ;
 
 - New defining word `:M` for creating macros (also known as immediate words). `:M name ;` is equivalent to `: name ; IMMEDIATE` in other Forth dialects. Before compiling a word, ace-forth needs to know whether the word should be compiled to Forth bytecode or Z80 machine code.
 
@@ -264,8 +267,7 @@ The following letters are used to denote values on the stack:
 | CONST \<name\>    | ( n - )            | Capture number from stack to a new word with name \<name\>              |
 | VARIABLE \<name\> | ( n - )            | Create new 16-bit variable with name \<name\> and with initial value n  |
 | BYTE \<name\>     | ( n - )            | Create new 8-bit variable with name \<name\> and with initial value n   |
-| BYTES             | ( n - )            | Enclose to the dictionary all bytes pushed on the stack until ;BYTES    |
-| ;BYTES            | ( - )              | Mark the end of BYTES                                                   |
+| BYTES \<name\>    | ( n - )            | Start compiling a byte array. All bytes pushed to compiler stack are enclosed to the dictionary until ; |
 | ALLOT             | ( n - )            | Allocate space for n bytes from the dictionary                          |
 | ASCII \<char\>    | ( - (n) )          | Emit literal containing the ASCII code of the following symbol          |
 | [HEX] \<number\>  | ( - (n) )          | Parse the next symbol as hexadecimal number, regardless of numeric base |
