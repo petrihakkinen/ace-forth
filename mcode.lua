@@ -1258,15 +1258,15 @@ local dict = {
 		-- inlining
 		local name = last_word_name()
 		if inline_words[name] then
-			local code, list = erase_previous_word()
+			local code, list, comments = erase_previous_word()
 
 			-- when the inlined word is compiled, we emit its code
 			mcode_dict[name] = function()
 				-- skip ret at the end
 				list_comment("inlined %s", name)
 				for i = 1, #code - 1 do
-					local line = list[i]
-					if line then list_line("%s", line) end
+					if list[i] then list_line("%s", list[i]) end
+					if comments[i] and i > 1 then list_comment("%s", comments[i]) end
 					-- TODO: relocate
 					emit_byte(code[i])
 				end

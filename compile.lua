@@ -636,9 +636,11 @@ function erase_previous_word()
 	-- store old code & listing (skip code field)
 	local code = {}
 	local list = {}
+	local comments = {}
 	for i = code_start, here() - 1 do
 		code[#code + 1] = mem[i]
 		list[i - code_start + 1] = list_lines[i]
+		comments[i - code_start + 1] = list_comments[i]
 	end
 
 	for i = start_addr, here() - 1 do
@@ -652,7 +654,7 @@ function erase_previous_word()
 
 	output_pos = start_addr
 
-	return code, list
+	return code, list, comments
 end
 
 -- Execute user defined word at compile time.
@@ -1268,15 +1270,15 @@ compile_dict = {
 		-- inlining
 		if inline_words[last_word] then
 			local name = last_word
-			local code, list = erase_previous_word()
+			local code, list, comments = erase_previous_word()
 
 			-- when the inlined word is compiled, we emit its code
 			compile_dict[name] = function()
 				-- skip ret at the end
 				list_comment("inlined %s", name)
 				for i = 1, #code - 2 do
-					local line = list[i]
-					if line then list_line("%s", line) end
+					if list[i] then list_line("%s", list[i]) end
+					if comments[i] and i > 1 then list_comment("%s", comments[i]) end
 					emit_byte(code[i])
 				end
 			end

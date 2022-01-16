@@ -1,9 +1,5 @@
 - forward gotos could be optimized to branches
 
-- starfield.lst contains garbage in listing:
-	40d8 cd b9 3c 14 00 53 54 41 43 4b 20 47 55 41 52 44 call $3cb9
-	40e8 20 46 41 49 4c 45 44 21 20
-
 - relocate inlined machine code
 
 - dead code and inlining optimizations can't distinguish words that have same name

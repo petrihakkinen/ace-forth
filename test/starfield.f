@@ -122,7 +122,7 @@ decimal
 		label again
 		rnd 16 / [ SCREEN_WIDTH SCREEN_HEIGHT * ] lit mod SCREEN + ( s: screen-addr )
 		( Make sure screen location is empty )
-		dup c@ 127 = if
+		dup c@ 127 c= if
 			i star-screen-addr! 
 		else
 			drop goto again
