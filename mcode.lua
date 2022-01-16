@@ -916,10 +916,14 @@ end
 
 -- Emits invisible subroutine words to be used by mcode words.
 local function emit_subroutines()
+	local function is_word_used(name)
+		return not eliminate_words[name]
+	end
+
 	-- rot
 	if is_word_used("__rot") then
 		-- >r swap r> swap
-		create_word(0, "__rot", F_INVISIBLE)
+		create_word(0, "__rot", F_INVISIBLE | F_NO_INLINE)
 		_push(DE)
 		stk_pop_de()
 		_call(here() + 5) -- call swap
@@ -930,7 +934,7 @@ local function emit_subroutines()
 
 	-- swap
 	if is_word_used("__swap") or is_word_used("__rot") then
-		create_word(0, "__swap", F_INVISIBLE)
+		create_word(0, "__swap", F_INVISIBLE | F_NO_INLINE)
 		_ld_fetch(HL, SPARE)	-- load second element from top of stack to BC
 		_dec(HL)
 		_ld(B, HL_INDIRECT)
@@ -949,14 +953,14 @@ local function emit_subroutines()
 	-- 2dup
 	if is_word_used("__2dup") then
 		-- over over
-		create_word(0, "__2dup", F_INVISIBLE)
+		create_word(0, "__2dup", F_INVISIBLE | F_NO_INLINE)
 		_call(here() + 3) -- call over
 		-- fall through to over...
 	end
 
 	-- over
 	if is_word_used("__over") or is_word_used("__2dup") then
-		create_word(0, "__over", F_INVISIBLE)
+		create_word(0, "__over", F_INVISIBLE | F_NO_INLINE)
 		_ld_fetch(HL, SPARE) -- push old top
 		_ld(B, H)
 		_ld(C, L)
@@ -977,7 +981,7 @@ local function emit_subroutines()
 	-- 2over
 	if is_word_used("__2over") then
 		-- 4 pick 4 pick
-		create_word(0, "__2over", F_INVISIBLE)
+		create_word(0, "__2over", F_INVISIBLE | F_NO_INLINE)
 		stk_push_de()
 		for i = 1, 2 do
 			_ld_const(DE, 4)
@@ -990,7 +994,7 @@ local function emit_subroutines()
 
 	-- roll
 	if is_word_used("__roll") then
-		create_word(0, "__roll", F_INVISIBLE)
+		create_word(0, "__roll", F_INVISIBLE | F_NO_INLINE)
 		stk_push_de()
 		_call(0x094d)
 		_ex_de_hl()
@@ -1007,7 +1011,7 @@ local function emit_subroutines()
 
 	-- add
 	if is_word_used("__add") then
-		create_word(0, "__add", F_INVISIBLE)
+		create_word(0, "__add", F_INVISIBLE | F_NO_INLINE)
 		stk_pop_bc_inline()
 		_ex_de_hl()
 		_add(HL, BC)
@@ -1017,7 +1021,7 @@ local function emit_subroutines()
 
 	-- sub
 	if is_word_used("__sub") then
-		create_word(0, "__sub", F_INVISIBLE)
+		create_word(0, "__sub", F_INVISIBLE | F_NO_INLINE)
 		_ld(B, D)
 		_ld(C, E)
 		stk_pop_de_inline()
@@ -1030,7 +1034,7 @@ local function emit_subroutines()
 
 	-- signed 16-bit * 16-bit multiplication routine
 	if is_word_used("__mult16") then
-		create_word(0, "__mult16", F_INVISIBLE)
+		create_word(0, "__mult16", F_INVISIBLE | F_NO_INLINE)
 		stk_pop_bc()
 		_ld_const(HL, 0)
 		_ld_const(A, 16)
@@ -1053,7 +1057,7 @@ local function emit_subroutines()
 	-- unsigned 8-bit * 8-bit multiplication routine
 	-- source: http://map.grauw.nl/sources/external/z80bits.html#1.1
 	if is_word_used("__mult8") then
-		create_word(0, "__mult8", F_INVISIBLE)
+		create_word(0, "__mult8", F_INVISIBLE | F_NO_INLINE)
 		stk_pop_bc()
 		_ld(H, C)
 		_ld_const(L, 0)
@@ -1073,7 +1077,7 @@ local function emit_subroutines()
 
 	-- gt
 	if is_word_used("__gt") then
-		create_word(0, "__gt", F_INVISIBLE)
+		create_word(0, "__gt", F_INVISIBLE | F_NO_INLINE)
 		_ld_fetch(HL, SPARE)	-- load second value from top to BC
 		_dec(HL)
 		_ld(B, HL_INDIRECT)
@@ -1097,7 +1101,7 @@ local function emit_subroutines()
 
 	-- lt
 	if is_word_used("__lt") then
-		create_word(0, "__lt", F_INVISIBLE)
+		create_word(0, "__lt", F_INVISIBLE | F_NO_INLINE)
 		_ld_fetch(HL, SPARE)	-- load second value from top to BC
 		_dec(HL)
 		_ld(B, HL_INDIRECT)
@@ -1122,7 +1126,7 @@ local function emit_subroutines()
 
 	-- min
 	if is_word_used("__min") then
-		create_word(0, "__min", F_INVISIBLE)
+		create_word(0, "__min", F_INVISIBLE | F_NO_INLINE)
 		stk_pop_bc_inline()
 		_ld(H, D)
 		_ld(L, E)
@@ -1137,7 +1141,7 @@ local function emit_subroutines()
 
 	-- max
 	if is_word_used("__max") then
-		create_word(0, "__max", F_INVISIBLE)
+		create_word(0, "__max", F_INVISIBLE | F_NO_INLINE)
 		stk_pop_bc_inline()
 		_ld(H, D)
 		_ld(L, E)
@@ -1152,7 +1156,7 @@ local function emit_subroutines()
 
 	-- at
 	if is_word_used("__at") then
-		create_word(0, "__at", F_INVISIBLE)
+		create_word(0, "__at", F_INVISIBLE | F_NO_INLINE)
 		_ld_fetch(HL, SPARE)
 		_dec(HL)
 		_dec(HL)
@@ -1166,7 +1170,7 @@ local function emit_subroutines()
 
 	-- print
 	if is_word_used("__print") then
-		create_word(0, "__print", F_INVISIBLE)
+		create_word(0, "__print", F_INVISIBLE | F_NO_INLINE)
 		_pop(HL)	-- HL = pointer to string data
 		_push(DE) -- preserve DE
 		_ex_de_hl()	-- DE = string data
@@ -1178,7 +1182,7 @@ local function emit_subroutines()
 
 	-- spaces
 	if is_word_used("__spaces") then
-		create_word(0, "__spaces", F_INVISIBLE)
+		create_word(0, "__spaces", F_INVISIBLE | F_NO_INLINE)
 		-- loop:
 		_dec(DE)
 		_bit(7, D)
@@ -1193,7 +1197,7 @@ local function emit_subroutines()
 
 	-- type
 	if is_word_used("__type") then
-		create_word(0, "__type", F_INVISIBLE)
+		create_word(0, "__type", F_INVISIBLE | F_NO_INLINE)
 		_ld(B, D)	-- move count from DE to BC
 		_ld(C, E)
 		stk_pop_de()
@@ -1248,9 +1252,28 @@ local dict = {
 		interpreter_state()
 		check_control_flow_stack()
 
+		-- inlining
+		local name = last_word_name()
+		if inline_words[name] then
+			local code, list = erase_previous_word()
+
+			-- when the inlined word is compiled, we emit its code
+			mcode_dict[name] = function()
+				-- skip ret at the end
+				list_comment("inlined %s", name)
+				for i = 1, #code - 1 do
+					local line = list[i]
+					if line then list_line("%s", line) end
+					-- TODO: relocate
+					emit_byte(code[i])
+				end
+			end
+		end
+
 		labels = {}
 		gotos = {}
 		jump_targets = {}
+
 		call_pos = nil
 		literal_pos = nil
 		literal_pos2 = nil

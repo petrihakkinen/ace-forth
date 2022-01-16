@@ -137,9 +137,10 @@ function verbose(...)
 	end
 end
 
-local eliminate_words = {}
-local inline_words = {}
 local pass = 1
+
+eliminate_words = {}
+inline_words = {}
 
 ::restart::
 
@@ -608,8 +609,8 @@ function mark_used(name)
 	word_counts[name] = word_counts[name] + 1
 end
 
-function is_word_used(name)
-	return not eliminate_words[name]
+function last_word_name()
+	return last_word
 end
 
 -- Erases previously compiled word from dictionary.
@@ -901,7 +902,7 @@ interpret_dict = {
 	create = function()
 		local name = next_word()
 		if not eliminate_words[name] then
-			create_word(DO_PARAM, name)
+			create_word(DO_PARAM, name, F_NO_INLINE)
 			inside_definition = true
 
 			-- make it possible to refer to the word from machine code
@@ -919,9 +920,6 @@ interpret_dict = {
 		if not eliminate_words[name] then
 			local flags = 0
 			if compile_dict[name] and dont_allow_redefining then flags = F_INVISIBLE end
-
-			-- we don't currently support inlining machine code
-			if opts.mcode then flags = flags | F_NO_INLINE end
 
 			last_word = create_word(DO_COLON, name, flags)
 
@@ -991,7 +989,7 @@ interpret_dict = {
 	code = function()
 		local name = next_word()
 		if not eliminate_words[name] then
-			create_word(0, name)
+			create_word(0, name, F_NO_INLINE)
 			inside_definition = true
 
 			-- patch codefield
@@ -1009,22 +1007,10 @@ interpret_dict = {
 			skip_until(';')
 		end
 	end,
-	byte = function()	-- byte-sized variable
-		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE)
-		local value = pop()
-		comp_assert(value >= 0 and value < 256, "byte variable out of range")
-		local addr = here()
-		emit_byte(value)
-
-		-- make it possible to refer to variable from machine code
-		mcode_dict[name] = function()
-			mcode.emit_literal(addr, name)
-		end
-	end,
 	bytes = function()	-- emit bytes, terminated by ; symbol
 		local name = next_word()
 		if not eliminate_words[name] then
-			create_word(DO_PARAM, name)
+			create_word(DO_PARAM, name, F_NO_INLINE)
 			local addr = here()
 			inside_definition = "bytes"
 
@@ -1039,8 +1025,20 @@ interpret_dict = {
 			skip_until(';')
 		end
 	end,
+	byte = function()	-- byte-sized variable
+		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE | F_NO_INLINE)
+		local value = pop()
+		comp_assert(value >= 0 and value < 256, "byte variable out of range")
+		local addr = here()
+		emit_byte(value)
+
+		-- make it possible to refer to variable from machine code
+		mcode_dict[name] = function()
+			mcode.emit_literal(addr, name)
+		end
+	end,
 	variable = function()
-		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE)
+		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE | F_NO_INLINE)
 		local addr = here()
 		emit_short(pop())	-- write variable value to dictionary
 
@@ -1538,16 +1536,13 @@ end
 if opts.inline_words then
 	for name, compilation_addr in pairs(compilation_addresses) do
 		if word_counts[name] == 1 and (word_flags[name] & F_NO_INLINE) == 0 then
-			-- check that it's a colon definition
-			if read_short(compilation_addr) == DO_COLON then
-				-- check for side exits
-				if (word_flags[name] & F_HAS_SIDE_EXITS) == 0 then
-					verbose("Inlining word: %s", name)
-					inline_words[name] = true
-					more_work = true
-				else
-					warn("Word '%s' has side exits and cannot be inlined", name)
-				end
+			-- check for side exits
+			if (word_flags[name] & F_HAS_SIDE_EXITS) == 0 then
+				verbose("Inlining word: %s", name)
+				inline_words[name] = true
+				more_work = true
+			else
+				warn("Word '%s' has side exits and cannot be inlined", name)
 			end
 		end
 	end
