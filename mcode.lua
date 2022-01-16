@@ -9,7 +9,7 @@ local literal_pos2	-- the dictionary position of the second newest literal
 local call_pos		-- the dictionary position just after the newest emitted Z80 call instruction
 local jump_targets = {}	-- addresses targeted by (forward) jumps, for detecting when tail-calls can't be used
 
-local short_jumps = {}	-- locations in source code where jumps can be optimized to branches (for ELSE and THEN)
+local long_jumps = {}	-- locations in source code where jumps must be long (for ELSE and THEN)
 
 -- Z80 registers
 local A = 7
@@ -835,11 +835,13 @@ local function jump_nc(addr)
 end
 
 -- Patch already emitted jump instruction to jump to a new address.
+-- Returns false if the jump could not be patched (branch too long).
 local function patch_jump(instr_addr, jump_to_addr)
 	local opcode = read_byte(instr_addr)
 	if opcode < 0x80 then
 		-- relative jump
 		local offset = branch_offset(jump_to_addr, instr_addr)
+		if offset == nil then return false end
 		write_byte(instr_addr + 1, offset)
 	else
 		-- absolute jump
@@ -847,12 +849,13 @@ local function patch_jump(instr_addr, jump_to_addr)
 	end
 	list_patch(instr_addr, "%$%x+", string.format("$%04x", jump_to_addr))
 	jump_targets[jump_to_addr] = true
+	return true
 end
 
-local function record_short_jump(ppos)
-	if not short_jumps[ppos] then
-		verbose("Optimizing jump to branch (%s)", ppos)
-		short_jumps[ppos] = true
+local function record_long_jump(ppos)
+	if not long_jumps[ppos] then
+		verbose("Deoptimizing branch to jump (%s)", ppos)
+		long_jumps[ppos] = true
 		more_work = true
 	end
 end
@@ -1957,8 +1960,8 @@ local dict = {
 		cf_push(here())
 		cf_push('if')
 		-- emit conditional branch with placeholder jump to address
-		-- use relative branch if possible (see ELSE)
-		if opts.short_branches and short_jumps[ppos] then
+		-- use relative branch unless short jump is blacklisted (see ELSE)
+		if opts.short_branches and not long_jumps[ppos] then
 			_jr_z(0)
 		else
 			_jp_z(0)
@@ -1973,18 +1976,18 @@ local dict = {
 		cf_push(here())
 		cf_push('if')
 		-- emit unconditional branch to jump to THEN with placeholder jump to address
-		-- use relative branch if possible
+		-- use relative branch unless short jump is blacklisted
 		list_comment("else")
-		if opts.short_branches and short_jumps[ppos] then
+		if opts.short_branches and not long_jumps[ppos] then
 			_jr(0)
 		else
 			_jp(0)
 		end
 		-- patch jump target at previous IF
-		patch_jump(where, here())
-		-- if the jump at previous IF could have been optimized to branch, record it
-		if opts.short_branches and branch_offset(here(), where) then
-			record_short_jump(if_ppos)
+		if not patch_jump(where, here()) then
+			-- branch too long, blacklist it
+			assert(opts.short_branches)
+			record_long_jump(if_ppos)
 		end
 	end,
 	['then'] = function()
@@ -1992,10 +1995,10 @@ local dict = {
 		local where = cf_pop()
 		local ppos = cf_pop()
 		-- patch jump target at previous IF or ELSE
-		patch_jump(where, here())
-		-- if the jump at previous IF or ELSE could have been optimized to branch, record it
-		if opts.short_branches and branch_offset(here(), where) then
-			record_short_jump(ppos)
+		if not patch_jump(where, here()) then
+			-- branch too long, blacklist it
+			assert(opts.short_branches)
+			record_long_jump(ppos)
 		end
 	end,
 	label = function()
