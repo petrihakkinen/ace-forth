@@ -46,34 +46,32 @@ decimal
 	dup
 	seed ! ;
 
-( TODO: inlining )
+: star-x? ( star -- x ) StarX + c@ ; inline
+: star-y? ( star -- y ) StarY + c@ ; inline
+: star-speed? ( star -- speed ) StarSpeed + c@ ; inline
+: star-char? ( star -- char ) StarChar + c@ ; inline
+: star-screen-addr? ( star - addr ) 2* StarScreenAddr + @ ; inline
+: star-char-addr? ( star - addr ) 2* StarCharAddr + @ ; inline
 
-: star-x? ( star -- x ) StarX + c@ ;
-: star-y? ( star -- y ) StarY + c@ ;
-: star-speed? ( star -- speed ) StarSpeed + c@ ;
-: star-char? ( star -- char ) StarChar + c@ ;
-: star-screen-addr? ( star - addr ) 2* StarScreenAddr + @ ;
-: star-char-addr? ( star - addr ) 2* StarCharAddr + @ ;
+: star-x! ( x star -- ) StarX + c! ; inline
+: star-y! ( y star -- ) StarY + c! ; inline
+: star-speed! ( speed star -- ) StarSpeed + c! ; inline
+: star-char! ( char star -- ) StarChar + c! ; inline
+: star-screen-addr! ( addr star -- ) 2* StarScreenAddr + ! ; inline
+: star-char-addr! ( addr star -- ) 2* StarCharAddr + ! ; inline
 
-: star-x! ( x star -- ) StarX + c! ;
-: star-y! ( y star -- ) StarY + c! ;
-: star-speed! ( speed star -- ) StarSpeed + c! ;
-: star-char! ( char star -- ) StarChar + c! ;
-: star-screen-addr! ( addr star -- ) 2* StarScreenAddr + ! ;
-: star-char-addr! ( addr star -- ) 2* StarCharAddr + ! ;
-
-: num-stars? ( char -- n ) NumStars + c@ ; ( How many stars are using a char? )
-: num-stars! ( n char -- ) NumStars + c! ;
+: num-stars? ( char -- n ) NumStars + c@ ; inline ( How many stars are using a char? )
+: num-stars! ( n char -- ) NumStars + c! ; inline
 
 : alloc-char ( -- char )
 	NumFree dec ( NumFree-- )
 	NumFree c@ ( s: NumFree )
-	FreeList + c@ ; ( push FreeList[NumFree] )
+	FreeList + c@ ; inline ( push FreeList[NumFree] )
 
 : free-char ( char -- )
 	NumFree c@ ( s: char num-free )
 	FreeList + c! ( FreeList[NumFree] = char )
-	NumFree inc ; ( NumFree++ )
+	NumFree inc ; inline ( NumFree++ )
 
 0 variable stack-guard	( Debug only )
 

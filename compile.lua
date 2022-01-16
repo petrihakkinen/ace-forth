@@ -207,6 +207,7 @@ F_NO_ELIMINATE = 0x02		-- words that should not be eliminated even when they are
 F_HAS_SIDE_EXITS = 0x04		-- words that have side-exits and cannot there be inlined
 F_INVISIBLE = 0x08			-- word cannot be seen from user written code
 F_MACRO = 0x10				-- word is a macro (to be executed immediately at compile time)
+F_FORCE_INLINE = 0x20		-- word has been marked with 'inline'
 
 -- starting addresses of user defined words
 local word_start_addresses = {}
@@ -986,6 +987,13 @@ interpret_dict = {
 		comp_assert(last_word, "invalid use of NOINLINE")
 		word_flags[last_word] = word_flags[last_word] | F_NO_INLINE
 	end,
+	inline = function()
+		-- force inline previous word
+		comp_assert(last_word, "invalid use of INLINE")
+		comp_assert((word_flags[last_word] & F_HAS_SIDE_EXITS) == 0, "Cannot inline word with side exits")
+		comp_assert((word_flags[last_word] & F_NO_INLINE) == 0, string.format("Word '%s' cannot be inlined", last_word))
+		word_flags[last_word] = word_flags[last_word] | F_FORCE_INLINE
+	end,
 	code = function()
 		local name = next_word()
 		if not eliminate_words[name] then
@@ -1535,9 +1543,10 @@ end
 -- inline words that are used only once and have no side exits
 if opts.inline_words then
 	for name, compilation_addr in pairs(compilation_addresses) do
-		if word_counts[name] == 1 and (word_flags[name] & F_NO_INLINE) == 0 then
+		local flags = word_flags[name]
+		if (word_counts[name] == 1 and (flags & F_NO_INLINE) == 0) or (flags & F_FORCE_INLINE) ~= 0 then
 			-- check for side exits
-			if (word_flags[name] & F_HAS_SIDE_EXITS) == 0 then
+			if (flags & F_HAS_SIDE_EXITS) == 0 then
 				verbose("Inlining word: %s", name)
 				inline_words[name] = true
 				more_work = true
