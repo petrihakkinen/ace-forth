@@ -917,9 +917,9 @@ end
 -- Emits invisible subroutine words to be used by mcode words.
 local function emit_subroutines()
 	-- rot
-	if is_word_used("rot") then
+	if is_word_used("__rot") then
 		-- >r swap r> swap
-		create_word(0, "rot", F_INVISIBLE)
+		create_word(0, "__rot", F_INVISIBLE)
 		_push(DE)
 		stk_pop_de()
 		_call(here() + 5) -- call swap
@@ -929,8 +929,8 @@ local function emit_subroutines()
 	end
 
 	-- swap
-	if is_word_used("swap") or is_word_used("rot") then
-		create_word(0, "swap", F_INVISIBLE)
+	if is_word_used("__swap") or is_word_used("__rot") then
+		create_word(0, "__swap", F_INVISIBLE)
 		_ld_fetch(HL, SPARE)	-- load second element from top of stack to BC
 		_dec(HL)
 		_ld(B, HL_INDIRECT)
@@ -947,16 +947,16 @@ local function emit_subroutines()
 	end
 
 	-- 2dup
-	if is_word_used("2dup") then
+	if is_word_used("__2dup") then
 		-- over over
-		create_word(0, "2dup", F_INVISIBLE)
+		create_word(0, "__2dup", F_INVISIBLE)
 		_call(here() + 3) -- call over
 		-- fall through to over...
 	end
 
 	-- over
-	if is_word_used("over") or is_word_used("2dup") then
-		create_word(0, "over", F_INVISIBLE)
+	if is_word_used("__over") or is_word_used("__2dup") then
+		create_word(0, "__over", F_INVISIBLE)
 		_ld_fetch(HL, SPARE) -- push old top
 		_ld(B, H)
 		_ld(C, L)
@@ -975,9 +975,9 @@ local function emit_subroutines()
 	end
 
 	-- 2over
-	if is_word_used("2over") then
+	if is_word_used("__2over") then
 		-- 4 pick 4 pick
-		create_word(0, "2over", F_INVISIBLE)
+		create_word(0, "__2over", F_INVISIBLE)
 		stk_push_de()
 		for i = 1, 2 do
 			_ld_const(DE, 4)
@@ -989,8 +989,8 @@ local function emit_subroutines()
 	end
 
 	-- roll
-	if is_word_used("roll") then
-		create_word(0, "roll", F_INVISIBLE)
+	if is_word_used("__roll") then
+		create_word(0, "__roll", F_INVISIBLE)
 		stk_push_de()
 		_call(0x094d)
 		_ex_de_hl()
@@ -1005,9 +1005,9 @@ local function emit_subroutines()
 		_ret()
 	end
 
-	-- +
-	if is_word_used("+") then
-		create_word(0, "+", F_INVISIBLE)
+	-- add
+	if is_word_used("__add") then
+		create_word(0, "__add", F_INVISIBLE)
 		stk_pop_bc_inline()
 		_ex_de_hl()
 		_add(HL, BC)
@@ -1015,9 +1015,9 @@ local function emit_subroutines()
 		_ret()
 	end
 
-	-- -
-	if is_word_used("-") then
-		create_word(0, "-", F_INVISIBLE)
+	-- sub
+	if is_word_used("__sub") then
+		create_word(0, "__sub", F_INVISIBLE)
 		_ld(B, D)
 		_ld(C, E)
 		stk_pop_de_inline()
@@ -1029,8 +1029,8 @@ local function emit_subroutines()
 	end
 
 	-- signed 16-bit * 16-bit multiplication routine
-	if is_word_used("mult16") then
-		create_word(0, "mult16", F_INVISIBLE)
+	if is_word_used("__mult16") then
+		create_word(0, "__mult16", F_INVISIBLE)
 		stk_pop_bc()
 		_ld_const(HL, 0)
 		_ld_const(A, 16)
@@ -1052,8 +1052,8 @@ local function emit_subroutines()
 
 	-- unsigned 8-bit * 8-bit multiplication routine
 	-- source: http://map.grauw.nl/sources/external/z80bits.html#1.1
-	if is_word_used("mult8") then
-		create_word(0, "mult8", F_INVISIBLE)
+	if is_word_used("__mult8") then
+		create_word(0, "__mult8", F_INVISIBLE)
 		stk_pop_bc()
 		_ld(H, C)
 		_ld_const(L, 0)
@@ -1071,9 +1071,9 @@ local function emit_subroutines()
 		_ret()
 	end
 
-	-- >
-	if is_word_used(">") then
-		create_word(0, ">", F_INVISIBLE)
+	-- gt
+	if is_word_used("__gt") then
+		create_word(0, "__gt", F_INVISIBLE)
 		_ld_fetch(HL, SPARE)	-- load second value from top to BC
 		_dec(HL)
 		_ld(B, HL_INDIRECT)
@@ -1095,9 +1095,9 @@ local function emit_subroutines()
 		_ret()
 	end
 
-	-- <
-	if is_word_used("<") then
-		create_word(0, "<", F_INVISIBLE)
+	-- lt
+	if is_word_used("__lt") then
+		create_word(0, "__lt", F_INVISIBLE)
 		_ld_fetch(HL, SPARE)	-- load second value from top to BC
 		_dec(HL)
 		_ld(B, HL_INDIRECT)
@@ -1121,8 +1121,8 @@ local function emit_subroutines()
 	end
 
 	-- min
-	if is_word_used("min") then
-		create_word(0, "min", F_INVISIBLE)
+	if is_word_used("__min") then
+		create_word(0, "__min", F_INVISIBLE)
 		stk_pop_bc_inline()
 		_ld(H, D)
 		_ld(L, E)
@@ -1136,8 +1136,8 @@ local function emit_subroutines()
 	end
 
 	-- max
-	if is_word_used("max") then
-		create_word(0, "max", F_INVISIBLE)
+	if is_word_used("__max") then
+		create_word(0, "__max", F_INVISIBLE)
 		stk_pop_bc_inline()
 		_ld(H, D)
 		_ld(L, E)
@@ -1151,8 +1151,8 @@ local function emit_subroutines()
 	end
 
 	-- at
-	if is_word_used("at") then
-		create_word(0, "at", F_INVISIBLE)
+	if is_word_used("__at") then
+		create_word(0, "__at", F_INVISIBLE)
 		_ld_fetch(HL, SPARE)
 		_dec(HL)
 		_dec(HL)
@@ -1164,9 +1164,9 @@ local function emit_subroutines()
 		_ret()
 	end
 
-	-- ."
-	if is_word_used('."') then
-		create_word(0, '."', F_INVISIBLE)
+	-- print
+	if is_word_used("__print") then
+		create_word(0, "__print", F_INVISIBLE)
 		_pop(HL)	-- HL = pointer to string data
 		_push(DE) -- preserve DE
 		_ex_de_hl()	-- DE = string data
@@ -1177,8 +1177,8 @@ local function emit_subroutines()
 	end
 
 	-- spaces
-	if is_word_used("spaces") then
-		create_word(0, "spaces", F_INVISIBLE)
+	if is_word_used("__spaces") then
+		create_word(0, "__spaces", F_INVISIBLE)
 		-- loop:
 		_dec(DE)
 		_bit(7, D)
@@ -1192,8 +1192,8 @@ local function emit_subroutines()
 	end
 
 	-- type
-	if is_word_used("type") then
-		create_word(0, "type", F_INVISIBLE)
+	if is_word_used("__type") then
+		create_word(0, "__type", F_INVISIBLE)
 		_ld(B, D)	-- move count from DE to BC
 		_ld(C, E)
 		stk_pop_de()
@@ -1268,7 +1268,7 @@ local dict = {
 		-- skip:
 	end,
 	over = function()
-		call_mcode("over")
+		call_mcode("__over")
 	end,
 	drop = function()
 		list_comment("drop")
@@ -1280,10 +1280,10 @@ local dict = {
 		stk_pop_bc()
 	end,
 	swap = function()
-		call_mcode("swap")
+		call_mcode("__swap")
 	end,
 	['2dup'] = function()
-		call_mcode("2dup")
+		call_mcode("__2dup")
 	end,
 	['2drop'] = function()
 		list_comment("2drop")
@@ -1291,7 +1291,7 @@ local dict = {
 		stk_pop_de()
 	end,
 	['2over'] = function()
-		call_mcode("2over")
+		call_mcode("__2over")
 	end,
 	pick = function()
 		list_comment("pick")
@@ -1300,10 +1300,10 @@ local dict = {
 		stk_pop_de()
 	end,
 	roll = function()
-		call_mcode("roll")
+		call_mcode("__roll")
 	end,
 	rot = function()
-		call_mcode("rot")
+		call_mcode("__rot")
 	end,
 	['r>'] = function()
 		list_comment("r>")
@@ -1344,7 +1344,7 @@ local dict = {
 			_add(HL, DE)
 			_ex_de_hl()
 		else
-			call_mcode("+")
+			call_mcode("__add")
 		end
 	end,
 	['-'] = function()
@@ -1369,7 +1369,7 @@ local dict = {
 			_add(HL, DE)
 			_ex_de_hl()
 		else
-			call_mcode("-")
+			call_mcode("__sub")
 		end
 	end,
 	['*'] = function()
@@ -1398,9 +1398,9 @@ local dict = {
 			end
 		elseif lit then
 			emit_literal(lit)
-			call_mcode("mult16")
+			call_mcode("__mult16")
 		else
-			call_mcode("mult16")
+			call_mcode("__mult16")
 		end
 	end,
 	['c*'] = function()
@@ -1418,9 +1418,9 @@ local dict = {
 			end
 		elseif lit then
 			emit_literal(lit)
-			call_mcode("mult8")
+			call_mcode("__mult8")
 		else
-			call_mcode("mult8")
+			call_mcode("__mult8")
 		end
 	end,
 	['/'] = function()
@@ -1504,10 +1504,10 @@ local dict = {
 		-- skip:
 	end,
 	min = function()
-		call_mcode("min")
+		call_mcode("__min")
 	end,
 	max = function()
-		call_mcode("max")
+		call_mcode("__max")
 	end,
 	xor = function()
 		local lit = erase_literal()
@@ -1690,7 +1690,7 @@ local dict = {
 		end
 	end,
 	['>'] = function()
-		call_mcode(">")
+		call_mcode("__gt")
 	end,
 	['c>'] = function()
 		local lit = erase_literal()
@@ -1718,7 +1718,7 @@ local dict = {
 		end
 	end,
 	['<'] = function()
-		call_mcode("<")
+		call_mcode("__lt")
 	end,
 	['c<'] = function()
 		local lit = erase_literal()
@@ -1861,14 +1861,14 @@ local dict = {
 		_rst(8)
 	end,
 	spaces = function()
-		call_mcode("spaces")
+		call_mcode("__spaces")
 	end,
 	at = function()
-		call_mcode("at")
+		call_mcode("__at")
 	end,
 	type = function()
 		-- ( addr count -- )
-		call_mcode("type")
+		call_mcode("__type")
 	end,
 	base = function()
 		list_comment("base")
@@ -2215,7 +2215,7 @@ local dict = {
 	end,
 	['."'] = function()
 		local str = next_symbol_with_delimiter('"')
-		call_mcode('."')
+		call_mcode("__print")
 		list_comment('"%s"', str)
 		emit_short(#str)
 		emit_string(str)
