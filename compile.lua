@@ -150,6 +150,7 @@ local input_file						-- current input filename
 local cur_pos							-- current position in input
 local cur_line							-- current line in input
 local compile_mode = false				-- interpret or compile mode?
+local inside_definition = false			-- are we inside CODE or CREATE definition?
 local prev_compile_mode					-- previous value of compile_mode (before [ was invoked)
 local stack = {}						-- the compiler stack
 local mem = { [0] = 10 }				-- compiler memory
@@ -553,6 +554,8 @@ end
 function create_word(code_field, name, flags)
 	flags = flags or 0
 
+	comp_assert(not inside_definition, "; expected")
+
 	word_start_addresses[name] = here()
 	word_flags[name] = flags
 	word_counts[name] = word_counts[name] or 0
@@ -896,21 +899,10 @@ end
 
 interpret_dict = {
 	create = function()
-		-- this word cannot be dead-code eliminated, because we don't know where it ends
-		-- (this is not strictly true since every word has a length field!)
-		local name = create_word(DO_PARAM, next_word(), F_NO_ELIMINATE)
-
-		-- make it possible to refer to the word from machine code
-		local addr = here()
-		mcode_dict[name] = function()
-			mcode.emit_literal(addr, name)
-			word_counts[name] = word_counts[name] + 1
-		end
-	end,
-	['create{'] = function()	-- create{ is like create but it can be eliminated since } marks the end of the word
 		local name = next_word()
 		if not eliminate_words[name] then
 			create_word(DO_PARAM, name)
+			inside_definition = true
 
 			-- make it possible to refer to the word from machine code
 			local addr = here()
@@ -919,11 +911,8 @@ interpret_dict = {
 				word_counts[name] = word_counts[name] + 1
 			end
 		else
-			skip_until('}')
+			skip_until(';')
 		end
-	end,
-	['}'] = function()
-		-- } is a nop unless we're skipping create{ block
 	end,
 	[':'] = function() 
 		local name = next_word()
@@ -968,24 +957,34 @@ interpret_dict = {
 		compile_dict[last_word] = function() execute(addr) end
 		mcode_dict[last_word] = function() execute(addr) end
 	end,
+	[';'] = function()
+		-- marks end of CODE or CREATEd word
+		inside_definition = false
+	end,
 	noinline = function()
 		-- forbid inlining previous word
 		comp_assert(last_word, "invalid use of NOINLINE")
 		word_flags[last_word] = word_flags[last_word] | F_NO_INLINE
 	end,
 	code = function()
-		local name = create_word(0, next_word(), F_NO_ELIMINATE)
+		local name = next_word()
+		if not eliminate_words[name] then
+			create_word(0, name)
+			inside_definition = true
 
-		-- patch codefield
-		if not opts.mcode then
-			write_short(here() - 2, here())
-		end
-
-		-- make it possible to call CODE words from machine code
-		if mcode_dict[name] == nil or not dont_allow_redefining then
-			mcode_dict[name] = function()
-				mcode.call_code(name)
+			-- patch codefield
+			if not opts.mcode then
+				write_short(here() - 2, here())
 			end
+
+			-- make it possible to call CODE words from machine code
+			if mcode_dict[name] == nil or not dont_allow_redefining then
+				mcode_dict[name] = function()
+					mcode.call_code(name)
+				end
+			end
+		else
+			skip_until(';')
 		end
 	end,
 	byte = function()	-- byte-sized variable
@@ -1033,6 +1032,8 @@ interpret_dict = {
 	const = function()
 		local name = next_word()
 		local value = pop()
+
+		comp_assert(not inside_definition, "; expected")
 
 		-- add compile time word which emits the constant as literal
 		compile_dict[name] = function()
@@ -1452,8 +1453,8 @@ local library_words = [[
 : inc dup c@ 1+ swap c! ;
 : dec dup c@ 1- swap c! ;
 
-code di 243 c, 253 c, 233 c, 
-code ei 251 c, 253 c, 233 c,
+code di 243 c, 253 c, 233 c, ;
+code ei 251 c, 253 c, 233 c, ;
 ]]
 
 -- Compile library words which are not natively available on Jupiter Ace's ROM.

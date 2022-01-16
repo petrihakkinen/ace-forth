@@ -36,6 +36,7 @@ create StarBitMask_slow
 	00100000 c,
 	01000000 c,
 	10000000 c,
+	;
 decimal
 
 : rnd
