@@ -1042,7 +1042,7 @@ local function ret_or_tail_call()
 	-- Tail-call optimization must be disabled in the following cases:
 	-- 1. When the RET is targeted by a jump
 	-- 2. When the word is inlined
-	if opts.tail_call and call_pos == here() and not is_inlined_word(last_word_name()) then
+	if opts.tail_call and call_pos == here() and not inline_words[last_word_name()] then
 		-- check that the call opcode is really there
 		assert(read_byte(call_pos - 3) == 0xcd)
 		-- change it to jp

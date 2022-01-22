@@ -614,10 +614,6 @@ function last_word_name()
 	return last_word
 end
 
-function is_inlined_word(name)
-	return inline_words[name]
-end
-
 function set_word_flag(name, flag)
 	word_flags[name] = word_flags[name] | flag
 end
