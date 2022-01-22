@@ -1,5 +1,7 @@
 -- Machine code compile dictionary
 
+local decode_tree = require "z80_opcodes"
+
 local labels = {}	-- label -> address for current word
 local gotos = {}	-- address to be patched -> label for current word
 
@@ -860,6 +862,76 @@ local function record_long_jump(ppos)
 	end
 end
 
+local function z80_decode(code, i)
+	local node = decode_tree
+	assert(node)
+
+	local immediate
+	local offset
+
+	while true do
+		if type(node) == "string" then break end
+
+		local byte = assert(code[i])
+		i = i + 1
+
+		if node.n or node.nn then
+			if immediate == nil then
+				immediate = byte
+			else
+				immediate = immediate | (byte << 8)
+			end
+			node = node.n or node.nn
+		elseif node.o then
+			offset = byte
+			node = node.o
+		else
+			node = assert(node[byte])
+		end
+	end
+
+	local instr = node
+
+	if immediate then
+		instr = instr:gsub("nn", tostring(immediate))
+		instr = instr:gsub("n", tostring(immediate))
+	end
+
+	if offset then
+		instr = instr:gsub("o", offset)
+	end
+
+	print(instr)
+
+	return i
+end
+
+-- Relocates machine code to start at new address.
+-- 'code' is an array of bytes,
+-- 'list' is listing lines for that code (using same indices as code!)
+-- For example, list[3] contains the listing line for the instruction at code[3].
+local function relocate_mcode(code, list, old_start_addr, new_start_addr)
+	local rel_code = {}
+	local rel_list = {}
+
+	local i = 1
+	while i <= #code do
+		local s = i
+		local e = z80_decode(code, i)
+
+		-- TODO: relocate jumps here!
+		
+		for i = s, e do
+			rel_code[i] = code[i]
+			rel_list[i] = list[i]
+		end
+
+		i = e
+	end
+
+	return rel_code, rel_list
+end
+
 local function call_forth(name)
 	-- Calling Forth word from machine code
 	local addr = rom_words[string.upper(name)]
@@ -1258,16 +1330,17 @@ local dict = {
 		-- inlining
 		local name = last_word_name()
 		if inline_words[name] then
-			local code, list, comments = erase_previous_word()
+			local code, list, comments, old_start_addr = erase_previous_word()
 
 			-- when the inlined word is compiled, we emit its code
 			mcode_dict[name] = function()
-				-- skip ret at the end
 				list_comment("inlined %s", name)
-				for i = 1, #code - 1 do
+
+				local code, list = relocate_mcode(code, list, old_start_addr, here())
+
+				for i = 1, #code - 1 do	-- skip ret at the end
 					if list[i] then list_line("%s", list[i]) end
 					if comments[i] and i > 1 then list_comment("%s", comments[i]) end
-					-- TODO: relocate
 					emit_byte(code[i])
 				end
 			end

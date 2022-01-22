@@ -1,3 +1,17 @@
+- compiling the following code generates incorrect jump address (only in listing?) 
+
+	./compile.lua --optimize --mcode -l inline.lst test/inline.f 
+
+	: inl begin 1 again ; inline
+	: main inl ;
+
+	main:
+	3c5c df              rst 24              ; adjust stack for machine code
+	3c5d d7              rst 16              ; inlined inl
+	3c5e 11 01 00        ld de,$0001
+	3c61 18 fa           jr $3c5c            ; again		<-- *** incorrect jump address in listing? ***
+	3c63 c9              ret
+
 - forward gotos could be optimized to branches
 
 - relocate inlined machine code

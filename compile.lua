@@ -654,7 +654,7 @@ function erase_previous_word()
 
 	output_pos = start_addr
 
-	return code, list, comments
+	return code, list, comments, start_addr
 end
 
 -- Execute user defined word at compile time.
