@@ -6,10 +6,9 @@ Features:
 
 - Compiles to Jupiter Ace compatible interpreted Forth bytecode (compact size) or Z80 machine code (speed!)
 - Supports most standard Forth words + many non-standard extras
-- Inlining, dead code elimination, minimal word names and small literal optimizations
+- Optimizations such as inlining, dead code elimination, tail-calls, byte-size literals, short branches...
 - Macros (immediate words executed at compile time)
 - Generates a TAP file which can be loaded into emulator or real Jupiter Ace
-- Easy to customize; written in Lua
 
 
 ## Prerequisites
