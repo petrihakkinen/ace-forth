@@ -1,8 +1,4 @@
-- compiler crashes when compiling demons with --mcode and --optimize
-
 - forward gotos could be optimized to branches
-
-- relocate inlined machine code
 
 - dead code and inlining optimizations can't distinguish words that have same name
 	- therefore the compiler does not really support defining multiple words with same name
@@ -17,4 +13,5 @@
 - BUG: errors and warnings have incorrect line number for words at the end of the line
 	- store last_word_line in next_symbol
 
-- formatting of negative literals in listing files is broken
+- formatting of negative literals in listing files is broken, from demons.lst:
+	4ae1 01 ec fa        ld bc,$fffffffffffffaec

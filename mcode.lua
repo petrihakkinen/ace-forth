@@ -1038,8 +1038,11 @@ local function call_mcode(name)
 end
 
 -- Emit a return instruction, or change the previous call to tail call when possible.
-local function ret()
-	if opts.tail_call and call_pos == here() then
+local function ret_or_tail_call()
+	-- Tail-call optimization must be disabled in the following cases:
+	-- 1. When the RET is targeted by a jump
+	-- 2. When the word is inlined
+	if opts.tail_call and call_pos == here() and not is_inlined_word(last_word_name()) then
 		-- check that the call opcode is really there
 		assert(read_byte(call_pos - 3) == 0xcd)
 		-- change it to jp
@@ -1389,7 +1392,7 @@ local dict = {
 			patch_jump(patch_loc, jump_to_addr)
 		end
 
-		ret()
+		ret_or_tail_call()
 
 		interpreter_state()
 		check_control_flow_stack()
@@ -2371,7 +2374,7 @@ local dict = {
 	end,
 	exit = function()
 		list_comment("exit")
-		ret()
+		ret_or_tail_call()
 	end,
 	['['] = function()
 		compile_dict['[']()

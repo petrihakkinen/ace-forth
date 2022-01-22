@@ -614,6 +614,10 @@ function last_word_name()
 	return last_word
 end
 
+function is_inlined_word(name)
+	return inline_words[name]
+end
+
 -- Erases previously compiled word from dictionary.
 -- Returns the contents of the parameter field of the erased word.
 function erase_previous_word()
