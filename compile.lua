@@ -1412,7 +1412,7 @@ compile_dict = {
 		list_comment("%s", name)
 		emit_short(#name)
 		emit_string(name)
-		mark_used(name)
+		if word_counts[name] then mark_used(name) end
 	end,
 	['r@'] = function()
 		-- R@ is alias for I
