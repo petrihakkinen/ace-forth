@@ -618,6 +618,10 @@ function is_inlined_word(name)
 	return inline_words[name]
 end
 
+function set_word_flag(name, flag)
+	word_flags[name] = word_flags[name] | flag
+end
+
 -- Erases previously compiled word from dictionary.
 -- Returns the contents of the parameter field of the erased word.
 function erase_previous_word()

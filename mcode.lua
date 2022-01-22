@@ -2375,6 +2375,7 @@ local dict = {
 	exit = function()
 		list_comment("exit")
 		ret_or_tail_call()
+		set_word_flag(last_word_name(), F_HAS_SIDE_EXITS)
 	end,
 	['['] = function()
 		compile_dict['[']()
