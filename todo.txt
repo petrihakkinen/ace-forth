@@ -1,6 +1,4 @@
-- relocate_mcode:
-	- skip over interpreted forth (or just force noinline for words containing forth code?)
-	- compiler crashes when compiling demons
+- compiler crashes when compiling demons with --mcode and --optimize
 
 - forward gotos could be optimized to branches
 

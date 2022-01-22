@@ -935,15 +935,16 @@ local function relocate_mcode(code, list, old_start_addr, new_start_addr)
 
 	local i = 1
 	while i <= #code do
-		local s = i
+		local s = i	 -- start of instruction
 		local instr, immediate, offset, e = z80_decode(code, i)
 
-		for i = s, e do
+		for j = 1, e - s do
 			rel_code[i] = code[i]
 			rel_list[i] = list[i]
+			i = i + 1
 		end
 
-		local opcode = code[s]
+		local opcode = code[s]	-- only valid for instructions without prefix bytes!
 
 		-- relocate absolute jumps
 		if abs_jumps[opcode] then
@@ -964,20 +965,35 @@ local function relocate_mcode(code, list, old_start_addr, new_start_addr)
 
 		-- skip over embedded strings
 		if opcode == 0xcd and immediate == compilation_addresses["__print"] then
-			print("skipping over embedded string")
-			local len = code[e] | (code[e + 1] << 8)
-			local str_start = e
-			local str_end = e + len + 2	-- exclusive
+			local len = code[i] | (code[i + 1] << 8)
 
-			for i = str_start, str_end - 1 do
+			for j = 1, len + 2 do
 				rel_code[i] = code[i]
 				rel_list[i] = list[i]
+				i = i + 1
 			end
-
-			e = str_end
 		end
 
-		i = e
+		-- skip over embedded Forth
+		-- NOTE: This is pretty limited. We don't support jumping inside Forth code, for example.
+		-- This should be fine because the mcode compiler only generates calls to Forth words.
+		if opcode == 0xcd and immediate == 0x04b9 then
+			-- copy bytes until Forth code end marker 0x1a0e is encountered
+			-- every forth call address is 16-bit so we do two bytes per loop
+			while true do
+				local forth_end = (code[i] | (code[i + 1] << 8)) == 0x1a0e
+
+				rel_code[i] = code[i]
+				rel_list[i] = list[i]
+				i = i + 1
+
+				rel_code[i] = code[i]
+				rel_list[i] = list[i]
+				i = i + 1
+
+				if forth_end then break end
+			end
+		end
 	end
 
 	return rel_code, rel_list
