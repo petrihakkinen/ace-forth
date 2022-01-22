@@ -884,6 +884,7 @@ local function z80_decode(code, i)
 			node = node.n or node.nn
 		elseif node.o then
 			offset = byte
+			if offset > 127 then offset = offset - 256 end
 			node = node.o
 		else
 			node = assert(node[byte])
@@ -901,9 +902,7 @@ local function z80_decode(code, i)
 		instr = instr:gsub("o", offset)
 	end
 
-	print(instr)
-
-	return i
+	return instr, immediate, offset, i
 end
 
 -- Relocates machine code to start at new address.
@@ -914,16 +913,53 @@ local function relocate_mcode(code, list, old_start_addr, new_start_addr)
 	local rel_code = {}
 	local rel_list = {}
 
+	local abs_jumps = {
+		[0xc3] = "jp nn",
+		[0xda] = "jp c,nn",
+		[0xfa] = "jp m,nn",
+		[0xd2] = "jp nc,nn",
+		[0xc2] = "jp nz,nn",
+		[0xf2] = "jp p,nn",
+		[0xea] = "jp pe,nn",
+		[0xe2] = "jp po,nn",
+		[0xca] = "jp z,nn",
+	}
+
+	local rel_jumps = {
+		[0x18] = "jr o",
+		[0x38] = "jr c,o",
+		[0x30] = "jr nc,o",
+		[0x20] = "jr nz,o",
+		[0x28] = "jr z,o",
+	}
+
 	local i = 1
 	while i <= #code do
 		local s = i
-		local e = z80_decode(code, i)
+		local instr, immediate, offset, e = z80_decode(code, i)
 
-		-- TODO: relocate jumps here!
-		
 		for i = s, e do
 			rel_code[i] = code[i]
 			rel_list[i] = list[i]
+		end
+
+		local opcode = code[s]
+
+		-- relocate absolute jumps
+		if abs_jumps[opcode] then
+			local jump_to_addr = immediate
+			local new_addr = jump_to_addr - old_start_addr + new_start_addr
+
+			rel_code[s + 1] = new_addr & 0xff
+			rel_code[s + 2] = new_addr >> 8
+
+			rel_list[s] = abs_jumps[opcode]:gsub("nn", string.format("$%04x", new_addr))
+		end
+
+		-- relocate relative jumps (listing file only)
+		if rel_jumps[opcode] then
+			local jump_to_addr = new_start_addr + s + offset + 1
+			rel_list[s] = rel_jumps[opcode]:gsub("o", string.format("$%04x", jump_to_addr))
 		end
 
 		i = e
