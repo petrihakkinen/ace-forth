@@ -1412,6 +1412,7 @@ compile_dict = {
 		list_comment("%s", name)
 		emit_short(#name)
 		emit_string(name)
+		mark_used(name)
 	end,
 	['r@'] = function()
 		-- R@ is alias for I
