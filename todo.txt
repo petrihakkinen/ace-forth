@@ -1,3 +1,7 @@
+- relocate_mcode:
+	- skip over interpreted forth (or just force noinline for words containing forth code?)
+	- compiler crashes when compiling demons
+
 - forward gotos could be optimized to branches
 
 - relocate inlined machine code

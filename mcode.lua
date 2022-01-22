@@ -894,8 +894,8 @@ local function z80_decode(code, i)
 	local instr = node
 
 	if immediate then
-		instr = instr:gsub("nn", tostring(immediate))
-		instr = instr:gsub("n", tostring(immediate))
+		instr = instr:gsub("nn", string.format("$%04x", immediate))
+		instr = instr:gsub("n", string.format("$%02x", immediate))
 	end
 
 	if offset then
@@ -960,6 +960,21 @@ local function relocate_mcode(code, list, old_start_addr, new_start_addr)
 		if rel_jumps[opcode] then
 			local jump_to_addr = new_start_addr + s + offset + 1
 			rel_list[s] = rel_jumps[opcode]:gsub("o", string.format("$%04x", jump_to_addr))
+		end
+
+		-- skip over embedded strings
+		if opcode == 0xcd and immediate == compilation_addresses["__print"] then
+			print("skipping over embedded string")
+			local len = code[e] | (code[e + 1] << 8)
+			local str_start = e
+			local str_end = e + len + 2	-- exclusive
+
+			for i = str_start, str_end - 1 do
+				rel_code[i] = code[i]
+				rel_list[i] = list[i]
+			end
+
+			e = str_end
 		end
 
 		i = e
