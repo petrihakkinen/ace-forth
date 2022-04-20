@@ -1,3 +1,12 @@
+- peephole optimize:
+	rst 24	; stk_pop_de
+	rst 16	; stk_push_de
+	ld de,nnnn
+
+	->
+
+	ld de,nnnn
+
 - forward gotos could be optimized to branches
 
 - dead code and inlining optimizations can't distinguish words that have same name

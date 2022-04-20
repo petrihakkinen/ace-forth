@@ -1,3 +1,4 @@
 *.tap
 *.lst
+private
 .DS_Store
